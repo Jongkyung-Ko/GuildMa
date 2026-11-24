@@ -1,0 +1,15 @@
+{
+  "starting_gold": 5000,
+  "starting_reputation": 10,
+  "max_members": 50,
+  "guild_name_default": "라이온하트",
+  "starting_day": 1,
+  "starting_season": "봄",
+  "starting_hour": 8,
+  "starting_minute": 0,
+  "recruit_fee_multiplier": 1.0,
+  "train_exp_gain": 25,
+  "train_gold_cost": 50,
+  "heal_gold_cost": 80,
+  "minutes_per_real_second": 2
+}

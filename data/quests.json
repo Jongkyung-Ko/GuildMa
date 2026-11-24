@@ -1,0 +1,8 @@
+{
+  "quests": [
+    {"id": "q_wolf", "name": "늑대 퇴치", "difficulty": 1, "gold": 300, "reputation": 5, "desc": "마을 근처 늑대를 물리치시오."},
+    {"id": "q_herb", "name": "약초 채집", "difficulty": 1, "gold": 180, "reputation": 3, "desc": "의무실에 필요한 약초를 모아 오시오."},
+    {"id": "q_escort", "name": "상단 호위", "difficulty": 2, "gold": 520, "reputation": 8, "desc": "상단을 안전한 길까지 호위하시오."},
+    {"id": "q_ruins", "name": "폐허 정찰", "difficulty": 3, "gold": 800, "reputation": 12, "desc": "고대 폐허의 위험을 파악하시오."}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "items": [
+    {"id": "sword_basic", "name": "초보자 검", "category": "weapon", "price": 2400, "desc": "모험가들이 흔히 쓰는 기본 검.", "atk": 12, "slot": "weapon"},
+    {"id": "armor_leather", "name": "가죽 갑옷", "category": "armor", "price": 2800, "desc": "가볍고 튼튼한 가죽 방어구.", "def": 8, "slot": "armor"},
+    {"id": "potion_hp_s", "name": "체력 물약(소)", "category": "consumable", "price": 150, "desc": "HP를 조금 회복한다.", "heal": 30, "slot": ""},
+    {"id": "potion_mp_s", "name": "마나 물약(소)", "category": "consumable", "price": 150, "desc": "MP를 조금 회복한다.", "heal_mp": 20, "slot": ""},
+    {"id": "ring_copper", "name": "구리 반지", "category": "accessory", "price": 900, "desc": "초보 모험가용 장신구.", "atk": 2, "slot": "accessory"},
+    {"id": "ore_iron", "name": "철광석", "category": "material", "price": 80, "desc": "대장간에서 쓰이는 기본 재료.", "slot": ""},
+    {"id": "sword_steel", "name": "강철 장검", "category": "weapon", "price": 4800, "desc": "잘 벼려진 강철 검.", "atk": 22, "slot": "weapon"},
+    {"id": "shield_wood", "name": "나무 방패", "category": "armor", "price": 1600, "desc": "기본적인 나무 방패.", "def": 6, "slot": "armor"}
+  ]
+}

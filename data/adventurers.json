@@ -1,0 +1,10 @@
+{
+  "pool": [
+    {"id": "adv_gray", "name": "그레이", "job": "tank", "level": 3, "rarity": "일반", "skills": ["방패 막기"], "traits": ["든든함"], "contract": 400, "upkeep": 40, "str": 8, "vit": 10, "agi": 4, "int": 2, "wis": 3},
+    {"id": "adv_mielle", "name": "미엘", "job": "mage", "level": 4, "rarity": "숙련", "skills": ["화염구"], "traits": ["집중"], "contract": 650, "upkeep": 55, "str": 2, "vit": 4, "agi": 5, "int": 12, "wis": 8},
+    {"id": "adv_rohan", "name": "로한", "job": "dps", "level": 3, "rarity": "일반", "skills": ["연속 베기"], "traits": ["민첩"], "contract": 450, "upkeep": 42, "str": 9, "vit": 5, "agi": 11, "int": 3, "wis": 2},
+    {"id": "adv_elina", "name": "엘리나", "job": "healer", "level": 5, "rarity": "숙련", "skills": ["치유"], "traits": ["자비"], "contract": 700, "upkeep": 60, "str": 3, "vit": 6, "agi": 5, "int": 7, "wis": 12},
+    {"id": "adv_borin", "name": "보린", "job": "tank", "level": 6, "rarity": "특수", "skills": ["도발", "견고함"], "traits": ["드워프의 인내"], "contract": 1100, "upkeep": 90, "str": 10, "vit": 14, "agi": 3, "int": 3, "wis": 4},
+    {"id": "adv_sena", "name": "세나", "job": "dps", "level": 4, "rarity": "일반", "skills": ["급습"], "traits": ["그림자"], "contract": 500, "upkeep": 48, "str": 7, "vit": 4, "agi": 13, "int": 4, "wis": 3}
+  ]
+}
