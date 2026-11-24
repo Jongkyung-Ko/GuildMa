@@ -7,7 +7,7 @@ var _manager: Node = null
 var _status: Label
 var _party_box: VBoxContainer
 var _enemy_box: VBoxContainer
-var _log: Label
+var _log: RichTextLabel
 var _pause_btn: Button
 var _town_btn: Button
 var _auto_label: Label
@@ -27,6 +27,8 @@ func _build() -> void:
 
 	var top := PanelContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top.anchor_left = 0.0
+	top.anchor_right = 1.0
 	top.offset_left = 12
 	top.offset_right = -12
 	top.offset_top = 8
@@ -35,14 +37,15 @@ func _build() -> void:
 	root.add_child(top)
 
 	var top_row := HBoxContainer.new()
-	top_row.add_theme_constant_override("separation", 16)
+	top_row.add_theme_constant_override("separation", 12)
 	top.add_child(top_row)
 
-	_status = UIStyle.label("전투 중", 20, UIStyle.GOLD_BRIGHT)
+	_status = UIStyle.label("전투 중", 18, UIStyle.GOLD_BRIGHT)
 	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status.clip_text = true
 	top_row.add_child(_status)
 
-	_auto_label = UIStyle.label("자동전투", 16, UIStyle.OK)
+	_auto_label = UIStyle.label("자동전투", 15, UIStyle.OK)
 	top_row.add_child(_auto_label)
 
 	_pause_btn = Button.new()
@@ -57,37 +60,64 @@ func _build() -> void:
 	_town_btn.pressed.connect(_on_town)
 	top_row.add_child(_town_btn)
 
+	# Right status panel — fixed width, stays on-screen at 1280x720
 	var right := PanelContainer.new()
-	right.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	right.offset_left = -260
-	right.offset_right = -12
-	right.offset_top = 76
-	right.offset_bottom = -140
+	right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	right.anchor_left = 1.0
+	right.anchor_right = 1.0
+	right.anchor_top = 0.0
+	right.anchor_bottom = 1.0
+	right.offset_left = -268
+	right.offset_right = -10
+	right.offset_top = 72
+	right.offset_bottom = -118
 	right.add_theme_stylebox_override("panel", UIStyle.panel_style())
 	root.add_child(right)
 
+	var right_scroll := ScrollContainer.new()
+	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(right_scroll)
+
 	var right_col := VBoxContainer.new()
-	right_col.add_theme_constant_override("separation", 8)
-	right.add_child(right_col)
-	right_col.add_child(UIStyle.label("파티", 16, UIStyle.GOLD_BRIGHT))
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.add_theme_constant_override("separation", 6)
+	right_scroll.add_child(right_col)
+	right_col.add_child(UIStyle.label("파티", 15, UIStyle.GOLD_BRIGHT))
 	_party_box = VBoxContainer.new()
 	_party_box.add_theme_constant_override("separation", 4)
+	_party_box.custom_minimum_size.x = 220
 	right_col.add_child(_party_box)
-	right_col.add_child(UIStyle.label("적", 16, UIStyle.DANGER))
+	right_col.add_child(UIStyle.label("적", 15, UIStyle.DANGER))
 	_enemy_box = VBoxContainer.new()
 	_enemy_box.add_theme_constant_override("separation", 4)
+	_enemy_box.custom_minimum_size.x = 220
 	right_col.add_child(_enemy_box)
 
+	# Bottom log — keep fully above window bottom
 	var bottom := PanelContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom.anchor_left = 0.0
+	bottom.anchor_right = 1.0
+	bottom.anchor_top = 1.0
+	bottom.anchor_bottom = 1.0
 	bottom.offset_left = 12
-	bottom.offset_right = -280
-	bottom.offset_top = -128
-	bottom.offset_bottom = -12
+	bottom.offset_right = -278
+	bottom.offset_top = -110
+	bottom.offset_bottom = -10
 	bottom.add_theme_stylebox_override("panel", UIStyle.panel_style())
 	root.add_child(bottom)
-	_log = UIStyle.label("", 13, UIStyle.TEXT_DIM)
-	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	_log = RichTextLabel.new()
+	_log.fit_content = false
+	_log.scroll_active = true
+	_log.scroll_following = true
+	_log.bbcode_enabled = false
+	_log.custom_minimum_size = Vector2(0, 70)
+	_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_log.add_theme_font_size_override("normal_font_size", 13)
+	_log.add_theme_color_override("default_color", UIStyle.TEXT_DIM)
 	bottom.add_child(_log)
 
 
@@ -117,7 +147,8 @@ func refresh() -> void:
 
 	_fill_list(_party_box, _manager.get_allies(), true)
 	_fill_list(_enemy_box, _manager.get_enemies(), false)
-	_log.text = _manager.get_log_text()
+	if _log:
+		_log.text = _manager.get_log_text()
 
 
 func _fill_list(box: VBoxContainer, units: Array, is_ally: bool) -> void:
@@ -130,25 +161,32 @@ func _fill_list(box: VBoxContainer, units: Array, is_ally: bool) -> void:
 			continue
 		var dead: bool = bool(u.is_dead)
 		var dname: String = str(u.display_name)
+		if not is_ally and dead:
+			dname += " (처치)"
+		elif is_ally and dead:
+			dname += " (불능)"
+
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 1)
+		var name_l := UIStyle.label(dname, 12, UIStyle.TEXT if not dead else UIStyle.TEXT_DIM)
+		name_l.clip_text = true
+		col.add_child(name_l)
+
 		var row := HBoxContainer.new()
-		var name_l := UIStyle.label(dname, 13, UIStyle.TEXT if not dead else UIStyle.TEXT_DIM)
-		name_l.custom_minimum_size.x = 72
-		row.add_child(name_l)
+		row.add_theme_constant_override("separation", 6)
 		var bar := ProgressBar.new()
 		bar.min_value = 0
 		bar.max_value = float(u.hp_max)
 		bar.value = float(u.hp)
 		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(100, 14)
+		bar.custom_minimum_size = Vector2(120, 12)
 		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(bar)
-		var hp_l := UIStyle.label("%d/%d" % [int(u.hp), int(u.hp_max)], 12, UIStyle.TEXT_DIM)
+		var hp_l := UIStyle.label("%d/%d" % [int(u.hp), int(u.hp_max)], 11, UIStyle.TEXT_DIM)
+		hp_l.custom_minimum_size.x = 64
 		row.add_child(hp_l)
-		if not is_ally and dead:
-			name_l.text = dname + " (처치)"
-		elif is_ally and dead:
-			name_l.text = dname + " (불능)"
-		box.add_child(row)
+		col.add_child(row)
+		box.add_child(col)
 
 
 func _on_pause() -> void:

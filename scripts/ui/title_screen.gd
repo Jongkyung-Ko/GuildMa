@@ -22,9 +22,15 @@ func _build() -> void:
 	add_child(dim)
 
 	var center := VBoxContainer.new()
-	center.set_anchors_preset(PRESET_CENTER)
-	center.position = Vector2(440, 120)
-	center.custom_minimum_size = Vector2(400, 480)
+	# Keep menu on-screen at 1280x720 and when the window is maximized.
+	center.anchor_left = 0.5
+	center.anchor_right = 0.5
+	center.anchor_top = 0.5
+	center.anchor_bottom = 0.5
+	center.offset_left = -200
+	center.offset_right = 200
+	center.offset_top = -240
+	center.offset_bottom = 240
 	center.add_theme_constant_override("separation", 14)
 	add_child(center)
 

@@ -1,0 +1,11 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+=== GuildMaster combat Phase 2-1 smoke ===
+OK party size 5
+OK spawned allies=5 enemies=2
+... tick 120 enemy_hp=120 phase=fighting
+... tick 240 enemy_hp=25.58 phase=fighting
+OK victory after frames=255
+OK damage applied
+OK combat ended in victory
+=== COMBAT RESULT: PASS ===

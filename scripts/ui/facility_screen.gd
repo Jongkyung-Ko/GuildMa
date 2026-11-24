@@ -79,13 +79,21 @@ func _build_shell() -> void:
 		b.pressed.connect(_make_nav_cb(fid))
 		nav_box.add_child(b)
 
-	# Main area
+	# Main area — anchor to viewport so right-edge content stays visible
 	var main := UIStyle.make_panel()
-	main.position = Vector2(200, 76)
-	main.custom_minimum_size = Vector2(1060, 560)
+	main.anchor_left = 0.0
+	main.anchor_right = 1.0
+	main.anchor_top = 0.0
+	main.anchor_bottom = 1.0
+	main.offset_left = 200
+	main.offset_right = -8
+	main.offset_top = 76
+	main.offset_bottom = -40
 	add_child(main)
 	var main_box := HBoxContainer.new()
 	main_box.add_theme_constant_override("separation", 12)
+	main_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main.add_child(main_box)
 
 	var left_visual := VBoxContainer.new()
@@ -441,29 +449,42 @@ func _build_quest() -> void:
 
 func _build_gate() -> void:
 	_content.add_child(UIStyle.label("사냥터 이동", 20, UIStyle.GOLD_BRIGHT))
-	_content.add_child(UIStyle.label(
-		"Phase 2-1: 전투 시험 출정이 가능합니다. 전용 사냥터 선택(HuntSelect)은 후속 Phase에서 연결합니다.",
-		14, UIStyle.TEXT_DIM
-	))
+	var hint := UIStyle.label(
+		"Phase 2-1: 전투 시험 출정 가능. HuntSelect는 후속 Phase.",
+		13, UIStyle.TEXT_DIM
+	)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(420, 0)
+	_content.add_child(hint)
+
 	var test_row := HBoxContainer.new()
-	test_row.add_child(UIStyle.label("전투 시험 출정 (자동전투 프로토타입)", 15, UIStyle.GOLD_BRIGHT))
+	test_row.add_theme_constant_override("separation", 10)
+	var test_lbl := UIStyle.label("전투 시험 출정", 15, UIStyle.GOLD_BRIGHT)
+	test_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	test_row.add_child(test_lbl)
 	var test_btn := Button.new()
 	test_btn.text = "출정"
+	test_btn.custom_minimum_size = Vector2(80, 0)
 	UIStyle.apply_button(test_btn)
 	test_btn.pressed.connect(func(): SceneRouter.go_combat("phase_2_1_test"))
 	test_row.add_child(test_btn)
 	_content.add_child(test_row)
 
-	_content.add_child(UIStyle.label("예정 사냥터 (HuntSelect 이전 안내)", 16, UIStyle.TEXT))
+	_content.add_child(UIStyle.label("예정 사냥터 (안내)", 15, UIStyle.TEXT))
 	for area in [
-		{"name": "바람의 숲", "rec": "추천 Lv.1–5"},
-		{"name": "푸른 초원", "rec": "추천 Lv.3–8"},
-		{"name": "고대 폐허 입구", "rec": "추천 Lv.8+ (잠금 예정)"},
+		{"name": "바람의 숲", "rec": "Lv.1–5"},
+		{"name": "푸른 초원", "rec": "Lv.3–8"},
+		{"name": "고대 폐허", "rec": "Lv.8+ 잠금"},
 	]:
 		var row := HBoxContainer.new()
-		row.add_child(UIStyle.label("%s  — %s" % [area["name"], area["rec"]], 15))
+		row.add_theme_constant_override("separation", 8)
+		var al := UIStyle.label("%s (%s)" % [area["name"], area["rec"]], 14)
+		al.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		al.clip_text = true
+		row.add_child(al)
 		var go := Button.new()
 		go.text = "이동"
+		go.custom_minimum_size = Vector2(72, 0)
 		UIStyle.apply_button(go)
 		var n := str(area["name"])
 		go.pressed.connect(func():

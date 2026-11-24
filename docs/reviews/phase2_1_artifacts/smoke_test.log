@@ -1,0 +1,11 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+=== GuildMaster smoke test ===
+OK starting party: 5
+OK shop purchase / gold
+OK recruit + duplicate block
+OK training
+OK infirmary heal
+OK quest accept
+OK save/load
+=== RESULT: PASS ===
