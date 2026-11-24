@@ -4,6 +4,7 @@ const TITLE := "res://scenes/title/title.tscn"
 const TOWN := "res://scenes/town/town.tscn"
 const SETTINGS := "res://scenes/title/settings.tscn"
 const FACILITY := "res://scenes/facilities/facility.tscn"
+const COMBAT := "res://scenes/combat/combat.tscn"
 
 var current_facility: String = ""
 
@@ -28,3 +29,10 @@ func go_facility(facility_id: String) -> void:
 	current_facility = facility_id
 	get_tree().root.set_meta("facility_id", facility_id)
 	get_tree().change_scene_to_file(FACILITY)
+
+
+## Phase 2-1: enter combat prototype directly (HuntSelect comes in a later phase).
+func go_combat(_hunt_id: String = "phase_2_1_test") -> void:
+	current_facility = ""
+	get_tree().root.set_meta("combat_hunt_id", _hunt_id)
+	get_tree().change_scene_to_file(COMBAT)

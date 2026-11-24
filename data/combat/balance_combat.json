@@ -1,0 +1,22 @@
+{
+  "hp_base": 80,
+  "hp_vit": 12,
+  "hp_level": 8,
+  "hp_lord_bonus": 20,
+  "atk_base": 5,
+  "atk_str": 2,
+  "atk_level": 1,
+  "def_base": 2,
+  "def_vit": 1,
+  "def_level_div": 2,
+  "move_base": 80,
+  "move_agi": 2,
+  "move_cap": 160,
+  "aspd_base": 1.0,
+  "aspd_agi": 0.02,
+  "aspd_cap": 2.0,
+  "def_mitigation": 0.5,
+  "min_damage": 1,
+  "ally_attack_range": 36,
+  "enemy_count_phase_2_1": 2
+}

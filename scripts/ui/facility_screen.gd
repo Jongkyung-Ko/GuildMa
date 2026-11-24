@@ -441,7 +441,20 @@ func _build_quest() -> void:
 
 func _build_gate() -> void:
 	_content.add_child(UIStyle.label("사냥터 이동", 20, UIStyle.GOLD_BRIGHT))
-	_content.add_child(UIStyle.label("전투 시스템은 다음 단계에서 구현합니다. 지금은 이동 메뉴와 화면 전환만 제공합니다.", 14, UIStyle.TEXT_DIM))
+	_content.add_child(UIStyle.label(
+		"Phase 2-1: 전투 시험 출정이 가능합니다. 전용 사냥터 선택(HuntSelect)은 후속 Phase에서 연결합니다.",
+		14, UIStyle.TEXT_DIM
+	))
+	var test_row := HBoxContainer.new()
+	test_row.add_child(UIStyle.label("전투 시험 출정 (자동전투 프로토타입)", 15, UIStyle.GOLD_BRIGHT))
+	var test_btn := Button.new()
+	test_btn.text = "출정"
+	UIStyle.apply_button(test_btn)
+	test_btn.pressed.connect(func(): SceneRouter.go_combat("phase_2_1_test"))
+	test_row.add_child(test_btn)
+	_content.add_child(test_row)
+
+	_content.add_child(UIStyle.label("예정 사냥터 (HuntSelect 이전 안내)", 16, UIStyle.TEXT))
 	for area in [
 		{"name": "바람의 숲", "rec": "추천 Lv.1–5"},
 		{"name": "푸른 초원", "rec": "추천 Lv.3–8"},
@@ -454,7 +467,7 @@ func _build_gate() -> void:
 		UIStyle.apply_button(go)
 		var n := str(area["name"])
 		go.pressed.connect(func():
-			GameState.emit_message("%s 로 향하는 길은 열렸습니다. (전투는 추후 구현)" % n)
+			GameState.emit_message("%s 는 HuntSelect 연동 후 이용할 수 있습니다." % n)
 		)
 		row.add_child(go)
 		_content.add_child(row)

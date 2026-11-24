@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3 uid="uid://guildma_combat_phase21"]
+
+[ext_resource type="Script" path="res://scripts/combat/combat_manager.gd" id="1_manager"]
+[ext_resource type="Script" path="res://scripts/combat/combat_ui.gd" id="2_ui"]
+
+[node name="Combat" type="Node2D"]
+script = ExtResource("1_manager")
+
+[node name="Battlefield" type="Node2D" parent="."]
+
+[node name="Allies" type="Node2D" parent="Battlefield"]
+
+[node name="Enemies" type="Node2D" parent="Battlefield"]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+script = ExtResource("2_ui")
