@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GuildMaster Phase 2-1 Emulator</title>
+  <style>
+    :root {
+      --bg: #0e1118;
+      --panel: #1c2233;
+      --gold: #d4ae52;
+      --gold2: #ffe08a;
+      --text: #f2eee2;
+      --dim: #9a958a;
+      --ok: #73d980;
+      --danger: #e65a5a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 20% -10%, #24314a 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #2a2418 0%, transparent 50%),
+        var(--bg);
+    }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 6px; color: var(--gold2); font-size: 1.8rem; letter-spacing: 0.02em; }
+    .sub { color: var(--dim); margin-bottom: 20px; line-height: 1.5; }
+    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+    @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: color-mix(in srgb, var(--panel) 92%, black);
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .steps { display: flex; flex-direction: column; gap: 8px; }
+    .step {
+      text-align: left;
+      background: #161b28;
+      color: var(--text);
+      border: 1px solid #3a3322;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    .step:hover { border-color: var(--gold); }
+    .step.active {
+      background: #2a2414;
+      border-color: var(--gold2);
+      color: var(--gold2);
+    }
+    .screen {
+      position: relative;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+    }
+    .screen img, .screen video {
+      width: 100%;
+      height: auto;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .hud {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      margin-top: 12px;
+    }
+    button.action {
+      background: #332714;
+      color: var(--text);
+      border: 2px solid var(--gold);
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.action:hover { background: #4a3818; border-color: var(--gold2); }
+    button.action:disabled { opacity: .45; cursor: not-allowed; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--gold);
+      color: var(--gold2);
+      font-size: 0.8rem;
+    }
+    .note {
+      margin-top: 14px;
+      color: var(--dim);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .ok { color: var(--ok); }
+    .caption { margin-top: 8px; color: var(--text); font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>GuildMaster · Phase 2-1 Emulator</h1>
+    <p class="sub">
+      실제 Godot 실행 캡처로 마을 → Gate → 자동전투 흐름을 확인하는 브라우저 뷰어입니다.
+      (풀 WASM 빌드는 보안 스캐너 오탐으로 Cursor 호스팅 배포가 막혀, 검증 화면 기반 에뮬레이터를 제공합니다.)
+    </p>
+
+    <div class="layout">
+      <aside class="panel">
+        <div class="badge">자동전투 · WASD 없음</div>
+        <div class="steps" id="steps" style="margin-top:12px"></div>
+        <p class="note">
+          우측 화면을 보면서 <b>다음</b>을 누르거나 왼쪽 단계를 클릭하세요.
+          전투 단계는 실제 GUI 녹화도 재생됩니다.
+        </p>
+      </aside>
+
+      <main class="panel">
+        <div class="screen" id="screen"></div>
+        <p class="caption" id="caption"></p>
+        <div class="hud">
+          <button class="action" id="prev">이전</button>
+          <button class="action" id="next">다음</button>
+          <button class="action" id="playCombat">전투 영상 재생</button>
+          <span class="badge" id="status">1 / 6</span>
+        </div>
+        <p class="note" id="howto"></p>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const STEPS = [
+      {
+        id: "title",
+        title: "1. 타이틀",
+        media: { type: "img", src: "media/01_title.png" },
+        caption: "타이틀 — 새 게임으로 시작합니다.",
+        howto: "실제 게임: 새 게임 클릭 → 마을 진입."
+      },
+      {
+        id: "town",
+        title: "2. 길드 마을",
+        media: { type: "img", src: "media/02_town.png" },
+        caption: "Town 허브 — 기존 시설 핫스팟 유지.",
+        howto: "실제 게임: 우측 하단 사냥터 출구(Gate) 건물을 클릭."
+      },
+      {
+        id: "gate",
+        title: "3. Gate · 출정",
+        media: { type: "img", src: "media/03_facility_gate.png" },
+        caption: "시설 Gate — Phase 2-1 전투 시험 출정 버튼.",
+        howto: "실제 게임: ‘출정’ 클릭. HuntSelect는 후속 Phase."
+      },
+      {
+        id: "combat_start",
+        title: "4. 전투 시작",
+        media: { type: "img", src: "media/04_combat_start.png" },
+        caption: "5인 파티 + 늑대 2마리 스폰. 자동전투 ON.",
+        howto: "WASD/패드 없음. 캐릭터가 자동으로 접근·공격합니다."
+      },
+      {
+        id: "combat_mid",
+        title: "5. 전투 진행",
+        media: { type: "img", src: "media/05_combat_mid_90f.png" },
+        caption: "적 HP 감소·로그 갱신 중.",
+        howto: "Esc로 일시정지 가능(스크립트 검증됨)."
+      },
+      {
+        id: "combat_end",
+        title: "6. 승리 · 종료",
+        media: { type: "img", src: "media/06_combat_end.png" },
+        caption: "승리 표시 · 늑대 (처치) · 보상은 후속 Phase.",
+        howto: "‘마을로’로 Town 복귀. Phase 2-1 범위 완료."
+      }
+    ];
+
+    let idx = 0;
+    const stepsEl = document.getElementById("steps");
+    const screen = document.getElementById("screen");
+    const caption = document.getElementById("caption");
+    const howto = document.getElementById("howto");
+    const status = document.getElementById("status");
+
+    function renderSteps() {
+      stepsEl.innerHTML = "";
+      STEPS.forEach((s, i) => {
+        const b = document.createElement("button");
+        b.className = "step" + (i === idx ? " active" : "");
+        b.textContent = s.title;
+        b.onclick = () => { idx = i; render(); };
+        stepsEl.appendChild(b);
+      });
+    }
+
+    function render() {
+      const s = STEPS[idx];
+      screen.innerHTML = "";
+      if (s.media.type === "img") {
+        const img = document.createElement("img");
+        img.src = s.media.src;
+        img.alt = s.title;
+        screen.appendChild(img);
+      } else {
+        const v = document.createElement("video");
+        v.src = s.media.src;
+        v.controls = true;
+        v.autoplay = true;
+        v.playsInline = true;
+        screen.appendChild(v);
+      }
+      caption.textContent = s.caption;
+      howto.innerHTML = s.howto;
+      status.textContent = `${idx + 1} / ${STEPS.length}`;
+      renderSteps();
+      document.getElementById("prev").disabled = idx === 0;
+      document.getElementById("next").disabled = idx === STEPS.length - 1;
+    }
+
+    document.getElementById("prev").onclick = () => { if (idx > 0) { idx--; render(); } };
+    document.getElementById("next").onclick = () => { if (idx < STEPS.length - 1) { idx++; render(); } };
+    document.getElementById("playCombat").onclick = () => {
+      screen.innerHTML = "";
+      const v = document.createElement("video");
+      v.src = "media/combat_small.webm";
+      v.controls = true;
+      v.autoplay = true;
+      v.playsInline = true;
+      screen.appendChild(v);
+      caption.textContent = "실제 GUI 전투 녹화 (출정 → 자동전투 → 승리).";
+      howto.textContent = "영상은 데스크톱 Godot 실행을 캡처한 것입니다.";
+      status.textContent = "VIDEO";
+    };
+
+    render();
+  </script>
+</body>
+</html>
