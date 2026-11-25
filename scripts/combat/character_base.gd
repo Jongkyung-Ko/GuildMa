@@ -145,6 +145,7 @@ func _build_visuals() -> void:
 	_name_label.add_theme_font_size_override("font_size", 11)
 	_name_label.add_theme_color_override("font_color", Color(0.95, 0.93, 0.88))
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UIStyle.apply_font(_name_label, 11)
 	add_child(_name_label)
 
 	_refresh_visuals()

@@ -118,6 +118,7 @@ func _build() -> void:
 	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_log.add_theme_font_size_override("normal_font_size", 13)
 	_log.add_theme_color_override("default_color", UIStyle.TEXT_DIM)
+	UIStyle.apply_font(_log, 13)
 	bottom.add_child(_log)
 
 
