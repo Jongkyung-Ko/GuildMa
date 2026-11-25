@@ -1,0 +1,94 @@
+# GuildMa — real Godot 4.3 HTML5 → GitHub Pages (NOT emulator/)
+# Steam / Windows desktop export is intentionally out of scope.
+name: web-preview
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-web-preview
+  cancel-in-progress: true
+
+jobs:
+  export:
+    name: Export & validate Web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot 4.3.stable + export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          include-templates: true
+          use-dotnet: false
+
+      - name: Import project assets
+        run: |
+          set -euo pipefail
+          godot --headless --path . --import
+        # Import may exit non-zero on first pass in some setups; re-run once if needed
+        continue-on-error: true
+
+      - name: Export Web to build/web (leave repo web/ untouched)
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          # CLI path overrides export_presets.cfg export_path; uses existing preset name "Web"
+          # Preset: nothreads (no COOP/COEP), GL Compatibility project settings
+          godot --headless --path . --export-release "Web" build/web/index.html
+
+      - name: Validate HTML / WASM / PCK / JS
+        run: |
+          set -euo pipefail
+          ROOT=build/web
+          echo "=== listing $ROOT ==="
+          ls -lah "$ROOT"
+
+          test -s "$ROOT/index.html"
+          test -s "$ROOT/index.wasm"
+          test -s "$ROOT/index.pck"
+          test -s "$ROOT/index.js"
+
+          python3 <<'PY'
+          from pathlib import Path
+          root = Path("build/web")
+          wasm = (root / "index.wasm").read_bytes()
+          if wasm[:4] != b"\0asm":
+              raise SystemExit(f"FAIL: bad WASM magic {wasm[:4]!r}")
+          html = (root / "index.html").read_text(encoding="utf-8", errors="replace")
+          # Relative asset refs work under project Pages subpath (/GuildMa/)
+          needed = ["index.js", "index.wasm", "index.pck"]
+          missing = [n for n in needed if n not in html]
+          if missing:
+              raise SystemExit(f"FAIL: index.html missing refs {missing}")
+          # Sanity: must look like Godot web shell, not emulator slideshow
+          if "GuildMaster Phase 2-1 Emulator" in html:
+              raise SystemExit("FAIL: emulator HTML detected — wrong artifact")
+          print("OK: wasm magic + html refs + not emulator")
+          PY
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: export
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
