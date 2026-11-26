@@ -38,11 +38,24 @@ func go_facility(facility_id: String) -> void:
 	get_tree().change_scene_to_file(FACILITY)
 
 
-## Phase 2-1: enter combat prototype directly (HuntSelect comes in a later phase).
-## Hunting-ground exploration (N/S/E/W) is separate — do not overload this path.
+## Legacy / test combat (no maze). Hunting maze uses go_hunt().
 func go_combat(_hunt_id: String = "phase_2_1_test") -> void:
 	current_facility = ""
 	get_tree().root.set_meta("combat_hunt_id", _hunt_id)
+	get_tree().root.set_meta("hunt_id", "")
+	get_tree().root.set_meta("dungeon_id", "")
+	get_tree().root.set_meta("dungeon_floor", 0)
+	if AudioManager:
+		AudioManager.on_enter_combat()
+	get_tree().change_scene_to_file(COMBAT)
+
+
+## Hunting-ground maze expedition (node graph). Separate from dungeon floors.
+func go_hunt(hunt_id: String = "beginner_forest", force_new: bool = false) -> void:
+	current_facility = ""
+	get_tree().root.set_meta("hunt_id", hunt_id)
+	get_tree().root.set_meta("hunt_force_new", force_new)
+	get_tree().root.set_meta("combat_hunt_id", hunt_id)
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
 	if AudioManager:
@@ -67,6 +80,7 @@ func go_dungeon_combat(dungeon_id: String, floor: int) -> void:
 	current_facility = ""
 	get_tree().root.set_meta("dungeon_id", dungeon_id)
 	get_tree().root.set_meta("dungeon_floor", floor)
+	get_tree().root.set_meta("hunt_id", "")
 	get_tree().root.set_meta("combat_hunt_id", "dungeon_%s_f%d" % [dungeon_id, floor])
 	if AudioManager:
 		AudioManager.on_enter_combat()

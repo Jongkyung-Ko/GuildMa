@@ -448,14 +448,41 @@ func _build_quest() -> void:
 
 
 func _build_gate() -> void:
-	_content.add_child(UIStyle.label("사냥터 이동", 20, UIStyle.GOLD_BRIGHT))
+	_content.add_child(UIStyle.label("사냥터 · 던전", 20, UIStyle.GOLD_BRIGHT))
 	var hint := UIStyle.label(
-		"사냥터 N/S/E/W 탐사는 후속. 던전은 층 하강만 지원합니다.",
+		"일반 사냥터는 미로형 연결 통로로만 이동합니다. 던전은 층 하강 방식입니다.",
 		13, UIStyle.TEXT_DIM
 	)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(420, 0)
 	_content.add_child(hint)
+
+	_content.add_child(UIStyle.label("일반 사냥터 (미로 탐험)", 15, UIStyle.GOLD_BRIGHT))
+	for h in GameState.list_hunts():
+		var hid := str(h.get("id", ""))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var al := UIStyle.label(
+			"%s (Lv.%d–%d)" % [str(h.get("name")), int(h.get("rec_level", 1)), int(h.get("rec_level_max", 1))],
+			14
+		)
+		al.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		al.clip_text = true
+		row.add_child(al)
+		var go := Button.new()
+		go.text = "출정"
+		go.custom_minimum_size = Vector2(72, 0)
+		UIStyle.apply_button(go)
+		var id_copy := hid
+		go.pressed.connect(func(): SceneRouter.go_hunt(id_copy, false))
+		row.add_child(go)
+		var anew := Button.new()
+		anew.text = "새 맵"
+		anew.custom_minimum_size = Vector2(72, 0)
+		UIStyle.apply_button(anew)
+		anew.pressed.connect(func(): SceneRouter.go_hunt(id_copy, true))
+		row.add_child(anew)
+		_content.add_child(row)
 
 	_content.add_child(UIStyle.label("던전 (수직 하강)", 15, UIStyle.GOLD_BRIGHT))
 	var dun_row := HBoxContainer.new()
@@ -473,7 +500,7 @@ func _build_gate() -> void:
 
 	var test_row := HBoxContainer.new()
 	test_row.add_theme_constant_override("separation", 10)
-	var test_lbl := UIStyle.label("전투 시험 출정", 15, UIStyle.GOLD_BRIGHT)
+	var test_lbl := UIStyle.label("전투 시험 (미로 없음)", 15, UIStyle.TEXT_DIM)
 	test_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	test_row.add_child(test_lbl)
 	var test_btn := Button.new()
@@ -484,28 +511,6 @@ func _build_gate() -> void:
 	test_row.add_child(test_btn)
 	_content.add_child(test_row)
 
-	_content.add_child(UIStyle.label("예정 사냥터 (안내)", 15, UIStyle.TEXT))
-	for area in [
-		{"name": "바람의 숲", "rec": "Lv.1–5"},
-		{"name": "푸른 초원", "rec": "Lv.3–8"},
-		{"name": "고대 폐허", "rec": "Lv.8+ 잠금"},
-	]:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var al := UIStyle.label("%s (%s)" % [area["name"], area["rec"]], 14)
-		al.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		al.clip_text = true
-		row.add_child(al)
-		var go := Button.new()
-		go.text = "이동"
-		go.custom_minimum_size = Vector2(72, 0)
-		UIStyle.apply_button(go)
-		var n := str(area["name"])
-		go.pressed.connect(func():
-			GameState.emit_message("%s 는 HuntSelect 연동 후 이용할 수 있습니다." % n)
-		)
-		row.add_child(go)
-		_content.add_child(row)
 	var back := Button.new()
 	back.text = "마을로 돌아가기"
 	UIStyle.apply_button(back)

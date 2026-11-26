@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "hunts": [
+    {
+      "id": "beginner_forest",
+      "name": "초보자의 숲",
+      "region": "푸른 숲길",
+      "blurb": "갈림길이 많은 초보 사냥터. 연결된 통로로만 이동한다.",
+      "rec_level": 1,
+      "rec_level_max": 5,
+      "grid": [5, 5],
+      "room_count": 14,
+      "loop_edges": 3,
+      "seed": 42,
+      "monster_pool": ["wolf", "slime", "goblin"],
+      "elite_pool": ["wolf", "goblin"],
+      "boss_enemy": "wolf",
+      "room_names": {
+        "start": "숲 입구",
+        "normal": ["동쪽 숲길", "서쪽 덤불", "이끼 계곡", "고목 광장", "개울가", "안개 오솔길", "버섯 군락", "쓰러진 다리"],
+        "elite": ["포식자의 굴", "가시 덤불"],
+        "treasure": ["숨겨진 공터", "낡은 보물 상자터"],
+        "boss": "숲의 심처"
+      }
+    },
+    {
+      "id": "blue_meadow",
+      "name": "푸른 초원",
+      "region": "초원 지대",
+      "blurb": "넓은 초원 미로. 막다른 길과 합류 지점이 섞여 있다.",
+      "rec_level": 3,
+      "rec_level_max": 8,
+      "grid": [5, 5],
+      "room_count": 15,
+      "loop_edges": 4,
+      "seed": 77,
+      "monster_pool": ["slime", "wolf", "goblin"],
+      "elite_pool": ["goblin", "wolf"],
+      "boss_enemy": "goblin",
+      "room_names": {
+        "start": "초원 입구",
+        "normal": ["바람 언덕", "꽃밭 오솔길", "돌담 길", "연못가", "건초 언덕", "울타리 안", "개척로", "목초지"],
+        "elite": ["늑대 무리 터", "도적 야영지"],
+        "treasure": ["버려진 마차", "비밀 오아시스"],
+        "boss": "초원 군락 중심"
+      }
+    }
+  ]
+}
