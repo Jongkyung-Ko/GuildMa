@@ -1,0 +1,50 @@
+=== PR11 AUDIO RUNTIME CAPTURE ===
+Godot: 4.3-stable (official)
+DisplayServer: X11
+Video: []
+Timezone note: machine UTC; report times in Asia/Seoul
+SNAP[title] key=title mode=none path=res://assets/audio/music/sovereign_of_the_keep.mp3 stream=AudioStreamMP3 playing=true paused=false switching=false unlocked=true players=1 amb=false/null
+SHOT: 01_title_sovereign.png (1280x720)
+PASS: title key == title
+PASS: title path Sovereign MP3
+PASS: title stream AudioStreamMP3
+PASS: title BGM playing=true
+PASS: single BGM player on title
+SNAP[town] key=town mode=none path=res://assets/audio/music/morning_dew_on_stone.mp3 stream=AudioStreamMP3 playing=true paused=false switching=false unlocked=true players=1 amb=false/null
+SHOT: 02_town_morning_dew.png (1280x720)
+PASS: town key == town
+PASS: town path Morning Dew MP3
+PASS: town stream AudioStreamMP3
+PASS: town BGM playing=true
+PASS: town combat mode cleared
+SNAP[f1_normal] key=combat_hunting mode=playlist path=res://assets/audio/bgm/02_hunting_grounds_rock.ogg stream=AudioStreamOggVorbis playing=true paused=false switching=false unlocked=true players=1 amb=false/AudioStreamWAV
+SHOT: 03_combat_f1_playlist.png (1280x720)
+PASS: F1 playlist mode + OGG track key
+PASS: F1 stream path is OGG
+PASS: F1 AudioStreamOggVorbis
+PASS: F1 BGM playing=true
+SNAP[f1_playlist_advance] key=combat_epic mode=playlist path=res://assets/audio/bgm/03_combat_epic_rock.ogg stream=AudioStreamOggVorbis playing=true paused=false switching=false unlocked=true players=1 amb=false/AudioStreamWAV
+PASS: playlist advanced to different track (no stuck single loop)
+PASS: advance stayed in playlist set
+SNAP[f5_mid] key=combat_heroic mode=mid path=res://assets/audio/bgm/05_combat_heroic_anthem.ogg stream=AudioStreamOggVorbis playing=true paused=false switching=false unlocked=true players=1 amb=false/AudioStreamWAV
+SHOT: 04_combat_f5_heroic.png (1280x720)
+PASS: F5 → mid / combat_heroic
+PASS: F5 path heroic OGG
+PASS: F5 BGM playing=true
+SNAP[f10_final] key=combat_boss mode=final path=res://assets/audio/bgm/06_combat_boss_intensity.ogg stream=AudioStreamOggVorbis playing=true paused=false switching=false unlocked=true players=1 amb=false/AudioStreamWAV
+SHOT: 05_combat_f10_boss.png (1280x720)
+PASS: F10 → final / combat_boss
+PASS: F10 path boss OGG
+PASS: F10 BGM playing=true
+SNAP[town_after_combat] key=town mode=none path=res://assets/audio/music/morning_dew_on_stone.mp3 stream=AudioStreamMP3 playing=true paused=false switching=false unlocked=true players=1 amb=false/AudioStreamWAV
+SHOT: 06_town_after_combat.png (1280x720)
+PASS: town restored after combat
+PASS: town restore Morning Dew
+PASS: combat mode cleared on town return
+PASS: town BGM playing after return
+PASS: combat ambience stopped on town
+PASS: still single BGM player after all transitions
+PASS: _switching cleared after town return
+NOTE: Ear / audible listening is NOT claimed PASS in this automation environment.
+NOTE: Results above certify stream selection, class, playing flag, and single-player invariants.
+=== SUMMARY pass=29 fail=0 ===
