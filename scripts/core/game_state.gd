@@ -527,21 +527,32 @@ func get_active_hunt_map() -> Dictionary:
 
 
 func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
+	## force_new=true ("새 맵"): replace run with a fresh random-seed maze.
+	## force_new=false + existing map: resume — never regenerate mid-run.
+	## force_new=false + no map: first expedition — fresh seed.
 	var def := get_hunt_def(hunt_id)
 	if def.is_empty():
 		emit_message("사냥터 정보를 찾을 수 없습니다.", true)
 		return {}
 	active_hunt_id = hunt_id
 	var prog: Dictionary = hunt_progress.get(hunt_id, {}) if typeof(hunt_progress.get(hunt_id, null)) == TYPE_DICTIONARY else {}
-	if force_new or not prog.has("map") or typeof(prog.get("map")) != TYPE_DICTIONARY:
-		var map: Dictionary = MazeGenerator.generate(def)
-		prog = {"map": map, "runs": int(prog.get("runs", 0)) + 1}
+	var has_map := prog.has("map") and typeof(prog.get("map")) == TYPE_DICTIONARY and not (prog.get("map") as Dictionary).is_empty()
+	if force_new or not has_map:
+		var seed_v: int = MazeGenerator.fresh_seed()
+		var map: Dictionary = MazeGenerator.generate(def, seed_v)
+		prog = {
+			"map": map,
+			"seed": seed_v,
+			"runs": int(prog.get("runs", 0)) + 1,
+			## Hunt maze goal boss only — never touches dungeon mid/final flags.
+			"goal_boss_cleared": false,
+		}
 		hunt_progress[hunt_id] = prog
 		save_game()
 		state_changed.emit()
-		emit_message("%s 탐험을 시작합니다." % str(def.get("name", hunt_id)))
+		emit_message("%s 탐험을 시작합니다. (seed %d)" % [str(def.get("name", hunt_id)), seed_v])
 		return map
-	# Resume existing map
+	# Resume existing map — keep seed + room layout as saved.
 	emit_message("%s 탐험을 이어갑니다." % str(def.get("name", hunt_id)))
 	state_changed.emit()
 	return prog.get("map", {})
@@ -579,8 +590,19 @@ func mark_hunt_room_cleared(room_id: String = "") -> void:
 	rooms[rid]["cleared"] = true
 	rooms[rid]["discovered"] = true
 	MazeGenerator._discover_adjacent(map, rid)
+	# Maze goal boss clear stays on hunt_progress only (not dungeon_progress).
+	var kind := str(rooms[rid].get("boss_kind", ""))
+	if bool(rooms[rid].get("boss_flag", false)) or kind == MazeGenerator.BOSS_KIND_HUNT_GOAL:
+		var prog: Dictionary = hunt_progress.get(active_hunt_id, {})
+		if typeof(prog) != TYPE_DICTIONARY:
+			prog = {}
+		prog["goal_boss_cleared"] = true
+		prog["map"] = map
+		hunt_progress[active_hunt_id] = prog
+		emit_message("%s 클리어 (미로 목표 보스)" % str(rooms[rid].get("name", rid)))
+	else:
+		emit_message("%s 클리어" % str(rooms[rid].get("name", rid)))
 	_store_active_map(map)
-	emit_message("%s 클리어" % str(rooms[rid].get("name", rid)))
 
 
 func hunt_connected_room_ids(room_id: String = "") -> Array:

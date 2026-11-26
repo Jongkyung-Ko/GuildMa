@@ -266,8 +266,8 @@ func _refresh_detail() -> void:
 		mparts.append(str(m))
 	var mtxt := ", ".join(mparts) if mparts.size() > 0 else "—"
 	_detail.add_child(UIStyle.label("출현 몬스터: %s" % mtxt, 13, UIStyle.TEXT_DIM))
-	if bool(r.get("boss_flag", false)):
-		_detail.add_child(UIStyle.label("보스 방", 13, UIStyle.DANGER))
+	if bool(r.get("boss_flag", false)) or str(r.get("boss_kind", "")) == MazeGenerator.BOSS_KIND_HUNT_GOAL:
+		_detail.add_child(UIStyle.label("미로 목표 보스 (사냥터)", 13, UIStyle.DANGER))
 	var cons: Dictionary = r.get("connected_rooms", {})
 	var exits: Array = []
 	for d in MazeGenerator.DIRS:

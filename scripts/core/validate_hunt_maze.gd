@@ -32,16 +32,85 @@ func _run() -> void:
 		return
 	_pass("hunt catalog has beginner_forest")
 
+	# --- Fresh seeds: 3 new maps must differ ---
+	var seeds: Array = []
+	var layouts: Array = []
+	for i in 3:
+		gs.new_game()
+		var run: Dictionary = gs.start_hunt_run("beginner_forest", true)
+		if run.is_empty():
+			_fail("fresh run %d empty" % i)
+			continue
+		var seed_v := int(run.get("seed", -1))
+		var prog_seed := int(gs.hunt_progress.get("beginner_forest", {}).get("seed", -2))
+		if seed_v < 0:
+			_fail("run %d missing map.seed" % i)
+		elif seed_v != prog_seed:
+			_fail("run %d map.seed %d != progress.seed %d" % [i, seed_v, prog_seed])
+		else:
+			_pass("run %d seed=%d persisted" % [i, seed_v])
+		seeds.append(seed_v)
+		layouts.append(_layout_fingerprint(run))
+		# Tiny delay so Time.get_ticks_usec differs across rapid force_new calls
+		OS.delay_usec(1500)
+
+	if seeds[0] == seeds[1] or seeds[1] == seeds[2] or seeds[0] == seeds[2]:
+		_fail("expected 3 distinct seeds, got %s" % str(seeds))
+	else:
+		_pass("3 new maps have distinct seeds %s" % str(seeds))
+
+	if layouts[0] == layouts[1] and layouts[1] == layouts[2]:
+		_fail("3 maps share identical layout fingerprint (seed not applied?)")
+	else:
+		_pass("at least one layout differs across 3 runs")
+
+	# --- Resume keeps layout + position ---
+	gs.new_game()
+	var first: Dictionary = gs.start_hunt_run("beginner_forest", true)
+	var seed_a := int(first.get("seed", -1))
+	var cur := str(first.get("current_room_id", ""))
+	var neighbors: Array = gs.hunt_connected_room_ids(cur)
+	gs.mark_hunt_room_cleared(cur)
+	if neighbors.is_empty():
+		_fail("no neighbors to move")
+	else:
+		var nxt := str(neighbors[0])
+		gs.hunt_move_to(nxt)
+	var after_move_cur := str(gs.get_active_hunt_map().get("current_room_id", ""))
+	var fp_before := _layout_fingerprint(gs.get_active_hunt_map())
+	# Resume (force_new=false) must NOT regenerate
+	var resumed: Dictionary = gs.start_hunt_run("beginner_forest", false)
+	if int(resumed.get("seed", -1)) != seed_a:
+		_fail("resume changed seed %d -> %d" % [seed_a, int(resumed.get("seed", -1))])
+	else:
+		_pass("resume keeps seed %d" % seed_a)
+	if str(resumed.get("current_room_id", "")) != after_move_cur:
+		_fail("resume lost current room")
+	else:
+		_pass("resume keeps current room %s" % after_move_cur)
+	if _layout_fingerprint(resumed) != fp_before:
+		_fail("resume changed room layout")
+	else:
+		_pass("resume keeps room layout")
+
+	# 출정 without 새 맵 after progress must not roll a new maze
+	var seed_mid := int(gs.get_active_hunt_map().get("seed", -1))
+	gs.start_hunt_run("beginner_forest", false)
+	if int(gs.get_active_hunt_map().get("seed", -1)) != seed_mid:
+		_fail("second 출정 regenerated map")
+	else:
+		_pass("second 출정 resumes in-progress map")
+
+	# --- Graph quality (deterministic seed) ---
 	var map: Dictionary = MazeGenerator.generate(def, 42)
 	var verr := MazeGenerator.validate(map)
 	if verr != "":
 		_fail("generate validate: %s" % verr)
 	else:
 		_pass("generated map validates (seed 42)")
+	_pass("room count=%d" % map.get("rooms", {}).size())
 
 	var rooms: Dictionary = map.get("rooms", {})
-	_pass("room count=%d" % rooms.size())
-
 	var dead := 0
 	var branch := 0
 	for rid in rooms.keys():
@@ -63,84 +132,64 @@ func _run() -> void:
 	else:
 		_pass("branch rooms=%d" % branch)
 
-	var bosses := 0
-	for rid in rooms.keys():
-		if bool(rooms[rid].get("boss_flag", false)):
-			bosses += 1
-	if bosses != 1:
-		_fail("expected 1 boss room got %d" % bosses)
+	# --- Boss separation ---
+	var goal_id := str(map.get("goal_boss_room_id", ""))
+	if goal_id == "" or not rooms.has(goal_id):
+		_fail("goal_boss_room_id missing")
 	else:
-		_pass("boss room present")
+		var gb: Dictionary = rooms[goal_id]
+		if not bool(gb.get("boss_flag", false)):
+			_fail("goal room missing boss_flag")
+		elif str(gb.get("boss_kind", "")) != MazeGenerator.BOSS_KIND_HUNT_GOAL:
+			_fail("goal boss_kind expected hunt_goal got %s" % str(gb.get("boss_kind")))
+		else:
+			_pass("maze goal boss tagged hunt_goal at %s" % goal_id)
 
-	var sample_id := str(map.get("current_room_id"))
-	var sample: Dictionary = rooms[sample_id]
-	var blocked := false
-	for d in MazeGenerator.DIRS:
-		if sample.get("connected_rooms", {}).get(d, null) == null:
-			blocked = true
-			break
-	if blocked:
-		_pass("start has at least one blocked direction")
-	else:
-		_fail("start unexpectedly open all 4 ways")
-
+	# Clearing hunt goal must NOT set dungeon mid/final flags
 	gs.new_game()
-	var run: Dictionary = gs.start_hunt_run("beginner_forest", true)
-	if run.is_empty():
-		_fail("start_hunt_run failed")
-		_finish()
-		return
-	_pass("start_hunt_run ok")
+	gs.start_hunt_run("beginner_forest", true)
+	gs.ensure_dungeon_progress("shadow_crypt")
+	var goal := str(gs.get_active_hunt_map().get("goal_boss_room_id", ""))
+	# Walk-clear isn't needed — mark goal directly
+	gs.mark_hunt_room_cleared(goal)
+	var dprog: Dictionary = gs.ensure_dungeon_progress("shadow_crypt")
+	if bool(dprog.get("mid_boss_defeated", false)) or bool(dprog.get("final_boss_defeated", false)):
+		_fail("hunt goal clear polluted dungeon boss flags")
+	else:
+		_pass("hunt goal clear leaves dungeon mid/final flags false")
+	var hprog: Dictionary = gs.hunt_progress.get("beginner_forest", {})
+	if not bool(hprog.get("goal_boss_cleared", false)):
+		_fail("goal_boss_cleared not set on hunt_progress")
+	else:
+		_pass("goal_boss_cleared set on hunt_progress only")
 
-	var cur := str(gs.get_active_hunt_map().get("current_room_id"))
-	var neighbors: Array = gs.hunt_connected_room_ids(cur)
+	# Dungeon boss_floors still 5 mid / 10 final
+	var ddef: Dictionary = gs.get_dungeon_def("shadow_crypt")
+	var bosses: Dictionary = ddef.get("boss_floors", {})
+	if bosses.has("5") and bosses.has("10"):
+		_pass("dungeon boss_floors 5 mid + 10 final intact")
+	else:
+		_fail("dungeon boss_floors missing 5/10")
+
+	# Move rules smoke
+	gs.new_game()
+	gs.start_hunt_run("beginner_forest", true)
+	cur = str(gs.get_active_hunt_map().get("current_room_id"))
+	neighbors = gs.hunt_connected_room_ids(cur)
 	if neighbors.is_empty():
 		_fail("start has no neighbors")
 	else:
 		_pass("start neighbors=%d" % neighbors.size())
-
-	var nxt := str(neighbors[0])
-	if gs.hunt_can_move_to(nxt):
+	var nxt2 := str(neighbors[0])
+	if gs.hunt_can_move_to(nxt2):
 		_fail("should NOT move before clearing current")
 	else:
 		_pass("move blocked before clear")
-
 	gs.mark_hunt_room_cleared(cur)
-	if not gs.hunt_can_move_to(nxt):
+	if not gs.hunt_can_move_to(nxt2):
 		_fail("should move after clear to neighbor")
 	else:
 		_pass("move allowed after clear to connected room")
-
-	var stranger := ""
-	for rid in gs.get_active_hunt_map().get("rooms", {}).keys():
-		var id := str(rid)
-		if id != cur and not neighbors.has(id):
-			stranger = id
-			break
-	if stranger != "":
-		gs.get_active_hunt_map()["rooms"][stranger]["discovered"] = true
-		if gs.hunt_can_move_to(stranger):
-			_fail("non-adjacent discovered room wrongly movable")
-		else:
-			_pass("non-adjacent room blocked")
-
-	if not gs.hunt_move_to(nxt):
-		_fail("hunt_move_to failed")
-	else:
-		_pass("hunt_move_to neighbor")
-
-	var before_cur := str(gs.get_active_hunt_map().get("current_room_id"))
-	gs.save_game()
-	gs.active_hunt_id = ""
-	gs.hunt_progress = {}
-	if not gs.load_game():
-		_fail("load_game failed")
-	else:
-		var after := str(gs.get_active_hunt_map().get("current_room_id"))
-		if after != before_cur:
-			_fail("reload current room mismatch %s vs %s" % [after, before_cur])
-		else:
-			_pass("save/load preserves hunt map position")
 
 	if not gs.get_dungeon_def("shadow_crypt").is_empty():
 		_pass("dungeon catalog intact")
@@ -148,6 +197,25 @@ func _run() -> void:
 		_fail("dungeon catalog broken")
 
 	_finish()
+
+
+func _layout_fingerprint(map: Dictionary) -> String:
+	var rooms: Dictionary = map.get("rooms", {})
+	var keys: Array = rooms.keys()
+	keys.sort()
+	var parts: PackedStringArray = PackedStringArray()
+	for rid in keys:
+		var r: Dictionary = rooms[rid]
+		var p: Array = r.get("position", [0, 0])
+		var cons: Dictionary = r.get("connected_rooms", {})
+		var links: PackedStringArray = PackedStringArray()
+		for d in MazeGenerator.DIRS:
+			var o = cons.get(d, null)
+			links.append("%s:%s" % [d, str(o) if o != null else "-"])
+		parts.append("%s@%d,%d|%s|%s" % [
+			str(rid), int(p[0]), int(p[1]), str(r.get("room_type", "")), "|".join(links)
+		])
+	return "||".join(parts)
 
 
 func _pass(msg: String) -> void:

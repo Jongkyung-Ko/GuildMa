@@ -3,6 +3,12 @@ extends RefCounted
 
 ## Builds a maze-like room graph for hunting grounds (NOT dungeon floors).
 ## Connections are bidirectional and direction-consistent (N↔S, E↔W).
+##
+## Boss separation (do not mix these systems):
+## - Hunt maze goal boss: farthest room (`room_type=boss`, `boss_kind=hunt_goal`).
+##   End-of-maze objective only — NOT dungeon floor 5/10 bosses.
+## - Dungeon mid/final bosses: `dungeons.json` boss_floors + dungeon_progress flags.
+## - Depth-based expedition bosses (if added later): separate from maze goal rooms.
 
 const DIRS := ["N", "E", "S", "W"]
 const OPPOSITE := {"N": "S", "S": "N", "E": "W", "W": "E"}
@@ -13,6 +19,18 @@ const DELTA := {
 	"W": Vector2i(-1, 0),
 }
 
+## Maze end-goal boss tag. Never write dungeon mid_boss/final_boss from this.
+const BOSS_KIND_HUNT_GOAL := "hunt_goal"
+
+
+static func fresh_seed() -> int:
+	## Unique per new expedition. Callers persist this with the run map.
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	# Mix time so rapid successive calls still differ even if rand state collides.
+	var t := int(Time.get_ticks_usec())
+	return int(rng.randi()) ^ t ^ (t << 7)
+
 
 static func generate(hunt: Dictionary, seed_override: int = -1) -> Dictionary:
 	var gw := int(hunt.get("grid", [5, 5])[0])
@@ -20,9 +38,11 @@ static func generate(hunt: Dictionary, seed_override: int = -1) -> Dictionary:
 	var want := int(hunt.get("room_count", 12))
 	want = clampi(want, 6, gw * gh)
 	var loops := int(hunt.get("loop_edges", 2))
-	var seed_v := seed_override if seed_override >= 0 else int(hunt.get("seed", 1))
+	# Prefer explicit run seed. hunts.json "seed" is documentation/example only —
+	# live expeditions always pass a fresh seed from GameState.start_hunt_run.
+	var seed_v := seed_override if seed_override >= 0 else fresh_seed()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_v
+	rng.seed = seed_v as int
 
 	# Pick cells via randomized growing tree
 	var start := Vector2i(rng.randi_range(0, gw - 1), gh - 1)  # south edge start
@@ -141,6 +161,7 @@ static func generate(hunt: Dictionary, seed_override: int = -1) -> Dictionary:
 			rtype = "start"
 			rname = str(hunt.get("room_names", {}).get("start", "입구"))
 		elif c == farthest:
+			# Hunt maze goal boss (farthest room) — not dungeon F5/F10.
 			rtype = "boss"
 			rname = str(hunt.get("room_names", {}).get("boss", "보스 방"))
 			boss = true
@@ -165,6 +186,8 @@ static func generate(hunt: Dictionary, seed_override: int = -1) -> Dictionary:
 			"monsters": _monsters_for(hunt, rtype, rng),
 			"reward": {"gold": 10 if rtype == "normal" else (40 if rtype == "treasure" else 25)},
 			"boss_flag": boss,
+			## hunt_goal | "" — never "mid"/"final" (those are dungeon floor bosses).
+			"boss_kind": BOSS_KIND_HUNT_GOAL if boss else "",
 			"rec_level": int(hunt.get("rec_level", 1)),
 			"area_type": _area_type_label(rtype),
 		}
@@ -191,6 +214,8 @@ static func generate(hunt: Dictionary, seed_override: int = -1) -> Dictionary:
 		"current_room_id": _rid(start),
 		"rooms": rooms,
 		"path": [_rid(start)],
+		## Maze goal room id (farthest). Distinct from dungeon boss_floors.
+		"goal_boss_room_id": _rid(farthest),
 	}
 	var err := validate(map)
 	if err != "":
