@@ -1,7 +1,8 @@
 extends Node
 
 ## Shared UI colors/styles + embedded Korean font + PC/mobile display adapt.
-## PC keeps project default expand layout; mobile/web-narrow uses letterbox KEEP.
+## Stretch aspect is EXPAND for all platforms (portrait phones get taller design
+## viewport — avoids 16:9 KEEP letterboxing with huge black bars).
 ## Fonts are static OTFs shipped in the project (no OS / variable-font reliance).
 
 const GOLD := Color(0.82, 0.68, 0.32)
@@ -152,21 +153,24 @@ func _apply_display_adapt() -> void:
 		return
 	_mobile_like = _detect_mobile_like()
 
-	# Design resolution stays 1280x720 for both; only scale aspect differs.
-	win.content_scale_size = Vector2i(1280, 720)
+	# Portrait phones: use a tall design size so UI can reflow vertically.
+	# Landscape/PC: keep the classic 1280×720 design.
+	# EXPAND fills the window without 16:9 KEEP letterboxing (huge black bars).
+	var sz := win.size
+	var portrait := sz.y > sz.x and sz.x > 0
+	if portrait:
+		win.content_scale_size = Vector2i(720, 1280)
+	else:
+		win.content_scale_size = Vector2i(1280, 720)
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-
-	if _mobile_like:
-		# Letterbox — no stretch distortion; PC default expand unchanged.
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	if _mobile_like or portrait:
 		if app_theme:
 			app_theme.default_font_size = 18
 			app_theme.set_font_size("font_size", "Button", 18)
 			app_theme.set_font_size("font_size", "Label", 17)
 			app_theme.set_font_size("normal_font_size", "RichTextLabel", 15)
 	else:
-		# Match project.godot stretch/aspect=expand for desktop / Steam landscape.
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 		if app_theme:
 			app_theme.default_font_size = 16
 			app_theme.set_font_size("font_size", "Button", 16)
