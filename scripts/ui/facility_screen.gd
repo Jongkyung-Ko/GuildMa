@@ -111,6 +111,8 @@ func _build_shell() -> void:
 	var right := ScrollContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Keep gate/hunt buttons reachable without horizontal scroll at 1280x720.
+	right.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	main_box.add_child(right)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -454,7 +456,7 @@ func _build_gate() -> void:
 		13, UIStyle.TEXT_DIM
 	)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size = Vector2(420, 0)
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_child(hint)
 
 	_content.add_child(UIStyle.label("일반 사냥터 (미로 탐험)", 15, UIStyle.GOLD_BRIGHT))
@@ -462,6 +464,7 @@ func _build_gate() -> void:
 		var hid := str(h.get("id", ""))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var al := UIStyle.label(
 			"%s (Lv.%d–%d)" % [str(h.get("name")), int(h.get("rec_level", 1)), int(h.get("rec_level_max", 1))],
 			14
@@ -471,14 +474,14 @@ func _build_gate() -> void:
 		row.add_child(al)
 		var go := Button.new()
 		go.text = "출정"
-		go.custom_minimum_size = Vector2(72, 0)
+		go.custom_minimum_size = Vector2(64, 0)
 		UIStyle.apply_button(go)
 		var id_copy := hid
 		go.pressed.connect(func(): SceneRouter.go_hunt(id_copy, false))
 		row.add_child(go)
 		var anew := Button.new()
 		anew.text = "새 맵"
-		anew.custom_minimum_size = Vector2(72, 0)
+		anew.custom_minimum_size = Vector2(64, 0)
 		UIStyle.apply_button(anew)
 		anew.pressed.connect(func(): SceneRouter.go_hunt(id_copy, true))
 		row.add_child(anew)

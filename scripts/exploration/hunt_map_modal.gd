@@ -27,6 +27,9 @@ func setup(combat_active: bool) -> void:
 func set_combat_active(active: bool) -> void:
 	_combat_active = active
 	_refresh_detail()
+	# Victory/clear while modal is open must redraw node colors (movable / cleared).
+	if _map_view and is_instance_valid(_map_view):
+		_map_view.queue_redraw()
 
 
 func _build() -> void:
