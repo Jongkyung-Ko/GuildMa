@@ -1,0 +1,34 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+LOAD[town] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/01_town_theme.ogg
+LOAD[combat] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/02_hunting_grounds_rock.ogg
+LOAD[combat_epic] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/03_combat_epic_rock.ogg
+LOAD[combat_metal] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/04_combat_metal_drive.ogg
+LOAD[combat_heroic] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/05_combat_heroic_anthem.ogg
+LOAD[combat_hunting] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/02_hunting_grounds_rock.ogg
+LOAD[combat_boss] exists=true load_ok=true type=AudioStreamOggVorbis path=res://assets/audio/bgm/06_combat_boss_intensity.ogg
+LOAD[ambience] exists=true load_ok=true
+PASS: All BGM_PATHS + ambience load as AudioStream
+PASS: _switching cleared after playlist start
+PASS: Playlist BGM playing after _apply_stream
+PASS: BGM + ambience simultaneous (both players playing)
+PASS: Ambience does not leave playlist mode
+PASS: Shuffle advances + clears _switching each step
+PASS: F5 → combat_boss; _switching clear
+NOTE: ambience not playing right after boss enter — checking restart
+PASS: Boss BGM + ambience simultaneous
+PASS: Boss→normal restores playlist; _switching clear
+PASS: F10 → combat_boss
+ERROR: Resource file not found: res://assets/audio/bgm/__missing_nullsafe_probe__.ogg (expected type: )
+   at: _load (core/io/resource_loader.cpp:288)
+WARNING: AudioManager: failed to load BGM res://assets/audio/bgm/__missing_nullsafe_probe__.ogg
+     at: push_warning (core/variant/variant_utility.cpp:1112)
+PASS: Null/missing load path clears _switching
+PASS: Successful _apply_stream still assigns+plays stream
+POLICY_NOTE: implemented v3 treats mid+final as combat_boss; no elite→combat_metal selector in AudioManager.on_enter_combat
+POLICY_NOTE: stated mid→combat_heroic / elite→combat_metal is NOT implemented on main (pre-dates null-safe)
+=== NULLSAFE BGM PROBE: PASS ===
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+     at: cleanup (core/object/object.cpp:2284)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:604)

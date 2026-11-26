@@ -242,8 +242,13 @@ func start_combat_ambience() -> void:
 	var path: String = SFX_PATHS["ambience"]
 	if not ResourceLoader.exists(path):
 		return
-	var stream: AudioStream = (load(path) as AudioStream).duplicate()
+	var loaded: Resource = load(path)
+	if loaded == null or not (loaded is AudioStream):
+		push_warning("AudioManager: failed to load ambience %s" % path)
+		return
+	var stream: AudioStream = (loaded as AudioStream).duplicate()
 	if stream == null:
+		push_warning("AudioManager: failed to duplicate ambience %s" % path)
 		return
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -554,8 +559,15 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 
 func _apply_stream(track: String, path: String, loop: bool) -> void:
 	_bgm.stop()
-	var stream: AudioStream = (load(path) as AudioStream).duplicate()
+	# Guard: load() can return null before import finishes or if the OGG is missing.
+	var loaded: Resource = load(path)
+	if loaded == null or not (loaded is AudioStream):
+		push_warning("AudioManager: failed to load BGM %s" % path)
+		_switching = false
+		return
+	var stream: AudioStream = (loaded as AudioStream).duplicate()
 	if stream == null:
+		push_warning("AudioManager: failed to duplicate BGM %s" % path)
 		_switching = false
 		return
 	if stream is AudioStreamOggVorbis:

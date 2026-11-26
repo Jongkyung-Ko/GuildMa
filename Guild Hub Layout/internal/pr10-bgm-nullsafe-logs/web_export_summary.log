@@ -1,0 +1,68 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+savepack: begin: Packing steps: 102
+	savepack: step 2: Storing File: res://.godot/imported/01_town_theme.ogg-5afff071027ef12929ff28fe3c979f16.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/01_town_theme.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/02_hunting_grounds_rock.ogg-6260ad54b309666e6e17b820f1d4c175.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/02_hunting_grounds_rock.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/03_combat_epic_rock.ogg-8b796792b4baeccea100b4083207ff02.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/03_combat_epic_rock.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/04_combat_metal_drive.ogg-28b2360c91d1ce5a295c252893945778.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/04_combat_metal_drive.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/05_combat_heroic_anthem.ogg-b8732c543c63acb99dd4313d6283191d.oggvorbisstr
+	savepack: step 3: Storing File: res://assets/audio/bgm/05_combat_heroic_anthem.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/06_combat_boss_intensity.ogg-6571c88bdf4feb1009527bb675b7ff8f.oggvorbisstr
+	savepack: step 3: Storing File: res://assets/audio/bgm/06_combat_boss_intensity.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/01_ui_button_click.wav-f704689c8db8f2451de8f989dc833fef.sample
+	savepack: step 3: Storing File: res://assets/audio/sfx/01_ui_button_click.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/02_battle_ambience_loop.wav-e554fe828203b84971a7fe57b45d279d.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/02_battle_ambience_loop.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/03_combat_hit.wav-62c2a3351470de498c26853f243cf54b.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/03_combat_hit.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/04_magic_cast.wav-590dff60c295e05b736da5f2da368160.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/04_magic_cast.wav.import
+	savepack: step 5: Storing File: res://.godot/imported/05_item_equip.wav-f78596eea674504210ea9fe24beaa413.sample
+	savepack: step 5: Storing File: res://assets/audio/sfx/05_item_equip.wav.import
+	savepack: step 5: Storing File: res://.godot/imported/combat_bg.png-3336790e4aa918c8fc9298bc35414661.ctex
+	savepack: step 5: Storing File: res://assets/backgrounds/combat_bg.png.import
+	savepack: step 5: Storing File: res://.godot/imported/guild_interior.png-488ae1e6d03b4e5a37400493f8b4cb81.ctex
+	savepack: step 5: Storing File: res://assets/backgrounds/guild_interior.png.import
+	savepack: step 6: Storing File: res://.godot/imported/hunt_select.png-a4e5793e740f47a25e3beade0b43733a.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/hunt_select.png.import
+	savepack: step 6: Storing File: res://.godot/imported/inn_interior.png-3e56a99866ba068947b611742e5919d8.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/inn_interior.png.import
+	savepack: step 6: Storing File: res://.godot/imported/med_interior.png-b9a297f12b78b86fba8204c96459d277.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/med_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/quest_interior.png-59aaff28a4aa44f9495cf7405c3d1375.ctex
+	savepack: step 7: Storing File: res://assets/backgrounds/quest_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/shop_interior.png-943c66252ca8d7397f16470c68e1da66.ctex
+	savepack: step 7: Storing File: res://assets/backgrounds/shop_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/smith_interior.png-06bc400294131f7239e8a373d644427e.ctex
+... [truncated middle] ...
+8:	savepack: step 2: Storing File: res://.godot/imported/03_combat_epic_rock.ogg-8b796792b4baeccea100b4083207ff02.oggvorbisstr
+9:	savepack: step 2: Storing File: res://assets/audio/bgm/03_combat_epic_rock.ogg.import
+10:	savepack: step 2: Storing File: res://.godot/imported/04_combat_metal_drive.ogg-28b2360c91d1ce5a295c252893945778.oggvorbisstr
+11:	savepack: step 2: Storing File: res://assets/audio/bgm/04_combat_metal_drive.ogg.import
+12:	savepack: step 3: Storing File: res://.godot/imported/05_combat_heroic_anthem.ogg-b8732c543c63acb99dd4313d6283191d.oggvorbisstr
+13:	savepack: step 3: Storing File: res://assets/audio/bgm/05_combat_heroic_anthem.ogg.import
+14:	savepack: step 3: Storing File: res://.godot/imported/06_combat_boss_intensity.ogg-6571c88bdf4feb1009527bb675b7ff8f.oggvorbisstr
+15:	savepack: step 3: Storing File: res://assets/audio/bgm/06_combat_boss_intensity.ogg.import
+548:	savepack: step 99: Storing File: res://scripts/core/audio_manager.gdc
+604:	savepack: step 101: Storing File: res://scripts/core/audio_manager.gd.remap
+615:savepack: end
+... [tail] ...
+	savepack: step 101: Storing File: res://scripts/combat/player_lord_actor.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/projectile.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/sprite_factory.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/audio_manager.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_attack_phases.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_combat_feel.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_direction_pad.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_dungeon_visual.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_hunt_minimap.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_mage_cast.gd.remap
+	savepack: step 101: Storing File: res://.godot/global_script_class_cache.cfg
+	savepack: step 101: Storing File: res://assets/sprites/icons/guild.png
+	savepack: step 101: Storing File: res://.godot/uid_cache.bin
+	savepack: step 101: Storing File: res://project.binary
+savepack: end

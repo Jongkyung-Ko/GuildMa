@@ -1,0 +1,20 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+=== KOREAN FONT VALIDATION ===
+PASS: NotoSansKR-Regular.otf present
+PASS: NotoSansKR-Bold.otf present
+PASS: draw_font returns embedded Noto
+PASS: metrics ok '미니맵' w=39.0
+PASS: metrics ok '현재 위치' w=55.0
+PASS: metrics ok '이동 가능' w=55.0
+PASS: metrics ok '클리어한 방' w=68.0
+PASS: metrics ok '보스 방' w=42.0
+PASS: metrics ok '연결된 출구' w=68.0
+PASS: metrics ok '출현 몬스터' w=68.0
+PASS: metrics ok '이동하기' w=52.0
+PASS: metrics ok '전투 중에는 이동할 수 없습니다.' w=184.0
+PASS: metrics ok '늑대' w=26.0
+PASS: metrics ok '슬라임' w=39.0
+PASS: metrics ok '고블린' w=39.0
+PASS: root theme uses Noto
+=== KOREAN FONT RESULT: PASS (16 pass / 0 fail) ===
