@@ -314,10 +314,25 @@ func _apply_facing() -> void:
 		_sprite.flip_h = not _face_right
 
 
+func _attack_sheet_frame() -> int:
+	## Current attack SpriteFrames index → sheet combat_XX index, or -1.
+	if _sprite == null or _sprite.animation != "attack":
+		return -1
+	var idxs: Array = SpriteFactory.attack_sheet_indices(job if team == Team.ALLY else "enemy")
+	var fr := _sprite.frame
+	if fr < 0 or fr >= idxs.size():
+		return -1
+	return int(idxs[fr])
+
+
 func muzzle_global() -> Vector2:
-	## World-space cast / staff tip. Independent of later caster movement once sampled.
+	## World-space cast / staff tip. Snapshot at call time — bolt ignores later caster motion.
 	if team == Team.ALLY and job != "":
-		var local := SpriteFactory.muzzle_offset(job, _face_right) * _sprite_scale
+		var sheet := _attack_sheet_frame()
+		# Idle / non-attack: use sheet 0 tip when per-frame data exists (mage).
+		if sheet < 0 and job == "mage":
+			sheet = 0
+		var local := SpriteFactory.muzzle_offset(job, _face_right, sheet) * _sprite_scale
 		return global_position + local
 	return global_position + Vector2(18 if _face_right else -18, -28)
 
@@ -349,6 +364,9 @@ func _play_anim(anim: String, force: bool = false) -> void:
 func _on_frame_changed() -> void:
 	if is_dead or _sprite == null:
 		return
+	# Re-pin foot pivot every frame so shake / texture swaps never teleport the actor.
+	if team == Team.ALLY:
+		_apply_sprite_pivot()
 	if not _is_attacking():
 		return
 	if _sprite.animation != "attack":

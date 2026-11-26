@@ -83,6 +83,23 @@ static func attack_active_frame(job: String) -> int:
 			return 2
 
 
+static func attack_sheet_indices(job: String) -> Array:
+	## Sheet frame indices used by the attack animation (parallel to SpriteFrames order).
+	match job:
+		"tank":
+			return [3, 4, 5, 6, 7]
+		"dps":
+			return [4, 5, 6, 7]
+		"mage":
+			return [2, 3, 4, 5, 6]
+		"healer":
+			return [3, 4, 5, 6]
+		"lord":
+			return [3, 4, 5, 6, 7]
+		_:
+			return [3, 4, 5, 6, 7]
+
+
 static func load_pivots() -> Dictionary:
 	if not _pivot_cache.is_empty():
 		return _pivot_cache
@@ -118,20 +135,26 @@ static func job_canvas(job: String) -> Vector2i:
 	return Vector2i(int(c[0]), int(c[1]))
 
 
-static func muzzle_offset(job: String, face_right: bool) -> Vector2:
+static func muzzle_offset(job: String, face_right: bool, sheet_frame: int = -1) -> Vector2:
 	## Staff tip / cast origin relative to foot pivot (facing right in art).
+	## Optional sheet_frame selects per-frame tip when present (mage cast).
 	var root := load_pivots()
 	var jobs: Dictionary = root.get("jobs", {})
 	var off := Vector2(18, -40)
 	if jobs.has(job):
 		var entry: Dictionary = jobs[job]
-		var key := "staff_tip_offset" if job == "mage" else "heal_origin_offset"
-		if entry.has(key) and entry[key] != null:
-			var a: Array = entry[key]
-			off = Vector2(float(a[0]), float(a[1]))
-		elif entry.has("staff_tip_offset") and entry["staff_tip_offset"] != null:
-			var b: Array = entry["staff_tip_offset"]
-			off = Vector2(float(b[0]), float(b[1]))
+		var by_frame: Dictionary = entry.get("staff_tip_by_frame", {})
+		if sheet_frame >= 0 and by_frame.has(str(sheet_frame)):
+			var f: Array = by_frame[str(sheet_frame)]
+			off = Vector2(float(f[0]), float(f[1]))
+		else:
+			var key := "staff_tip_offset" if job == "mage" else "heal_origin_offset"
+			if entry.has(key) and entry[key] != null:
+				var a: Array = entry[key]
+				off = Vector2(float(a[0]), float(a[1]))
+			elif entry.has("staff_tip_offset") and entry["staff_tip_offset"] != null:
+				var b: Array = entry["staff_tip_offset"]
+				off = Vector2(float(b[0]), float(b[1]))
 	if not face_right:
 		off.x = -off.x
 	return off
