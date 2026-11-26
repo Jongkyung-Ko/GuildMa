@@ -526,10 +526,11 @@ func get_active_hunt_map() -> Dictionary:
 	return m if typeof(m) == TYPE_DICTIONARY else {}
 
 
-func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
+func start_hunt_run(hunt_id: String, force_new: bool = false, spawn_at_start: bool = false) -> Dictionary:
 	## force_new=true ("새 맵"): replace run with a fresh random-seed maze.
-	## force_new=false + existing map: resume layout — spawn at start if session was left.
-	## force_new=false + no map: first expedition — fresh seed.
+	## force_new=false + existing map: resume layout/clears.
+	## spawn_at_start=true: town→hunt re-entry — force entrance room (not mid-maze).
+	## Mid-hunt room travel must NOT call this with spawn_at_start.
 	var def := get_hunt_def(hunt_id)
 	if def.is_empty():
 		emit_message("사냥터 정보를 찾을 수 없습니다.", true)
@@ -546,6 +547,7 @@ func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
 			"runs": int(prog.get("runs", 0)) + 1,
 			## Hunt maze goal boss only — never touches dungeon mid/final flags.
 			"goal_boss_cleared": false,
+			"pending_spawn_at_start": false,
 		}
 		hunt_progress[hunt_id] = prog
 		save_game()
@@ -553,10 +555,19 @@ func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
 		emit_message("%s 탐험을 시작합니다. (seed %d)" % [str(def.get("name", hunt_id)), seed_v])
 		return map
 	# Resume existing map (cleared rooms + layout kept).
-	# Re-entry spawn is reset to start by leave_hunt_session() when leaving to town.
-	emit_message("%s 탐험을 이어갑니다." % str(def.get("name", hunt_id)))
+	var map_resume: Dictionary = prog.get("map", {})
+	var need_start := spawn_at_start or bool(prog.get("pending_spawn_at_start", false))
+	if need_start:
+		_reset_map_to_start_room(map_resume)
+		prog["map"] = map_resume
+		prog["pending_spawn_at_start"] = false
+		hunt_progress[hunt_id] = prog
+		save_game()
+		emit_message("%s 입구에서 탐험을 시작합니다." % str(def.get("name", hunt_id)))
+	else:
+		emit_message("%s 탐험을 이어갑니다." % str(def.get("name", hunt_id)))
 	state_changed.emit()
-	return prog.get("map", {})
+	return map_resume
 
 
 func get_hunt_start_room_id(map: Dictionary = {}) -> String:
@@ -589,18 +600,24 @@ func _reset_map_to_start_room(map: Dictionary) -> void:
 
 
 ## Call when fully leaving the hunt (town / title). Keeps maze progress; clears session spawn.
-func leave_hunt_session() -> void:
-	var hid := active_hunt_id
+## hunt_id_override: use combat-local hunt_id when active_hunt_id was already cleared.
+func leave_hunt_session(hunt_id_override: String = "") -> void:
+	var hid := hunt_id_override if hunt_id_override != "" else active_hunt_id
 	if hid == "" and hunt_progress.is_empty():
+		active_hunt_id = ""
 		return
 	if hid != "":
 		var prog: Dictionary = hunt_progress.get(hid, {})
-		if typeof(prog) == TYPE_DICTIONARY and prog.has("map"):
+		if typeof(prog) != TYPE_DICTIONARY:
+			prog = {}
+		if prog.has("map") and typeof(prog.get("map")) == TYPE_DICTIONARY:
 			var map: Dictionary = prog.get("map", {})
-			if typeof(map) == TYPE_DICTIONARY and not map.is_empty():
+			if not map.is_empty():
 				_reset_map_to_start_room(map)
 				prog["map"] = map
-				hunt_progress[hid] = prog
+		# Belt-and-suspenders for next start_hunt_run even if reset was skipped.
+		prog["pending_spawn_at_start"] = true
+		hunt_progress[hid] = prog
 	active_hunt_id = ""
 	save_game()
 	state_changed.emit()

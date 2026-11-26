@@ -14,11 +14,14 @@ const SFX_PATHS := {
 }
 
 const BGM_PATHS := {
-	## New MP3 cues (title / town). Combat intensity tracks keep OGG pack.
+	## Title / town MP3s.
 	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
 	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
-	## Explicit combat cue (MP3). Normal fights still use COMBAT_PLAYLIST shuffle.
+	## Hunting-grounds theme (user-specified). Not used for dungeon OGG shuffle.
+	"hunt": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	## Legacy alias → same hunting MP3 (explicit play_bgm("combat")).
 	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	## Dungeon normal-combat OGG shuffle + situational intensity.
 	"combat_epic": "res://assets/audio/bgm/03_combat_epic_rock.ogg",
 	"combat_metal": "res://assets/audio/bgm/04_combat_metal_drive.ogg",
 	"combat_heroic": "res://assets/audio/bgm/05_combat_heroic_anthem.ogg",
@@ -54,7 +57,7 @@ var _pending_combat_intensity: String = ""
 var _pending_ambience: bool = false
 var _current_bgm: String = ""
 
-## "none" | "playlist" | "elite" | "mid" | "final"
+## "none" | "hunt" | "playlist" | "elite" | "mid" | "final"
 var _combat_mode: String = "none"
 var _playlist_queue: Array[String] = []
 var _last_playlist_track: String = ""
@@ -143,7 +146,12 @@ func unlock_audio() -> void:
 		_pending_combat_intensity = ""
 		_apply_combat_intensity(intensity, true)
 	elif _pending_bgm != "":
-		play_bgm(_pending_bgm, true)
+		var pending := _pending_bgm
+		_pending_bgm = ""
+		if pending == "hunt":
+			_play_hunt_bgm(true)
+		else:
+			play_bgm(pending, true)
 	if _pending_ambience:
 		_pending_ambience = false
 		ensure_combat_ambience()
@@ -344,11 +352,40 @@ func on_enter_facility() -> void:
 
 
 func on_enter_combat(restart_bgm: bool = false) -> void:
-	## restart_bgm=true: town→hunt / dungeon floor entry — start combat BGM at 0.
+	## restart_bgm=true: town→hunt / dungeon floor entry — start BGM at 0.
 	## restart_bgm=false: hunt internal room travel — keep playback position.
+	## Hunt maze always uses Tobitate MP3; dungeon uses OGG shuffle / F5 / F10.
+	if _is_hunt_context():
+		_play_hunt_bgm(restart_bgm)
+		ensure_combat_ambience(restart_bgm)
+		return
 	var intensity := resolve_combat_intensity()
 	_apply_combat_intensity(intensity, restart_bgm)
 	ensure_combat_ambience(restart_bgm)
+
+
+func _is_hunt_context() -> bool:
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var hunt_id := str(tree.root.get_meta("hunt_id", ""))
+	var dungeon_id := str(tree.root.get_meta("dungeon_id", ""))
+	return hunt_id != "" and dungeon_id == ""
+
+
+func _play_hunt_bgm(restart: bool) -> void:
+	## Hunting grounds: dedicated MP3 loop. Never fall through to OGG playlist.
+	if not _unlocked:
+		_pending_combat_intensity = ""
+		_pending_bgm = "hunt"
+		_combat_mode = "hunt"
+		return
+	if not restart and _combat_mode == "hunt" and _current_bgm == "hunt" and _bgm and (_bgm.playing or _switching):
+		return
+	_leave_combat_music_mode()
+	_combat_mode = "hunt"
+	_switch_to_track("hunt", true, true, restart)
+	print("AudioManager: hunt BGM key=hunt path=%s restart=%s" % [BGM_PATHS["hunt"], restart])
 
 
 func get_bgm_playback_position() -> float:
