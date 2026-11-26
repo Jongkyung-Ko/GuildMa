@@ -423,14 +423,130 @@ func _run() -> void:
 
 	# Single BGM player — no second player spawned
 	var bgm_count := 0
+	var sfx_count := 0
 	for c in audio.get_children():
 		if str(c.name).begins_with("Bgm"):
 			bgm_count += 1
+		elif str(c.name).begins_with("Sfx_"):
+			sfx_count += 1
 	if bgm_count != 1:
 		print("FAIL: expected 1 Bgm player, got %d" % bgm_count)
 		failed += 1
 	else:
 		_pass("Single BGM player (no duplicate playback nodes)")
+	if sfx_count < 6:
+		print("FAIL: expected SFX pool >= 6, got %d" % sfx_count)
+		failed += 1
+	else:
+		_pass("SFX pool size %d (separate from BGM)" % sfx_count)
+
+	# --- Hunt room travel continuity: same intensity must not restart BGM ---
+	root.set_meta("dungeon_id", "")
+	root.set_meta("dungeon_floor", 0)
+	if gs:
+		gs.call("new_game")
+		gs.call("start_hunt_run", "beginner_forest", true)
+	root.set_meta("hunt_id", "beginner_forest")
+	audio.call("on_enter_combat")
+	await _wait_bgm_ready(audio)
+	var cont_track := str(audio.call("get_current_bgm"))
+	var cont_mode := str(audio.call("get_combat_mode"))
+	var cont_pos: float = float(audio.call("get_bgm_playback_position"))
+	var amb_player: AudioStreamPlayer = audio.get("_ambience")
+	# Simulate A→B→C same-intensity refreshes (normal rooms).
+	for hop in 3:
+		audio.call("on_enter_combat")
+		await process_frame
+	var after_pos: float = float(audio.call("get_bgm_playback_position"))
+	if str(audio.call("get_current_bgm")) != cont_track or str(audio.call("get_combat_mode")) != cont_mode:
+		print("FAIL: hunt hop changed BGM track/mode (%s/%s → %s/%s)" % [
+			cont_track, cont_mode, str(audio.call("get_current_bgm")), str(audio.call("get_combat_mode"))
+		])
+		failed += 1
+	else:
+		_pass("Hunt hops keep track/mode (%s / %s)" % [cont_track, cont_mode])
+	# Position should not reset to ~0 if it had advanced (dummy driver may stay at 0).
+	if cont_pos >= 0.0 and after_pos + 0.001 < cont_pos and after_pos < 0.05 and cont_pos > 0.2:
+		print("FAIL: BGM playback position reset on hunt hop (%.3f → %.3f)" % [cont_pos, after_pos])
+		failed += 1
+	else:
+		_pass("BGM playback position not hard-reset on hunt hop (%.3f → %.3f)" % [cont_pos, after_pos])
+
+	# Ambience ensure: repeated on_enter_combat must not stop/restart (stream instance stable).
+	if amb_player and amb_player.stream != null:
+		var amb_stream_a = amb_player.stream
+		audio.call("ensure_combat_ambience")
+		audio.call("ensure_combat_ambience")
+		if amb_player.stream != amb_stream_a:
+			print("FAIL: ensure_combat_ambience replaced ambience stream")
+			failed += 1
+		else:
+			_pass("ensure_combat_ambience keeps existing ambience stream")
+
+	# Intensity change still switches (elite room).
+	if gs:
+		var map2: Dictionary = gs.call("get_active_hunt_map")
+		var rooms2: Dictionary = map2.get("rooms", {})
+		var elite2 := ""
+		for rid3 in rooms2.keys():
+			if str(rooms2[rid3].get("room_type", "")) == "elite":
+				elite2 = str(rid3)
+				break
+		if elite2 != "":
+			map2["current_room_id"] = elite2
+			gs.call("_store_active_map", map2)
+			audio.call("on_enter_combat")
+			await _wait_bgm_ready(audio)
+			if str(audio.call("get_combat_mode")) != "elite" or str(audio.call("get_current_bgm")) != "combat_metal":
+				print("FAIL: intensity change to elite should be mode=elite track=combat_metal (got %s / %s)" % [
+					str(audio.call("get_combat_mode")), str(audio.call("get_current_bgm"))
+				])
+				failed += 1
+			else:
+				_pass("Different BGM region (elite) switches to elite/combat_metal")
+
+	# SFX must not pause/stop/seek BGM.
+	audio.call("on_enter_combat")
+	await _wait_bgm_ready(audio)
+	var bgm_before := str(audio.call("get_current_bgm"))
+	var pos_before: float = float(audio.call("get_bgm_playback_position"))
+	var paused_before := bool(bgm_player.stream_paused) if bgm_player else false
+	for _i in 12:
+		audio.call("play_hit")
+		audio.call("play_magic")
+	await process_frame
+	await process_frame
+	if str(audio.call("get_current_bgm")) != bgm_before:
+		print("FAIL: SFX burst changed BGM track")
+		failed += 1
+	else:
+		_pass("SFX burst leaves BGM track unchanged")
+	if bgm_player and bgm_player.stream_paused and not paused_before:
+		print("FAIL: SFX burst paused BGM")
+		failed += 1
+	else:
+		_pass("SFX burst does not pause BGM")
+	if bgm_player and bgm_player.bus != "BGM":
+		print("FAIL: BGM player bus is %s" % bgm_player.bus)
+		failed += 1
+	else:
+		_pass("BGM player stays on BGM bus")
+	var sfx_players_arr = audio.get("_sfx_players")
+	var sfx_voice: AudioStreamPlayer = null
+	if sfx_players_arr is Array and sfx_players_arr.size() > 0:
+		sfx_voice = sfx_players_arr[0]
+	if sfx_voice and sfx_voice.bus != "SFX":
+		print("FAIL: SFX player bus is %s" % sfx_voice.bus)
+		failed += 1
+	else:
+		_pass("SFX players use SFX bus")
+	# Position should not jump backward to 0 from SFX alone.
+	var pos_after_sfx: float = float(audio.call("get_bgm_playback_position"))
+	if pos_before > 0.25 and pos_after_sfx < 0.05:
+		print("FAIL: SFX burst seeked BGM to start (%.3f → %.3f)" % [pos_before, pos_after_sfx])
+		failed += 1
+	else:
+		_pass("SFX burst does not seek BGM to start (%.3f → %.3f)" % [pos_before, pos_after_sfx])
 
 	print("NOTE: Ear / audible listening not performed in this headless run — do not treat as acoustic PASS.")
 

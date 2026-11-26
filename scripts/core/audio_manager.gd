@@ -34,13 +34,18 @@ const COMBAT_PLAYLIST := [
 	"combat_hunting",
 ]
 
-const SFX_POOL_SIZE := 6
+const SFX_POOL_SIZE := 10
 const FADE_SEC := 1.5
+## Leave headroom on SFX bus so overlapping hits do not clip Master against BGM.
+const SFX_BUS_HEADROOM_DB := -3.0
+const AMBIENCE_VOL_SCALE := 0.35
 
 var _bgm: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _sfx_idx: int = 0
+## Cached base streams — always .duplicate() before assigning to a player.
+var _sfx_stream_cache: Dictionary = {}
 
 var _unlocked: bool = false
 var _pending_bgm: String = ""
@@ -65,6 +70,7 @@ var sfx_linear: float = 0.85
 func _ready() -> void:
 	_ensure_buses()
 	_load_enemy_catalog()
+	_preload_sfx_cache()
 	_bgm = AudioStreamPlayer.new()
 	_bgm.name = "BgmPlayer"
 	_bgm.bus = "BGM"
@@ -84,13 +90,25 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		p.name = "Sfx_%d" % i
 		p.bus = "SFX"
-		p.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
+		# Short one-shots: Sample path avoids STREAM buffer churn that can glitch BGM on web.
+		p.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE
 		add_child(p)
 		_sfx_players.append(p)
 
 	_apply_volumes()
 	# Browser autoplay: wait for first user gesture.
 	set_process_input(true)
+
+
+func _preload_sfx_cache() -> void:
+	_sfx_stream_cache.clear()
+	for id in SFX_PATHS.keys():
+		var path: String = SFX_PATHS[id]
+		if not ResourceLoader.exists(path):
+			continue
+		var s: AudioStream = load(path)
+		if s:
+			_sfx_stream_cache[id] = s
 
 
 func _ensure_buses() -> void:
@@ -128,7 +146,7 @@ func unlock_audio() -> void:
 		play_bgm(_pending_bgm, true)
 	if _pending_ambience:
 		_pending_ambience = false
-		start_combat_ambience()
+		ensure_combat_ambience()
 
 
 func is_unlocked() -> bool:
@@ -151,8 +169,10 @@ func _apply_volumes() -> void:
 	if bi >= 0:
 		AudioServer.set_bus_volume_db(bi, _linear_to_db(bgm_linear))
 	if si >= 0:
-		AudioServer.set_bus_volume_db(si, _linear_to_db(sfx_linear))
-	# Keep player volume at unity unless mid-fade; bus owns user volume.
+		# User SFX level + fixed headroom so stacked hits do not clip into BGM.
+		AudioServer.set_bus_volume_db(si, _linear_to_db(sfx_linear) + SFX_BUS_HEADROOM_DB)
+	# Keep BGM player volume at unity unless mid-fade; bus owns user volume.
+	# Never rewrite BGM volume from SFX volume changes while fading.
 	if _bgm and not _switching:
 		_bgm.volume_db = 0.0
 
@@ -207,21 +227,46 @@ func play_sfx(id: String, volume_scale: float = 1.0) -> void:
 	if not SFX_PATHS.has(id):
 		return
 	# Soft unlock on first SFX from a button (user already interacted).
+	# unlock_audio must never stop/seek BGM when already unlocked.
 	if not _unlocked:
 		unlock_audio()
-	var path: String = SFX_PATHS[id]
-	if not ResourceLoader.exists(path):
-		push_warning("AudioManager: missing SFX %s" % path)
-		return
-	var stream: AudioStream = load(path)
+	# Never touch the BGM player from SFX paths.
+	var stream := _sfx_stream_for(id)
 	if stream == null:
 		return
+	var p := _acquire_sfx_player()
+	# Assign a unique duplicate so simultaneous plays do not share playback state.
+	p.stream = stream.duplicate()
+	p.volume_db = _linear_to_db(clampf(volume_scale, 0.0, 1.2))
+	p.play()
+
+
+func _sfx_stream_for(id: String) -> AudioStream:
+	if _sfx_stream_cache.has(id):
+		return _sfx_stream_cache[id] as AudioStream
+	var path: String = SFX_PATHS.get(id, "")
+	if path == "" or not ResourceLoader.exists(path):
+		push_warning("AudioManager: missing SFX %s" % path)
+		return null
+	var s: AudioStream = load(path)
+	if s:
+		_sfx_stream_cache[id] = s
+	return s
+
+
+func _acquire_sfx_player() -> AudioStreamPlayer:
+	# Prefer an idle voice so we do not cut overlapping hits mid-play.
+	for i in _sfx_players.size():
+		var idx := (_sfx_idx + i) % _sfx_players.size()
+		var cand: AudioStreamPlayer = _sfx_players[idx]
+		if not cand.playing:
+			_sfx_idx = (idx + 1) % _sfx_players.size()
+			return cand
+	# All busy: steal the next round-robin voice only.
 	var p: AudioStreamPlayer = _sfx_players[_sfx_idx]
 	_sfx_idx = (_sfx_idx + 1) % _sfx_players.size()
 	p.stop()
-	p.stream = stream
-	p.volume_db = _linear_to_db(clampf(volume_scale, 0.0, 1.5))
-	p.play()
+	return p
 
 
 func play_ui_click() -> void:
@@ -229,29 +274,40 @@ func play_ui_click() -> void:
 
 
 func play_hit() -> void:
-	play_sfx("hit", 0.9)
+	play_sfx("hit", 0.75)
 
 
 func play_magic() -> void:
-	play_sfx("magic", 1.0)
+	play_sfx("magic", 0.85)
 
 
 func play_equip() -> void:
-	play_sfx("equip", 0.85)
+	play_sfx("equip", 0.8)
 
 
 func start_combat_ambience() -> void:
+	## Public alias — ensures loop without restarting if already running.
+	ensure_combat_ambience()
+
+
+func ensure_combat_ambience() -> void:
+	if _ambience and _ambience.playing and _ambience.stream != null:
+		_pending_ambience = false
+		return
 	var path: String = SFX_PATHS["ambience"]
 	if not ResourceLoader.exists(path):
 		return
-	var stream: AudioStream = (load(path) as AudioStream).duplicate()
-	if stream == null:
+	var base: AudioStream = _sfx_stream_for("ambience")
+	if base == null:
+		base = load(path) as AudioStream
+	if base == null:
 		return
+	var stream: AudioStream = base.duplicate()
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-	_ambience.stop()
+	# Do not stop a playing ambience (already early-returned). Only configure when idle.
 	_ambience.stream = stream
-	_ambience.volume_db = _linear_to_db(0.55)
+	_ambience.volume_db = _linear_to_db(AMBIENCE_VOL_SCALE)
 	if not _unlocked:
 		_pending_ambience = true
 		return
@@ -285,9 +341,16 @@ func on_enter_facility() -> void:
 
 
 func on_enter_combat() -> void:
+	## Hunt room travel / combat entry. Same intensity must NOT restart BGM.
 	var intensity := resolve_combat_intensity()
 	_apply_combat_intensity(intensity, false)
-	start_combat_ambience()
+	ensure_combat_ambience()
+
+
+func get_bgm_playback_position() -> float:
+	if _bgm == null or not _bgm.playing:
+		return -1.0
+	return _bgm.get_playback_position()
 
 
 ## final > mid > elite > normal — uses only existing BGM_PATHS tracks.
@@ -353,7 +416,9 @@ func start_combat_playlist(force: bool = false) -> void:
 		_pending_combat_intensity = "normal"
 		_pending_bgm = ""
 		return
-	if not force and _combat_mode == "playlist" and _bgm.playing:
+	# Same hunt-region intensity: keep current track + playback position.
+	# Treat mid-fade (_switching) as still active so room travel cannot restart.
+	if not force and _combat_mode == "playlist" and _bgm and (_bgm.playing or _switching):
 		return
 	_kill_fade()
 	_combat_mode = "playlist"
@@ -527,6 +592,15 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 	if not ResourceLoader.exists(path):
 		push_warning("AudioManager: missing BGM %s" % path)
 		return
+	# Identical request while already playing: do not stop/seek/restart.
+	if (
+		_current_bgm == track
+		and _bgm
+		and _bgm.playing
+		and not _bgm.stream_paused
+		and not _switching
+	):
+		return
 	_kill_fade()
 	_switching = true
 	_bgm.stream_paused = false
@@ -546,8 +620,13 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 			_fade_in()
 		)
 	else:
+		# Same track mid-request after early-guard miss: still avoid hard restart.
+		if prev == track and _bgm.playing and _bgm.stream != null:
+			_bgm.volume_db = 0.0
+			_switching = false
+			return
 		_apply_stream(track, path, loop)
-		if with_fade and prev != "":
+		if with_fade and prev != "" and prev != track:
 			_bgm.volume_db = -40.0
 			_fade_in()
 		else:
@@ -556,6 +635,13 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 
 
 func _apply_stream(track: String, path: String, loop: bool) -> void:
+	# Only stop when replacing the stream — never called for same-track continuity.
+	var pos_keep := 0.0
+	var reuse := false
+	if _bgm.stream != null and _current_bgm == track and _bgm.playing:
+		# Should be rare due to guards; keep position if somehow hit.
+		pos_keep = _bgm.get_playback_position()
+		reuse = true
 	_bgm.stop()
 	var stream: AudioStream = (load(path) as AudioStream).duplicate()
 	if stream == null:
@@ -570,7 +656,10 @@ func _apply_stream(track: String, path: String, loop: bool) -> void:
 			AudioStreamWAV.LOOP_FORWARD if loop else AudioStreamWAV.LOOP_DISABLED
 		)
 	_bgm.stream = stream
-	_bgm.play()
+	if reuse and pos_keep > 0.05:
+		_bgm.play(pos_keep)
+	else:
+		_bgm.play()
 	_current_bgm = track
 	_pending_bgm = ""
 	if _combat_mode == "playlist":

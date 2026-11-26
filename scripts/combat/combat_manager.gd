@@ -262,7 +262,7 @@ func _reload_room_encounter() -> void:
 			a.hp_changed.emit(a.hp, a.hp_max)
 	_spawn_enemies()
 	phase = Phase.FIGHTING
-	# Refresh situational BGM for elite / hunt-goal rooms without restarting same state.
+	# Intensity refresh only — AudioManager keeps playback position when mode/track unchanged.
 	if AudioManager:
 		AudioManager.on_enter_combat()
 	_ui.refresh()
