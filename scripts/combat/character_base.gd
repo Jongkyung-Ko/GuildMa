@@ -290,7 +290,8 @@ func _apply_sprite_pivot() -> void:
 	if _sprite == null:
 		return
 	if team == Team.ALLY:
-		# Texture top-left so foot pixel lands on VisualPivot origin (actor feet).
+		# Fixed foot pivot for all frames — do NOT apply per-frame JSON offsets
+		# (mage combat frames are asset-normalized to the same foot-anchor pixel).
 		_sprite.centered = false
 		_sprite.flip_h = false
 		_sprite.position = Vector2(-_sprite_pivot.x, -_sprite_pivot.y)

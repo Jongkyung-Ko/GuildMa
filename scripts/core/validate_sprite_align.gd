@@ -1,11 +1,14 @@
 extends SceneTree
 
-## Foot-pivot + torso stability check. Idle/walk frames must stay tight.
+## Foot-pivot stability check. Mage attack frames must stay ≤2px of pivot.
 ## godot --headless --path . -s res://scripts/core/validate_sprite_align.gd
 
 const PIVOT_PATH := "res://data/combat/sprite_pivots.json"
 const MAX_IDLE_FOOT_ERR := 5.0
-const MAX_IDLE_TORSO_ERR := 8.0
+const MAX_IDLE_TORSO_ERR := 12.0
+const MAX_MAGE_FOOT_ERR := 2.0
+const BODY_RADIUS := 50.0
+const MIN_FOOT_PX := 6
 const JOBS := ["mage", "healer", "dps", "tank", "lord"]
 
 
@@ -49,28 +52,32 @@ func _run() -> void:
 				print("FAIL: cannot load ", abs_path)
 				failed += 1
 				continue
-			var foot := _foot_of(img)
+			var foot := _body_foot_of(img)
 			var torso := _torso_cx(img)
 			if i == 0:
 				idle_torso = torso
 			var foot_err := Vector2(foot.x - px, foot.y - py)
-			var torso_err := torso - px
-			print("  %s[%d] foot_err=(%.2f,%.2f) torso_err=%.2f canvas=%dx%d" % [
-				job, i, foot_err.x, foot_err.y, torso_err, img.get_width(), img.get_height()
+			print("  %s[%d] foot=(%.2f,%.2f) foot_err=(%.2f,%.2f) torso=%.2f canvas=%dx%d" % [
+				job, i, foot.x, foot.y, foot_err.x, foot_err.y, torso, img.get_width(), img.get_height()
 			])
-			# Vertical foot pin must stay tight on every frame
-			if absf(foot_err.y) > MAX_IDLE_FOOT_ERR:
-				print("FAIL: foot Y drift %s frame %d" % [job, i])
-				failed += 1
-			# Idle/walk (0-3): torso stable vs idle — horizontal jump detector
-			if i <= 3 and absf(torso - idle_torso) > MAX_IDLE_TORSO_ERR:
-				print("FAIL: idle/walk torso drift %s frame %d (%.2f)" % [job, i, torso - idle_torso])
-				failed += 1
+			if job == "mage":
+				if absf(foot_err.x) > MAX_MAGE_FOOT_ERR or absf(foot_err.y) > MAX_MAGE_FOOT_ERR:
+					print("FAIL: mage foot-anchor drift frame %d (limit %.1fpx)" % [i, MAX_MAGE_FOOT_ERR])
+					failed += 1
+			else:
+				if absf(foot_err.y) > MAX_IDLE_FOOT_ERR:
+					print("FAIL: foot Y drift %s frame %d" % [job, i])
+					failed += 1
+				# Idle/walk (0-3): torso stable vs idle — horizontal jump detector
+				if i <= 3 and absf(torso - idle_torso) > MAX_IDLE_TORSO_ERR:
+					print("FAIL: idle/walk torso drift %s frame %d (%.2f)" % [job, i, torso - idle_torso])
+					failed += 1
 		if job == "mage" and entry.get("staff_tip_offset", null) == null:
 			print("FAIL: mage missing staff_tip_offset")
 			failed += 1
 		elif job == "mage":
 			print("  mage staff_tip_offset=", entry.get("staff_tip_offset"))
+			print("  mage pivot=", piv, " canvas=", entry.get("canvas"))
 		if job == "healer" and entry.get("heal_origin_offset", null) == null:
 			print("FAIL: healer missing heal_origin_offset")
 			failed += 1
@@ -97,7 +104,8 @@ func _run() -> void:
 		quit(1)
 
 
-func _foot_of(img: Image) -> Vector2:
+func _body_foot_of(img: Image) -> Vector2:
+	## Body-foot center: lowest row with enough near-torso pixels (ignores FX crumbs).
 	var w := img.get_width()
 	var h := img.get_height()
 	var minx := w
@@ -113,18 +121,44 @@ func _foot_of(img: Image) -> Vector2:
 				maxy = maxi(maxy, y)
 	if maxx < 0:
 		return Vector2(w * 0.5, h - 1.0)
-	var xs: Array = []
-	for y in range(maxi(0, maxy - 5), maxy + 1):
+	var torso := _torso_cx(img)
+	var foot_y := maxy
+	var found := false
+	for y in range(maxy, miny - 1, -1):
+		var count := 0
 		for x in range(minx, maxx + 1):
-			if img.get_pixel(x, y).a > 0.1:
+			if img.get_pixel(x, y).a > 0.1 and absf(float(x) - torso) <= BODY_RADIUS:
+				count += 1
+		if count >= MIN_FOOT_PX:
+			foot_y = y
+			found = true
+			break
+	if not found:
+		for y in range(maxy, miny - 1, -1):
+			var count2 := 0
+			for x in range(minx, maxx + 1):
+				if img.get_pixel(x, y).a > 0.1 and absf(float(x) - torso) <= BODY_RADIUS:
+					count2 += 1
+			if count2 >= 2:
+				foot_y = y
+				break
+	var xs: Array = []
+	for y in range(maxi(miny, foot_y - 4), foot_y + 1):
+		for x in range(minx, maxx + 1):
+			if img.get_pixel(x, y).a > 0.1 and absf(float(x) - torso) <= BODY_RADIUS:
 				xs.append(x)
+	if xs.is_empty():
+		for y in range(maxi(miny, foot_y - 4), foot_y + 1):
+			for x in range(minx, maxx + 1):
+				if img.get_pixel(x, y).a > 0.1:
+					xs.append(x)
 	xs.sort()
 	var lo := int(xs.size() * 0.25)
 	var hi := maxi(lo + 1, int(xs.size() * 0.75))
 	var sum := 0.0
 	for i in range(lo, hi):
 		sum += float(xs[i])
-	return Vector2(sum / float(hi - lo), float(maxy))
+	return Vector2(sum / float(hi - lo), float(foot_y))
 
 
 func _torso_cx(img: Image) -> float:

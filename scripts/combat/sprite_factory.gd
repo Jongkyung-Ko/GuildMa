@@ -4,6 +4,8 @@ extends RefCounted
 ## Builds SpriteFrames from sliced PNG sequences under assets/sprites.
 ## Attack FPS tuned so anim length fits job attack intervals.
 ## Pivot metadata (foot-aligned canvases) lives in data/combat/sprite_pivots.json.
+## `placed` / `offsets` / `foot_anchors` are audit fields — runtime uses `pivot` only
+## (assets are pre-normalized so every frame shares the same foot-anchor pixel).
 
 const PIVOT_PATH := "res://data/combat/sprite_pivots.json"
 
