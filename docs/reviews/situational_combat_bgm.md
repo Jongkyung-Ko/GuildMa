@@ -1,7 +1,7 @@
 # Situational combat BGM
 
 **Date:** 2026-11-27 (Asia/Seoul)  
-**Repo:** Jongkyung-Ko/GuildMa `main`  
+**Repo:** Jongkyung-Ko/GuildMa `main` @ `91fb413`
 **Constraint:** Reused existing OGGs only — no delete/replace/re-upload/duplicate of music files.
 
 ## Files touched
@@ -51,7 +51,7 @@ Command: `godot4 --headless --path . -s res://scripts/core/validate_audio.gd`
 | BGM/SFX volume independence | **PASS** |
 | Ear / audible listening | **FAIL (not tested)** |
 | Local Web export | **PASS** (`--export-release Web`, savepack OK) |
-| Pages CI | After push to `main` (see follow-up) |
+| Pages CI (`91fb413`) | **PASS** — Export & validate Web build ✅, Deploy to GitHub Pages ✅ ([run 45852079494](https://github.com/Jongkyung-Ko/GuildMa/actions/runs/45852079494), Asia/Seoul 2026-11-27 00:45) |
 | Ear / audible listening | **FAIL (not tested)** |
 
 ## More tracks needed?
