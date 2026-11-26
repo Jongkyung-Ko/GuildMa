@@ -2,6 +2,7 @@ extends Node
 
 ## Central SFX / BGM. MIDI sources are kept under assets/audio/bgm/*.mid but
 ## playback uses FluidSynth-rendered OGG (Godot 4.3 + web have no GM synth).
+## Combat uses a multi-track playlist with end-of-track fade; bosses use a dedicated loop.
 
 const SFX_PATHS := {
 	"ui_click": "res://assets/audio/sfx/01_ui_button_click.wav",
@@ -13,10 +14,25 @@ const SFX_PATHS := {
 
 const BGM_PATHS := {
 	"town": "res://assets/audio/bgm/01_town_theme.ogg",
+	## Legacy single-key alias → hunting grounds (kept for older callers / tests).
 	"combat": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
+	"combat_epic": "res://assets/audio/bgm/03_combat_epic_rock.ogg",
+	"combat_metal": "res://assets/audio/bgm/04_combat_metal_drive.ogg",
+	"combat_heroic": "res://assets/audio/bgm/05_combat_heroic_anthem.ogg",
+	"combat_hunting": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
+	"combat_boss": "res://assets/audio/bgm/06_combat_boss_intensity.ogg",
 }
 
+## Normal combat rotation order (diversity): Epic → Heroic → Metal → Hunting.
+const COMBAT_PLAYLIST := [
+	"combat_epic",
+	"combat_heroic",
+	"combat_metal",
+	"combat_hunting",
+]
+
 const SFX_POOL_SIZE := 6
+const FADE_SEC := 1.5
 
 var _bgm: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
@@ -25,8 +41,17 @@ var _sfx_idx: int = 0
 
 var _unlocked: bool = false
 var _pending_bgm: String = ""
+var _pending_combat_mode: String = "" ## "" | "playlist" | "boss"
 var _pending_ambience: bool = false
 var _current_bgm: String = ""
+
+## "none" | "playlist" | "boss" | "single"
+var _combat_mode: String = "none"
+var _playlist_queue: Array[String] = []
+var _last_playlist_track: String = ""
+var _fade_tween: Tween
+var _switching: bool = false
+var _finished_connected: bool = false
 
 var bgm_linear: float = 0.72
 var sfx_linear: float = 0.85
@@ -40,6 +65,8 @@ func _ready() -> void:
 	# Stream mode: full Godot audio path (needed for reliable loop on web Sample limits).
 	_bgm.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	add_child(_bgm)
+	_bgm.finished.connect(_on_bgm_finished)
+	_finished_connected = true
 
 	_ambience = AudioStreamPlayer.new()
 	_ambience.name = "AmbiencePlayer"
@@ -87,7 +114,13 @@ func unlock_audio() -> void:
 		return
 	_unlocked = true
 	set_process_input(false)
-	if _pending_bgm != "":
+	if _pending_combat_mode == "playlist":
+		_pending_combat_mode = ""
+		start_combat_playlist(true)
+	elif _pending_combat_mode == "boss":
+		_pending_combat_mode = ""
+		start_boss_combat_bgm(true)
+	elif _pending_bgm != "":
 		play_bgm(_pending_bgm, true)
 	if _pending_ambience:
 		_pending_ambience = false
@@ -115,6 +148,9 @@ func _apply_volumes() -> void:
 		AudioServer.set_bus_volume_db(bi, _linear_to_db(bgm_linear))
 	if si >= 0:
 		AudioServer.set_bus_volume_db(si, _linear_to_db(sfx_linear))
+	# Keep player volume at unity unless mid-fade; bus owns user volume.
+	if _bgm and not _switching:
+		_bgm.volume_db = 0.0
 
 
 func _linear_to_db(v: float) -> float:
@@ -127,32 +163,40 @@ func play_bgm(track: String, force: bool = false) -> void:
 	if not BGM_PATHS.has(track):
 		push_warning("AudioManager: unknown BGM '%s'" % track)
 		return
+	# Explicit single-track play leaves playlist/boss rotation (town, legacy "combat", etc.).
+	_leave_combat_music_mode()
 	if not _unlocked:
 		_pending_bgm = track
+		_pending_combat_mode = ""
 		return
-	if not force and _current_bgm == track and _bgm.playing:
+	if not force and _current_bgm == track and _bgm.playing and not _bgm.stream_paused:
 		return
-	var path: String = BGM_PATHS[track]
-	if not ResourceLoader.exists(path):
-		push_warning("AudioManager: missing BGM %s" % path)
-		return
-	var stream: AudioStream = (load(path) as AudioStream).duplicate()
-	if stream == null:
-		return
-	if stream is AudioStreamOggVorbis:
-		(stream as AudioStreamOggVorbis).loop = true
-	_bgm.stop()
-	_bgm.stream = stream
-	_bgm.play()
-	_current_bgm = track
-	_pending_bgm = ""
+	_switch_to_track(track, true, force)
 
 
 func stop_bgm() -> void:
+	_kill_fade()
+	_leave_combat_music_mode()
 	_pending_bgm = ""
+	_pending_combat_mode = ""
 	_current_bgm = ""
+	_switching = false
 	if _bgm:
+		_bgm.stream_paused = false
+		_bgm.volume_db = 0.0
 		_bgm.stop()
+
+
+func pause_bgm() -> void:
+	if _bgm and _bgm.playing:
+		_bgm.stream_paused = true
+
+
+func resume_bgm() -> void:
+	if _bgm and _bgm.stream:
+		_bgm.stream_paused = false
+		if not _bgm.playing:
+			_bgm.play()
 
 
 func play_sfx(id: String, volume_scale: float = 1.0) -> void:
@@ -224,15 +268,215 @@ func on_enter_title() -> void:
 
 func on_enter_town() -> void:
 	stop_combat_ambience()
+	_leave_combat_music_mode()
 	play_bgm("town")
 
 
 func on_enter_facility() -> void:
 	# Still in town hub flow — keep town theme, no stack.
 	stop_combat_ambience()
+	_leave_combat_music_mode()
 	play_bgm("town")
 
 
 func on_enter_combat() -> void:
-	play_bgm("combat")
+	if _detect_boss_combat():
+		start_boss_combat_bgm()
+	else:
+		start_combat_playlist()
 	start_combat_ambience()
+
+
+## Normal combat: rotate playlist; each track plays to natural end, then fades to next.
+func start_combat_playlist(force: bool = false) -> void:
+	if not _unlocked:
+		_pending_combat_mode = "playlist"
+		_pending_bgm = ""
+		return
+	if not force and _combat_mode == "playlist" and _bgm.playing:
+		return
+	_kill_fade()
+	_combat_mode = "playlist"
+	_rebuild_playlist_queue(true)
+	var next := _pop_next_playlist_track()
+	if next == "":
+		next = "combat_hunting"
+	_switch_to_track(next, false, true)
+
+
+func start_boss_combat_bgm(force: bool = false) -> void:
+	if not _unlocked:
+		_pending_combat_mode = "boss"
+		_pending_bgm = ""
+		return
+	if not force and _combat_mode == "boss" and _current_bgm == "combat_boss" and _bgm.playing:
+		return
+	_kill_fade()
+	_combat_mode = "boss"
+	_playlist_queue.clear()
+	# Boss loops until combat ends / scene leaves.
+	_switch_to_track("combat_boss", true, true)
+
+
+func get_combat_mode() -> String:
+	return _combat_mode
+
+
+func get_current_bgm() -> String:
+	return _current_bgm
+
+
+func get_playlist_queue() -> Array:
+	return _playlist_queue.duplicate()
+
+
+# --- Internals ---------------------------------------------------------------
+
+func _leave_combat_music_mode() -> void:
+	_combat_mode = "none"
+	_playlist_queue.clear()
+	_last_playlist_track = ""
+
+
+func _detect_boss_combat() -> bool:
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var dungeon_id := str(tree.root.get_meta("dungeon_id", ""))
+	var floor := int(tree.root.get_meta("dungeon_floor", 0))
+	if dungeon_id == "" or floor <= 0:
+		return false
+	if GameState == null:
+		return false
+	var fdef: Dictionary = GameState.get_dungeon_floor_def(dungeon_id, floor)
+	if fdef.is_empty():
+		return false
+	var boss := str(fdef.get("boss", ""))
+	if boss == "mid" or boss == "final":
+		return true
+	# Fallback: enemy ids / catalog tiers when floor omits boss flag.
+	for eid in fdef.get("enemies", []):
+		var id := str(eid)
+		if id.begins_with("boss_"):
+			return true
+	return false
+
+
+func _rebuild_playlist_queue(fresh_start: bool) -> void:
+	var pool: Array[String] = []
+	for t in COMBAT_PLAYLIST:
+		pool.append(t)
+	pool.shuffle()
+	if fresh_start and _last_playlist_track != "" and pool.size() > 1 and pool[0] == _last_playlist_track:
+		# Avoid starting on the same track that just finished a previous fight.
+		var swap_i := 1
+		var tmp := pool[0]
+		pool[0] = pool[swap_i]
+		pool[swap_i] = tmp
+	_playlist_queue = pool
+
+
+func _pop_next_playlist_track() -> String:
+	if _playlist_queue.is_empty():
+		_rebuild_playlist_queue(false)
+		# After full cycle, ensure first != last played.
+		if _playlist_queue.size() > 1 and _playlist_queue[0] == _last_playlist_track:
+			var tmp := _playlist_queue[0]
+			_playlist_queue[0] = _playlist_queue[1]
+			_playlist_queue[1] = tmp
+	if _playlist_queue.is_empty():
+		return ""
+	var track: String = _playlist_queue.pop_front()
+	# Hard guard: never consecutive identical (shouldn't happen with unique pool).
+	if track == _last_playlist_track and not _playlist_queue.is_empty():
+		_playlist_queue.append(track)
+		track = _playlist_queue.pop_front()
+	return track
+
+
+func _on_bgm_finished() -> void:
+	if _combat_mode != "playlist":
+		return
+	# Natural end: previous stream is already done — clear any stale fade lock,
+	# then soft-enter the next track (no mid-track cut).
+	_kill_fade()
+	_switching = false
+	if _bgm:
+		_bgm.volume_db = 0.0
+	var next := _pop_next_playlist_track()
+	if next == "":
+		return
+	_switch_to_track(next, false, true)
+
+
+func _kill_fade() -> void:
+	if _fade_tween and is_instance_valid(_fade_tween):
+		_fade_tween.kill()
+	_fade_tween = null
+
+
+func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
+	if not BGM_PATHS.has(track):
+		push_warning("AudioManager: unknown BGM '%s'" % track)
+		return
+	var path: String = BGM_PATHS[track]
+	if not ResourceLoader.exists(path):
+		push_warning("AudioManager: missing BGM %s" % path)
+		return
+	_kill_fade()
+	_switching = true
+	_bgm.stream_paused = false
+	# Commit target immediately so callers / playlist bookkeeping see the new track
+	# while fade-out of the previous stream is still running.
+	var prev := _current_bgm
+	_current_bgm = track
+	if _combat_mode == "playlist":
+		_last_playlist_track = track
+
+	var do_fade_out := with_fade and _bgm.playing and prev != "" and prev != track
+	if do_fade_out:
+		_fade_tween = create_tween()
+		_fade_tween.tween_property(_bgm, "volume_db", -40.0, FADE_SEC)
+		_fade_tween.tween_callback(func():
+			_apply_stream(track, path, loop)
+			_fade_in()
+		)
+	else:
+		_apply_stream(track, path, loop)
+		if with_fade and prev != "":
+			_bgm.volume_db = -40.0
+			_fade_in()
+		else:
+			_bgm.volume_db = 0.0
+			_switching = false
+
+
+func _apply_stream(track: String, path: String, loop: bool) -> void:
+	_bgm.stop()
+	var stream: AudioStream = (load(path) as AudioStream).duplicate()
+	if stream == null:
+		_switching = false
+		return
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = loop
+	_bgm.stream = stream
+	_bgm.play()
+	_current_bgm = track
+	_pending_bgm = ""
+	if _combat_mode == "playlist":
+		_last_playlist_track = track
+
+
+func is_bgm_switching() -> bool:
+	return _switching
+
+
+func _fade_in() -> void:
+	_kill_fade()
+	_bgm.volume_db = -40.0
+	_fade_tween = create_tween()
+	_fade_tween.tween_property(_bgm, "volume_db", 0.0, FADE_SEC)
+	_fade_tween.tween_callback(func():
+		_switching = false
+		_bgm.volume_db = 0.0
+	)

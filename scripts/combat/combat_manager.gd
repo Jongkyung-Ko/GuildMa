@@ -183,9 +183,13 @@ func toggle_pause() -> void:
 		phase = Phase.PAUSED
 		Engine.time_scale = 1.0
 		_hit_stop_t = 0.0
+		if AudioManager:
+			AudioManager.pause_bgm()
 		log_combat("일시정지")
 	elif phase == Phase.PAUSED:
 		phase = Phase.FIGHTING
+		if AudioManager:
+			AudioManager.resume_bgm()
 		log_combat("전투 재개")
 
 
