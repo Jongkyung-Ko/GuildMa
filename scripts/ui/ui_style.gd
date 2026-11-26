@@ -2,6 +2,7 @@ extends Node
 
 ## Shared UI colors/styles + embedded Korean font + PC/mobile display adapt.
 ## PC keeps project default expand layout; mobile/web-narrow uses letterbox KEEP.
+## Fonts are static OTFs shipped in the project (no OS / variable-font reliance).
 
 const GOLD := Color(0.82, 0.68, 0.32)
 const GOLD_BRIGHT := Color(1.0, 0.88, 0.45)
@@ -12,9 +13,17 @@ const TEXT_DIM := Color(0.72, 0.7, 0.64)
 const DANGER := Color(0.9, 0.35, 0.35)
 const OK := Color(0.45, 0.85, 0.5)
 
-const FONT_PATH := "res://assets/fonts/NotoSansKR-Variable.ttf"
+const FONT_REGULAR_PATH := "res://assets/fonts/NotoSansKR-Regular.otf"
+const FONT_BOLD_PATH := "res://assets/fonts/NotoSansKR-Bold.otf"
+
+## Sample used to force glyph rasterization for Hangul + UI ASCII on web.
+const FONT_WARMUP := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" \
+	+ "가나다라마바사아자차카타파하한글길드마스터상점대장간여관훈련창고의무의뢰사냥전투" \
+	+ "공격방어체력경험치골드명성파티적새게임이어하기설정마을시설구매장착강화부상출정" \
+	+ "—·/()[]{}.,!?:+-%"
 
 var ui_font: Font = null
+var ui_font_bold: Font = null
 var app_theme: Theme = null
 var _mobile_like: bool = false
 
@@ -23,43 +32,67 @@ func _ready() -> void:
 	_setup_embedded_font_theme()
 	_apply_display_adapt()
 	var win := get_window()
-	if win:
+	if win and not win.size_changed.is_connected(_apply_display_adapt):
 		win.size_changed.connect(_apply_display_adapt)
-	# Root viewport size changes (browser resize / rotate)
-	get_tree().root.size_changed.connect(_apply_display_adapt)
+	var root_vp := get_tree().root
+	if root_vp and not root_vp.size_changed.is_connected(_apply_display_adapt):
+		root_vp.size_changed.connect(_apply_display_adapt)
 
 
 func _setup_embedded_font_theme() -> void:
-	if ResourceLoader.exists(FONT_PATH):
-		ui_font = load(FONT_PATH) as Font
+	if ResourceLoader.exists(FONT_REGULAR_PATH):
+		ui_font = load(FONT_REGULAR_PATH) as Font
 	else:
-		push_warning("UIStyle: missing embedded font %s" % FONT_PATH)
+		push_warning("UIStyle: missing embedded font %s" % FONT_REGULAR_PATH)
 		return
+
+	if ResourceLoader.exists(FONT_BOLD_PATH):
+		ui_font_bold = load(FONT_BOLD_PATH) as Font
+	else:
+		ui_font_bold = ui_font
+
+	_warm_font_cache()
 
 	app_theme = Theme.new()
 	app_theme.default_font = ui_font
 	app_theme.default_font_size = 16
 
-	# Common control types used across title/town/facility/combat
-	for type_name in ["Label", "Button", "LineEdit", "OptionButton", "CheckBox", "AcceptDialog", "Window", "PopupMenu"]:
+	for type_name in [
+		"Label", "Button", "LineEdit", "OptionButton", "CheckBox",
+		"AcceptDialog", "Window", "PopupMenu", "ItemList", "Tree",
+		"TextEdit", "CodeEdit", "TooltipLabel"
+	]:
 		app_theme.set_font("font", type_name, ui_font)
 		app_theme.set_font_size("font_size", type_name, 16)
 
+	# Buttons prefer bold for readability
+	app_theme.set_font("font", "Button", ui_font_bold)
+	app_theme.set_font_size("font_size", "Button", 16)
+
 	app_theme.set_font("normal_font", "RichTextLabel", ui_font)
-	app_theme.set_font("bold_font", "RichTextLabel", ui_font)
+	app_theme.set_font("bold_font", "RichTextLabel", ui_font_bold)
 	app_theme.set_font("italics_font", "RichTextLabel", ui_font)
-	app_theme.set_font("bold_italics_font", "RichTextLabel", ui_font)
+	app_theme.set_font("bold_italics_font", "RichTextLabel", ui_font_bold)
 	app_theme.set_font("mono_font", "RichTextLabel", ui_font)
 	app_theme.set_font_size("normal_font_size", "RichTextLabel", 14)
+	app_theme.set_font_size("bold_font_size", "RichTextLabel", 14)
 
-	# Slightly larger default button padding for readability
-	var btn_style := button_normal()
-	app_theme.set_stylebox("normal", "Button", btn_style)
+	app_theme.set_stylebox("normal", "Button", button_normal())
 	app_theme.set_stylebox("hover", "Button", button_hover())
 	app_theme.set_stylebox("pressed", "Button", button_pressed())
 	app_theme.set_stylebox("disabled", "Button", button_disabled())
 
+	# Apply as early as possible so every subsequent Control inherits Korean glyphs.
 	get_tree().root.theme = app_theme
+
+
+func _warm_font_cache() -> void:
+	if ui_font == null:
+		return
+	for size in [11, 13, 14, 15, 16, 17, 18, 20, 22, 28, 56]:
+		ui_font.get_string_size(FONT_WARMUP, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+		if ui_font_bold != null and ui_font_bold != ui_font:
+			ui_font_bold.get_string_size(FONT_WARMUP, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
 
 
 func apply_font(control: Control, size: int = -1) -> void:
@@ -68,9 +101,14 @@ func apply_font(control: Control, size: int = -1) -> void:
 	if control is RichTextLabel:
 		var rtl := control as RichTextLabel
 		rtl.add_theme_font_override("normal_font", ui_font)
-		rtl.add_theme_font_override("bold_font", ui_font)
+		rtl.add_theme_font_override("bold_font", ui_font_bold if ui_font_bold else ui_font)
 		if size > 0:
 			rtl.add_theme_font_size_override("normal_font_size", size)
+			rtl.add_theme_font_size_override("bold_font_size", size)
+	elif control is Button:
+		control.add_theme_font_override("font", ui_font_bold if ui_font_bold else ui_font)
+		if size > 0:
+			control.add_theme_font_size_override("font_size", size)
 	else:
 		control.add_theme_font_override("font", ui_font)
 		if size > 0:
@@ -90,7 +128,6 @@ func _detect_mobile_like() -> bool:
 	var sz := win.size
 	if sz.x <= 0 or sz.y <= 0:
 		return false
-	# Phone / narrow browser: portrait or short width. Laptops with touch stay PC if wide.
 	var portrait := sz.y > sz.x
 	var narrow := sz.x < 900
 	if OS.has_feature("web") and (portrait or narrow):
@@ -114,9 +151,10 @@ func _apply_display_adapt() -> void:
 		# Letterbox — no stretch distortion; PC default expand unchanged.
 		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
 		if app_theme:
-			app_theme.default_font_size = 17
-			app_theme.set_font_size("font_size", "Button", 17)
-			app_theme.set_font_size("font_size", "Label", 16)
+			app_theme.default_font_size = 18
+			app_theme.set_font_size("font_size", "Button", 18)
+			app_theme.set_font_size("font_size", "Label", 17)
+			app_theme.set_font_size("normal_font_size", "RichTextLabel", 15)
 	else:
 		# Match project.godot stretch/aspect=expand for desktop / Steam landscape.
 		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
@@ -124,6 +162,7 @@ func _apply_display_adapt() -> void:
 			app_theme.default_font_size = 16
 			app_theme.set_font_size("font_size", "Button", 16)
 			app_theme.set_font_size("font_size", "Label", 16)
+			app_theme.set_font_size("normal_font_size", "RichTextLabel", 14)
 
 
 static func panel_style(active: bool = false) -> StyleBoxFlat:
@@ -185,12 +224,11 @@ static func apply_button(btn: Button) -> void:
 	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 0.85))
 	btn.add_theme_color_override("font_disabled_color", TEXT_DIM)
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	# Autoload instance applies embedded font when available
 	var style_node := _ui_style_autoload()
 	if style_node:
 		style_node.apply_font(btn)
 		if style_node.is_mobile_like():
-			btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, 44.0)
+			btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, 48.0)
 
 
 static func label(text: String, size: int = 16, color: Color = TEXT) -> Label:
@@ -200,12 +238,15 @@ static func label(text: String, size: int = 16, color: Color = TEXT) -> Label:
 	l.add_theme_color_override("font_color", color)
 	var style_node := _ui_style_autoload()
 	if style_node:
-		style_node.apply_font(l, size)
+		# On mobile, bump small HUD labels a bit without changing PC sizes.
+		var final_size := size
+		if style_node.is_mobile_like() and size <= 16:
+			final_size = size + 1
+		style_node.apply_font(l, final_size)
 	return l
 
 
 static func _ui_style_autoload() -> Node:
-	# Prefer Engine singleton; safe during static helpers after boot
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return null

@@ -73,12 +73,15 @@ jobs:
           # Sanity: must look like Godot web shell, not emulator slideshow
           if "GuildMaster Phase 2-1 Emulator" in html:
               raise SystemExit("FAIL: emulator HTML detected — wrong artifact")
-          # Embedded Korean font must ship in the PCK (no OS font reliance on web)
+          # Embedded Korean fonts must ship in the PCK (static OTF, no OS / variable font)
           pck = (root / "index.pck").read_bytes()
-          markers = [b"NotoSansKR", b"NotoSansKR-Variable"]
-          if not any(m in pck for m in markers):
-              raise SystemExit("FAIL: NotoSansKR font not found inside index.pck")
-          print("OK: wasm magic + html refs + not emulator + NotoSansKR in pck")
+          required = [b"NotoSansKR-Regular", b"NotoSansKR-Bold"]
+          missing = [m.decode() for m in required if m not in pck]
+          if missing:
+              raise SystemExit(f"FAIL: missing font markers in index.pck: {missing}")
+          if b"NotoSansKR-Variable" in pck:
+              raise SystemExit("FAIL: variable font still present — use static OTF only")
+          print("OK: wasm magic + html refs + not emulator + static NotoSansKR in pck")
           PY
 
       - name: Upload GitHub Pages artifact
