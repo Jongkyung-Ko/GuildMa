@@ -63,4 +63,7 @@ Combat spawn/AI/VFX, party, UI layout (except audio pause hook), balance JSON, t
 ## Web export
 
 - **Local headless:** `godot4 --headless --path . --export-release "Web"` → **PASS** (`savepack` completed; templates 4.3.stable present).
-- **Pages CI:** triggered on push to `main` (`web-preview.yml`); conclusion filled after deploy.
+- **Pages CI:**
+  - Direct runs on `73b2500` / `67c4daa` were **cancelled** by `web-preview` concurrency when a newer `main` push arrived.
+  - Tip `0da5e2b` (ancestor chain includes `73b2500`) → **success** — Export & validate Web build ✅, Deploy to GitHub Pages ✅ ([run 45846033257](https://github.com/Jongkyung-Ko/GuildMa/actions/runs/45846033257), Asia/Seoul 2026-11-27 00:09).
+  - Local audible listening on Pages: **not done** (not PASS).
