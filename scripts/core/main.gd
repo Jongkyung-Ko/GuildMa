@@ -6,4 +6,5 @@ func _ready() -> void:
 
 
 func _boot() -> void:
+	# First boot: title theme (Sovereign of the Keep) starts with the title scene.
 	SceneRouter.go_title()

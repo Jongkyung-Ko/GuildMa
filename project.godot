@@ -16,6 +16,7 @@ config/icon="res://assets/sprites/icons/guild.png"
 UIStyle="*res://scripts/ui/ui_style.gd"
 GameState="*res://scripts/core/game_state.gd"
 SceneRouter="*res://scripts/core/scene_router.gd"
+MusicManager="*res://scripts/core/music_manager.gd"
 
 [display]
 
