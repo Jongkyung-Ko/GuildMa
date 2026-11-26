@@ -30,6 +30,14 @@ var dungeon_progress: Dictionary = {}
 var hunt_progress: Dictionary = {}
 ## Active run map snapshot (also mirrored under hunt_progress[hunt_id].map).
 var active_hunt_id: String = ""
+## Guild Hall mission parties — member id lists only (not full copies).
+## hunt syncs to member.in_party for combat spawn (max 5).
+## Exclusive: a member may belong to at most one of hunt / train / defend.
+var guild_parties: Dictionary = {"hunt": [], "train": [], "defend": []}
+var selected_guild_member_id: String = ""
+const GUILD_PARTY_KINDS := ["hunt", "train", "defend"]
+const GUILD_PARTY_MAX := {"hunt": 5, "train": 5, "defend": 5}
+var _combat_balance: Dictionary = {}
 var has_save: bool = false
 var is_playing: bool = false
 var message_log: Array = []
@@ -68,6 +76,7 @@ func _load_static_data() -> void:
 	quest_catalog = _read_json("res://data/quests.json").get("quests", [])
 	dungeon_catalog = _read_json("res://data/combat/dungeons.json")
 	hunt_catalog = _read_json("res://data/combat/hunts.json")
+	_combat_balance = _read_json("res://data/combat/balance_combat.json")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -98,6 +107,11 @@ func new_game() -> void:
 	active_hunt_id = ""
 	message_log = []
 	members = _create_starting_party()
+	guild_parties = {"hunt": [], "train": [], "defend": []}
+	for m in members:
+		if bool(m.get("in_party", false)):
+			guild_parties["hunt"].append(str(m.get("id")))
+	selected_guild_member_id = str(members[0].get("id", "")) if not members.is_empty() else ""
 	is_playing = true
 	save_game()
 	emit_message("새 게임을 시작합니다. 마을에 오신 것을 환영합니다.")
@@ -347,6 +361,8 @@ func save_game() -> void:
 		"dungeon_progress": dungeon_progress,
 		"hunt_progress": hunt_progress,
 		"active_hunt_id": active_hunt_id,
+		"guild_parties": guild_parties,
+		"selected_guild_member_id": selected_guild_member_id,
 		"message_log": message_log,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -386,10 +402,196 @@ func load_game() -> bool:
 		hunt_progress = {}
 	active_hunt_id = str(data.get("active_hunt_id", ""))
 	message_log = data.get("message_log", [])
+	selected_guild_member_id = str(data.get("selected_guild_member_id", ""))
+	_load_guild_parties(data.get("guild_parties", null))
 	is_playing = true
 	emit_message("게임을 불러왔습니다.")
 	state_changed.emit()
 	return true
+
+
+# --- Guild Hall parties (id references only) ---
+
+func get_member_by_id(member_id: String) -> Dictionary:
+	for m in members:
+		if str(m.get("id", "")) == member_id:
+			return m
+	return {}
+
+
+func get_guild_party(kind: String) -> Array:
+	_ensure_guild_parties()
+	var arr = guild_parties.get(kind, [])
+	return arr if typeof(arr) == TYPE_ARRAY else []
+
+
+func guild_party_label(kind: String) -> String:
+	match kind:
+		"hunt":
+			return "사냥 파티"
+		"train":
+			return "훈련 파티"
+		"defend":
+			return "수비 파티"
+		_:
+			return kind
+
+
+func guild_party_purpose(kind: String) -> String:
+	match kind:
+		"hunt":
+			return "사냥터 탐험 · 몬스터 토벌 · 재료 · 경험치"
+		"train":
+			return "전투 훈련 · 기술 숙련 · 성장 준비"
+		"defend":
+			return "길드 성 · 마을 방어 · 위기 대응"
+		_:
+			return ""
+
+
+func member_party_kind(member_id: String) -> String:
+	_ensure_guild_parties()
+	for kind in GUILD_PARTY_KINDS:
+		for mid in get_guild_party(kind):
+			if str(mid) == member_id:
+				return kind
+	return ""
+
+
+func set_guild_party(kind: String, ids: Array) -> bool:
+	if not GUILD_PARTY_KINDS.has(kind):
+		emit_message("알 수 없는 파티 유형입니다.", true)
+		return false
+	_ensure_guild_parties()
+	var max_n: int = int(GUILD_PARTY_MAX.get(kind, 5))
+	var cleaned: Array = []
+	var seen := {}
+	for raw in ids:
+		var mid := str(raw)
+		if mid == "" or seen.has(mid):
+			continue
+		if get_member_by_id(mid).is_empty():
+			continue
+		seen[mid] = true
+		cleaned.append(mid)
+		if cleaned.size() >= max_n:
+			break
+	# Exclusive: remove these members from other mission parties.
+	for other in GUILD_PARTY_KINDS:
+		if other == kind:
+			continue
+		var kept: Array = []
+		for mid2 in get_guild_party(other):
+			if not cleaned.has(str(mid2)):
+				kept.append(str(mid2))
+		guild_parties[other] = kept
+	guild_parties[kind] = cleaned
+	_sync_hunt_in_party_flags()
+	save_game()
+	state_changed.emit()
+	emit_message("%s 편성을 저장했습니다. (%d명)" % [guild_party_label(kind), cleaned.size()])
+	return true
+
+
+func toggle_member_in_party(kind: String, member_id: String) -> bool:
+	_ensure_guild_parties()
+	if not GUILD_PARTY_KINDS.has(kind):
+		return false
+	if get_member_by_id(member_id).is_empty():
+		return false
+	var current: Array = get_guild_party(kind).duplicate()
+	var sid := str(member_id)
+	if current.has(sid):
+		current.erase(sid)
+	else:
+		var max_n: int = int(GUILD_PARTY_MAX.get(kind, 5))
+		if current.size() >= max_n:
+			emit_message("파티 인원이 가득 찼습니다. (최대 %d)" % max_n, true)
+			return false
+		current.append(sid)
+	return set_guild_party(kind, current)
+
+
+## Combat-derived preview — same formulas as CombatCharacter.setup_from_member.
+## Does not invent DEX/LUK; uses only stored str/vit/agi/int/wis + level.
+func compute_combat_preview(member: Dictionary) -> Dictionary:
+	if member.is_empty():
+		return {}
+	var bal := _combat_balance if not _combat_balance.is_empty() else _read_json("res://data/combat/balance_combat.json")
+	var level: int = int(member.get("level", 1))
+	var stats: Dictionary = member.get("stats", {})
+	var vit: float = float(stats.get("vit", 5))
+	var stre: float = float(stats.get("str", 5))
+	var agi: float = float(stats.get("agi", 5))
+	var job := str(member.get("job", "dps"))
+	var hp_max: float = float(bal.get("hp_base", 80)) + vit * float(bal.get("hp_vit", 12)) + level * float(bal.get("hp_level", 8))
+	if job == "lord":
+		hp_max += float(bal.get("hp_lord_bonus", 20))
+	var atk: float = float(bal.get("atk_base", 5)) + stre * float(bal.get("atk_str", 2)) + level * float(bal.get("atk_level", 1))
+	var defense: float = float(bal.get("def_base", 2)) + vit * float(bal.get("def_vit", 1)) + level / float(bal.get("def_level_div", 2))
+	var move_speed: float = minf(float(bal.get("move_cap", 220)), float(bal.get("move_base", 115)) + agi * float(bal.get("move_agi", 2.5)))
+	return {
+		"hp": int(round(hp_max)),
+		"atk": int(round(atk)),
+		"def": int(round(defense)),
+		"spd": int(round(move_speed)),
+	}
+
+
+func select_guild_member(member_id: String) -> void:
+	if get_member_by_id(member_id).is_empty():
+		return
+	selected_guild_member_id = member_id
+	save_game()
+	state_changed.emit()
+
+
+func _ensure_guild_parties() -> void:
+	if typeof(guild_parties) != TYPE_DICTIONARY:
+		guild_parties = {}
+	for kind in GUILD_PARTY_KINDS:
+		if not guild_parties.has(kind) or typeof(guild_parties[kind]) != TYPE_ARRAY:
+			guild_parties[kind] = []
+
+
+func _load_guild_parties(raw) -> void:
+	guild_parties = {"hunt": [], "train": [], "defend": []}
+	if typeof(raw) == TYPE_DICTIONARY:
+		for kind in GUILD_PARTY_KINDS:
+			var src = raw.get(kind, [])
+			if typeof(src) != TYPE_ARRAY:
+				continue
+			for mid in src:
+				var sid := str(mid)
+				if not get_member_by_id(sid).is_empty() and not guild_parties[kind].has(sid):
+					# Skip if already claimed by earlier kind (exclusive migrate).
+					var claimed := false
+					for other in GUILD_PARTY_KINDS:
+						if other == kind:
+							break
+						if guild_parties[other].has(sid):
+							claimed = true
+							break
+					if not claimed:
+						guild_parties[kind].append(sid)
+	# Legacy saves: no guild_parties → seed hunt from in_party.
+	if get_guild_party("hunt").is_empty() and get_guild_party("train").is_empty() and get_guild_party("defend").is_empty():
+		for m in members:
+			if bool(m.get("in_party", false)):
+				guild_parties["hunt"].append(str(m.get("id")))
+	_sync_hunt_in_party_flags()
+	if selected_guild_member_id == "" or get_member_by_id(selected_guild_member_id).is_empty():
+		if not members.is_empty():
+			selected_guild_member_id = str(members[0].get("id", ""))
+
+
+func _sync_hunt_in_party_flags() -> void:
+	_ensure_guild_parties()
+	var hunt_set := {}
+	for mid in get_guild_party("hunt"):
+		hunt_set[str(mid)] = true
+	for m in members:
+		m["in_party"] = hunt_set.has(str(m.get("id", "")))
 
 
 # --- Dungeon vertical progression (separate from hunting-ground exploration) ---
