@@ -3,6 +3,11 @@ extends RefCounted
 
 ## Builds SpriteFrames from sliced PNG sequences under assets/sprites.
 ## Attack FPS tuned so anim length fits job attack intervals.
+## Pivot metadata (foot-aligned canvases) lives in data/combat/sprite_pivots.json.
+
+const PIVOT_PATH := "res://data/combat/sprite_pivots.json"
+
+static var _pivot_cache: Dictionary = {}
 
 
 static func ally_frames(job: String) -> SpriteFrames:
@@ -18,11 +23,11 @@ static func ally_frames(job: String) -> SpriteFrames:
 			# ~0.40s — snappy within 0.65s interval
 			_add_seq(sf, "attack", base, "combat_%02d.png", [4, 5, 6, 7], 12.0, false)
 		"mage":
-			# Cast raise — projectile fires at active frame (~0.45s)
-			_add_seq(sf, "attack", base, "combat_%02d.png", [2, 4, 5, 6], 10.0, false)
+			# Raise staff → energy → thrust release (skip baked fireball frame 7)
+			_add_seq(sf, "attack", base, "combat_%02d.png", [2, 3, 4, 5, 6], 9.0, false)
 		"healer":
-			# Staff raise for heal cast (~0.50s)
-			_add_seq(sf, "attack", base, "combat_%02d.png", [2, 4, 5, 6], 9.0, false)
+			# Quiet raise → cast sparkles (skip misaligned leftover frame 7)
+			_add_seq(sf, "attack", base, "combat_%02d.png", [3, 4, 5, 6], 8.0, false)
 		"lord":
 			# ~0.50s within 0.95s interval
 			_add_seq(sf, "attack", base, "combat_%02d.png", [3, 4, 5, 6, 7], 10.0, false)
@@ -60,21 +65,76 @@ static func vfx_frames(kind: String) -> SpriteFrames:
 
 
 static func attack_active_frame(job: String) -> int:
+	## Index inside the attack animation sequence (not sheet index).
 	match job:
 		"tank":
 			return 3
 		"dps":
 			return 1
 		"mage":
-			return 2  # cast release → spawn projectile
+			return 4  # combat_06 release / staff tip fire
 		"healer":
-			return 2
+			return 3  # combat_06 cast sparkles
 		"lord":
 			return 2
 		"enemy":
 			return 1
 		_:
 			return 2
+
+
+static func load_pivots() -> Dictionary:
+	if not _pivot_cache.is_empty():
+		return _pivot_cache
+	if not FileAccess.file_exists(PIVOT_PATH):
+		return {}
+	var f := FileAccess.open(PIVOT_PATH, FileAccess.READ)
+	if f == null:
+		return {}
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		return {}
+	_pivot_cache = data
+	return _pivot_cache
+
+
+static func job_pivot(job: String) -> Vector2:
+	var root := load_pivots()
+	var jobs: Dictionary = root.get("jobs", {})
+	if not jobs.has(job):
+		return Vector2(48, 72)
+	var entry: Dictionary = jobs[job]
+	var p: Array = entry.get("pivot", [48, 72])
+	return Vector2(float(p[0]), float(p[1]))
+
+
+static func job_canvas(job: String) -> Vector2i:
+	var root := load_pivots()
+	var jobs: Dictionary = root.get("jobs", {})
+	if not jobs.has(job):
+		return Vector2i(96, 96)
+	var entry: Dictionary = jobs[job]
+	var c: Array = entry.get("canvas", [96, 96])
+	return Vector2i(int(c[0]), int(c[1]))
+
+
+static func muzzle_offset(job: String, face_right: bool) -> Vector2:
+	## Staff tip / cast origin relative to foot pivot (facing right in art).
+	var root := load_pivots()
+	var jobs: Dictionary = root.get("jobs", {})
+	var off := Vector2(18, -40)
+	if jobs.has(job):
+		var entry: Dictionary = jobs[job]
+		var key := "staff_tip_offset" if job == "mage" else "heal_origin_offset"
+		if entry.has(key) and entry[key] != null:
+			var a: Array = entry[key]
+			off = Vector2(float(a[0]), float(a[1]))
+		elif entry.has("staff_tip_offset") and entry["staff_tip_offset"] != null:
+			var b: Array = entry["staff_tip_offset"]
+			off = Vector2(float(b[0]), float(b[1]))
+	if not face_right:
+		off.x = -off.x
+	return off
 
 
 static func _add_seq(

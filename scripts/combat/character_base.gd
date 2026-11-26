@@ -47,12 +47,15 @@ var heal_power: float = 0.0
 var _atk_timer: float = 0.0
 var attacks_started: int = 0
 var _manager: Node = null
+var _visual_root: Node2D
 var _sprite: AnimatedSprite2D
 var _name_label: Label
 var _hp_bar: ProgressBar
 var _flash_t: float = 0.0
 var _face_right: bool = true
 var _balance: Dictionary = {}
+var _sprite_pivot: Vector2 = Vector2(48, 72)
+var _sprite_scale: float = 0.95
 
 var _anim_state: AnimState = AnimState.IDLE
 var _pending_target: CombatCharacter = null
@@ -187,15 +190,20 @@ func _build_visuals() -> void:
 	shape.shape = circle
 	add_child(shape)
 
+	# Foot pivot parent — sprite frames are foot-aligned; do not rely on centered alone.
+	_visual_root = Node2D.new()
+	_visual_root.name = "VisualPivot"
+	_visual_root.scale = Vector2(_sprite_scale, _sprite_scale)
+	add_child(_visual_root)
+
 	_sprite = AnimatedSprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.centered = true
-	_sprite.position = Vector2(0, -30)
-	_shake_base = _sprite.position
-	_sprite.scale = Vector2(0.95, 0.95)
+	_sprite.centered = false
+	_sprite.position = Vector2.ZERO
+	_shake_base = Vector2.ZERO
 	_sprite.animation_finished.connect(_on_anim_finished)
 	_sprite.frame_changed.connect(_on_frame_changed)
-	add_child(_sprite)
+	_visual_root.add_child(_sprite)
 
 	_hp_bar = ProgressBar.new()
 	_hp_bar.min_value = 0
@@ -261,16 +269,57 @@ func _refresh_visuals() -> void:
 	if _sprite == null:
 		return
 	if team == Team.ALLY:
-		_sprite.sprite_frames = SpriteFactory.ally_frames(job if job != "" else "dps")
-		_attack_active_idx = SpriteFactory.attack_active_frame(job if job != "" else "dps")
+		var j := job if job != "" else "dps"
+		_sprite.sprite_frames = SpriteFactory.ally_frames(j)
+		_attack_active_idx = SpriteFactory.attack_active_frame(j)
+		_sprite_pivot = SpriteFactory.job_pivot(j)
 		_face_right = true
 	else:
 		_sprite.sprite_frames = SpriteFactory.enemy_frames(enemy_kind)
 		_attack_active_idx = SpriteFactory.attack_active_frame("enemy")
+		# Monsters keep centered art; approximate foot under mid-canvas.
+		_sprite_pivot = Vector2(48, 72)
 		_face_right = false
-	_sprite.flip_h = not _face_right
+	_apply_sprite_pivot()
+	_apply_facing()
 	_set_anim_state(AnimState.IDLE)
 	_play_anim("idle", true)
+
+
+func _apply_sprite_pivot() -> void:
+	if _sprite == null:
+		return
+	if team == Team.ALLY:
+		# Texture top-left so foot pixel lands on VisualPivot origin (actor feet).
+		_sprite.centered = false
+		_sprite.flip_h = false
+		_sprite.position = Vector2(-_sprite_pivot.x, -_sprite_pivot.y)
+		_shake_base = _sprite.position
+	else:
+		_sprite.centered = true
+		_sprite.position = Vector2(0, -30)
+		_shake_base = _sprite.position
+
+
+func _apply_facing() -> void:
+	## Mirror around foot pivot via visual_root scale — flip_h would shift uncentered art.
+	if _visual_root == null or _sprite == null:
+		return
+	if team == Team.ALLY:
+		var sx := _sprite_scale if _face_right else -_sprite_scale
+		_visual_root.scale = Vector2(sx, _sprite_scale)
+		_sprite.flip_h = false
+	else:
+		_visual_root.scale = Vector2(_sprite_scale, _sprite_scale)
+		_sprite.flip_h = not _face_right
+
+
+func muzzle_global() -> Vector2:
+	## World-space cast / staff tip. Independent of later caster movement once sampled.
+	if team == Team.ALLY and job != "":
+		var local := SpriteFactory.muzzle_offset(job, _face_right) * _sprite_scale
+		return global_position + local
+	return global_position + Vector2(18 if _face_right else -18, -28)
 
 
 func _is_attacking() -> bool:
@@ -379,7 +428,8 @@ func _launch_fireball(target: CombatCharacter, dmg: float) -> void:
 		parent_node.add_child(bolt)
 	else:
 		add_child(bolt)
-	var origin := global_position + Vector2(18 if _face_right else -18, -28)
+	# Snapshot staff tip now — bolt keeps its own start and ignores caster motion after.
+	var origin := muzzle_global()
 	var travel: float = 0.35
 	if not _balance.is_empty():
 		travel = float(_balance.get("projectile_travel", 0.35))
@@ -507,7 +557,7 @@ func _face_toward(who: CombatCharacter) -> void:
 		return
 	if absf(who.global_position.x - global_position.x) > 0.05:
 		_face_right = who.global_position.x > global_position.x
-		_sprite.flip_h = not _face_right
+		_apply_facing()
 
 
 func _desired_slot_position(target: CombatCharacter) -> Vector2:
@@ -688,26 +738,57 @@ func _spawn_melee_vfx(target: CombatCharacter) -> void:
 
 
 func _spawn_heal_vfx(ally: CombatCharacter) -> void:
-	var vfx := AnimatedSprite2D.new()
-	vfx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	vfx.sprite_frames = SpriteFactory.vfx_frames("heal")
-	vfx.z_index = 42
-	vfx.centered = true
-	vfx.scale = Vector2(1.25, 1.25)
 	var parent_node: Node = get_parent()
-	if parent_node:
-		parent_node.add_child(vfx)
-	else:
-		add_child(vfx)
-	vfx.global_position = ally.global_position + Vector2(0, -24)
-	vfx.play("play")
-	vfx.animation_finished.connect(vfx.queue_free)
-	var life := Timer.new()
-	life.wait_time = 0.5
-	life.one_shot = true
-	vfx.add_child(life)
-	life.timeout.connect(vfx.queue_free)
-	life.start()
+	if parent_node == null:
+		parent_node = self
+	var origin := muzzle_global()
+	var dest := ally.global_position + Vector2(0, -24)
+
+	# Cast spark at staff tip
+	var spark := AnimatedSprite2D.new()
+	spark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spark.sprite_frames = SpriteFactory.vfx_frames("heal")
+	spark.z_index = 42
+	spark.centered = true
+	spark.scale = Vector2(0.85, 0.85)
+	parent_node.add_child(spark)
+	spark.global_position = origin
+	spark.play("play")
+	spark.animation_finished.connect(spark.queue_free)
+
+	# Traveling heal mote from staff → ally
+	var mote := Node2D.new()
+	parent_node.add_child(mote)
+	mote.global_position = origin
+	mote.z_index = 43
+	var mote_spr := AnimatedSprite2D.new()
+	mote_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	mote_spr.sprite_frames = SpriteFactory.vfx_frames("heal")
+	mote_spr.centered = true
+	mote_spr.scale = Vector2(0.7, 0.7)
+	mote.add_child(mote_spr)
+	mote_spr.play("play")
+	var tw := mote.create_tween()
+	tw.tween_property(mote, "global_position", dest, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		var land := AnimatedSprite2D.new()
+		land.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		land.sprite_frames = SpriteFactory.vfx_frames("heal")
+		land.z_index = 42
+		land.centered = true
+		land.scale = Vector2(1.25, 1.25)
+		parent_node.add_child(land)
+		land.global_position = dest
+		land.play("play")
+		land.animation_finished.connect(land.queue_free)
+		var life := Timer.new()
+		life.wait_time = 0.5
+		life.one_shot = true
+		land.add_child(life)
+		life.timeout.connect(land.queue_free)
+		life.start()
+		mote.queue_free()
+	)
 
 
 func take_damage(amount: float, attacker: CombatCharacter = null, opts: Dictionary = {}) -> void:
