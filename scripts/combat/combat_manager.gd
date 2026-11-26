@@ -162,6 +162,8 @@ func _spawn_party() -> void:
 		_ally_root.add_child(actor)
 		actor.bind_manager(self)
 		actor.setup_from_member(m, balance)
+		if actor.has_method("assign_formation"):
+			actor.assign_formation(i)
 		actor.global_position = slots[i]
 		actor.died.connect(_on_combatant_died)
 		actor.hp_changed.connect(func(_c, _m): _ui.refresh())
@@ -184,7 +186,8 @@ func _spawn_enemies() -> void:
 		roster.append(list[0])
 	var count: int = int(balance.get("enemy_count_phase_2_1", 3))
 	count = clampi(count, 1, maxi(3, roster.size()))
-	var slots := [Vector2(980, 260), Vector2(1040, 380), Vector2(920, 400)]
+	# Keep enemies left of the right HUD (~268px) so sprites are not clipped.
+	var slots := [Vector2(860, 240), Vector2(920, 360), Vector2(800, 440)]
 	for i in range(count):
 		var data: Dictionary = roster[i % roster.size()]
 		var enemy: Node = ENEMY_SCRIPT.new()
@@ -192,7 +195,11 @@ func _spawn_enemies() -> void:
 		_enemy_root.add_child(enemy)
 		enemy.bind_manager(self)
 		enemy.setup_from_enemy(data)
-		enemy.global_position = slots[i % slots.size()] + Vector2(randf_range(-20, 20), randf_range(-20, 20))
+		if enemy.has_method("assign_formation"):
+			enemy.assign_formation(i)
+		# Keep enemies spread on spawn so they don't start stacked.
+		var spread := Vector2((i - 1) * 18.0, (i - 1) * 78.0)
+		enemy.global_position = slots[i % slots.size()] + spread + Vector2(randf_range(-10, 10), randf_range(-6, 6))
 		enemy.died.connect(_on_combatant_died)
 		enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
 		_enemies.append(enemy)

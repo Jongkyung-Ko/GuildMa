@@ -32,12 +32,13 @@ static func vfx_frames(kind: String) -> SpriteFrames:
 	var base := "res://assets/sprites/vfx/%s" % kind
 	var sf := SpriteFrames.new()
 	var idxs: Array = []
-	for i in range(6):
+	for i in range(8):
 		if ResourceLoader.exists(base + "/frame_%02d.png" % i):
 			idxs.append(i)
 	if idxs.is_empty():
 		idxs = [0]
-	_add_seq(sf, "play", base, "frame_%02d.png", idxs, 14.0, false)
+	# Compact pixel VFX — short, non-looping burst.
+	_add_seq(sf, "play", base, "frame_%02d.png", idxs, 16.0, false)
 	return sf
 
 
