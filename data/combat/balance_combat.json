@@ -9,14 +9,26 @@
   "def_base": 2,
   "def_vit": 1,
   "def_level_div": 2,
-  "move_base": 80,
-  "move_agi": 2,
-  "move_cap": 160,
+  "move_base": 115,
+  "move_agi": 2.5,
+  "move_cap": 220,
   "aspd_base": 1.0,
   "aspd_agi": 0.02,
   "aspd_cap": 2.0,
   "def_mitigation": 0.5,
   "min_damage": 1,
   "ally_attack_range": 36,
-  "enemy_count_phase_2_1": 3
+  "enemy_count_phase_2_1": 3,
+  "job_attack_interval": {
+    "tank": 1.15,
+    "lord": 0.95,
+    "dps": 0.65,
+    "mage": 1.30,
+    "healer": 1.50,
+    "enemy": 1.10
+  },
+  "heal_threshold": 0.75,
+  "heal_atk_mult": 1.35,
+  "projectile_travel": 0.35,
+  "move_speed_mult": 1.4
 }

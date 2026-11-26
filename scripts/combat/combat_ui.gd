@@ -128,7 +128,7 @@ func refresh() -> void:
 	var pname: String = _manager.get_phase_name()
 	match pname:
 		"fighting":
-			_status.text = "전투 중 — Phase 2-1"
+			_status.text = "전투 중 — Phase 2-2"
 			_status.add_theme_color_override("font_color", UIStyle.GOLD_BRIGHT)
 			_pause_btn.disabled = false
 			_pause_btn.text = "일시정지 (Esc)"

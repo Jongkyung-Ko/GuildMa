@@ -18,6 +18,11 @@ var phase: Phase = Phase.FIGHTING
 var _allies: Array = []
 var _enemies: Array = []
 var _log_lines: PackedStringArray = PackedStringArray()
+var _camera: Camera2D
+var _shake_t: float = 0.0
+var _shake_amp: float = 0.0
+var _hit_stop_t: float = 0.0
+var _cam_home: Vector2 = Vector2(640, 360)
 
 @onready var _battlefield: Node2D = $Battlefield
 @onready var _ally_root: Node2D = $Battlefield/Allies
@@ -30,14 +35,50 @@ func _ready() -> void:
 	enemy_catalog = _read_json(ENEMIES_PATH)
 	_ensure_game_state()
 	_build_ground()
+	_setup_camera()
 	_spawn_party()
 	_spawn_enemies()
 	_ui.setup(self)
-	log_combat("전투 시작 — 자동전투 (Phase 2-1)")
+	log_combat("전투 시작 — 자동전투 (Phase 2-2)")
 	set_process(true)
 
 
-func _process(_delta: float) -> void:
+func _setup_camera() -> void:
+	_camera = Camera2D.new()
+	_camera.name = "CombatCamera"
+	_camera.enabled = true
+	_camera.position = _cam_home
+	add_child(_camera)
+	_camera.make_current()
+
+
+func shake_camera(amplitude: float = 3.0, duration: float = 0.12) -> void:
+	_shake_amp = maxf(_shake_amp, amplitude)
+	_shake_t = maxf(_shake_t, duration)
+
+
+func request_hit_stop(duration: float = 0.05) -> void:
+	# Local combat slowdown only — never leave Engine.time_scale stuck.
+	_hit_stop_t = maxf(_hit_stop_t, clampf(duration, 0.02, 0.08))
+	Engine.time_scale = 0.15
+
+
+func _process(delta: float) -> void:
+	if _hit_stop_t > 0.0:
+		_hit_stop_t -= delta / maxf(Engine.time_scale, 0.01)
+		if _hit_stop_t <= 0.0:
+			Engine.time_scale = 1.0
+	if _shake_t > 0.0 and _camera:
+		_shake_t -= delta
+		var falloff := clampf(_shake_t / 0.12, 0.0, 1.0)
+		_camera.position = _cam_home + Vector2(
+			randf_range(-_shake_amp, _shake_amp) * falloff,
+			randf_range(-_shake_amp, _shake_amp) * falloff * 0.7
+		)
+		if _shake_t <= 0.0:
+			_camera.position = _cam_home
+			_shake_amp = 0.0
+
 	if Input.is_action_just_pressed("ui_cancel"):
 		toggle_pause()
 	if phase == Phase.FIGHTING:
@@ -106,6 +147,8 @@ func toggle_pause() -> void:
 		return
 	if phase == Phase.FIGHTING:
 		phase = Phase.PAUSED
+		Engine.time_scale = 1.0
+		_hit_stop_t = 0.0
 		log_combat("일시정지")
 	elif phase == Phase.PAUSED:
 		phase = Phase.FIGHTING
@@ -113,6 +156,8 @@ func toggle_pause() -> void:
 
 
 func return_to_town() -> void:
+	Engine.time_scale = 1.0
+	_hit_stop_t = 0.0
 	SceneRouter.go_town()
 
 
@@ -220,6 +265,8 @@ func _check_end_conditions() -> void:
 			break
 	if not enemies_alive:
 		phase = Phase.VICTORY
+		Engine.time_scale = 1.0
+		_hit_stop_t = 0.0
 		log_combat("승리 — 적 전멸 (보상은 후속 Phase)")
 		return
 	var allies_alive := false
@@ -229,6 +276,8 @@ func _check_end_conditions() -> void:
 			break
 	if not allies_alive:
 		phase = Phase.DEFEAT
+		Engine.time_scale = 1.0
+		_hit_stop_t = 0.0
 		log_combat("패배 — 파티 전원 전투불능 (보상은 후속 Phase)")
 
 

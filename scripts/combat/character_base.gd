@@ -1,9 +1,8 @@
 class_name CombatCharacter
 extends CharacterBody2D
 
-## Auto-combat actor with role slots, ally separation, and attack state machine.
-## Attack: WINDUP → ACTIVE (apply damage once) → RECOVERY → IDLE.
-## Walk/idle never interrupt an in-progress attack animation.
+## Auto-combat actor: role slots, attack state machine, mage projectiles, healer heals.
+## Attack: WINDUP → ACTIVE (damage / projectile / heal) → RECOVERY → IDLE.
 
 signal hp_changed(current: float, maximum: float)
 signal died(who: CombatCharacter)
@@ -22,8 +21,9 @@ enum AnimState {
 	DEATH,
 }
 
-const MIN_SEPARATION := 110.0
-const SEPARATION_STRENGTH := 5.5
+const MIN_SEPARATION := 100.0
+const SEPARATION_STRENGTH := 4.5
+const SLOT_ARRIVE := 22.0
 
 var team: Team = Team.ALLY
 var display_name: String = ""
@@ -42,21 +42,26 @@ var attack_range: float = 36.0
 var attack_interval: float = 1.0
 var aggro_range: float = 2000.0
 var is_dead: bool = false
+var heal_power: float = 0.0
 
 var _atk_timer: float = 0.0
+var attacks_started: int = 0
 var _manager: Node = null
 var _sprite: AnimatedSprite2D
 var _name_label: Label
 var _hp_bar: ProgressBar
 var _flash_t: float = 0.0
 var _face_right: bool = true
+var _balance: Dictionary = {}
 
 var _anim_state: AnimState = AnimState.IDLE
 var _pending_target: CombatCharacter = null
 var _pending_damage: float = 0.0
+var _pending_heal: bool = false
 var _damage_applied: bool = false
 var _attack_active_idx: int = 2
 var _hit_lock_t: float = 0.0
+var _shake_base: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -74,6 +79,7 @@ func assign_formation(slot: int) -> void:
 
 
 func setup_from_member(member: Dictionary, balance: Dictionary) -> void:
+	_balance = balance
 	team = Team.ALLY
 	member_id = str(member.get("id", ""))
 	display_name = str(member.get("name", "길드원"))
@@ -89,11 +95,9 @@ func setup_from_member(member: Dictionary, balance: Dictionary) -> void:
 	hp = hp_max
 	atk = float(balance.get("atk_base", 5)) + stre * float(balance.get("atk_str", 2)) + level * float(balance.get("atk_level", 1))
 	defense = float(balance.get("def_base", 2)) + vit * float(balance.get("def_vit", 1)) + level / float(balance.get("def_level_div", 2))
-	move_speed = minf(float(balance.get("move_cap", 160)), float(balance.get("move_base", 80)) + agi * float(balance.get("move_agi", 2)))
-	var aspd: float = minf(float(balance.get("aspd_cap", 2.0)), float(balance.get("aspd_base", 1.0)) + agi * float(balance.get("aspd_agi", 0.02)))
-	attack_interval = 1.0 / maxf(0.2, aspd)
-	# Ensure cooldown cannot outrun a full attack animation (~0.7–0.9s).
-	attack_interval = maxf(attack_interval, 0.95)
+	move_speed = minf(float(balance.get("move_cap", 220)), float(balance.get("move_base", 115)) + agi * float(balance.get("move_agi", 2.5)))
+	attack_interval = _job_interval(job, balance)
+	heal_power = atk * float(balance.get("heal_atk_mult", 1.35))
 	attack_range = float(balance.get("ally_attack_range", 36))
 	aggro_range = 2000.0
 	_apply_role_offsets()
@@ -111,50 +115,68 @@ func setup_from_enemy(data: Dictionary) -> void:
 	hp = hp_max
 	atk = float(data.get("atk", 8))
 	defense = float(data.get("def", 2))
-	move_speed = float(data.get("move", 100))
-	var aspd: float = float(data.get("aspd", 1.0))
-	attack_interval = maxf(0.95, 1.0 / maxf(0.2, aspd))
-	attack_range = float(data.get("attack_range", 28))
+	move_speed = float(data.get("move", 100)) * 1.35
+	attack_interval = 1.10
+	attack_range = float(data.get("attack_range", 36))
 	aggro_range = float(data.get("aggro_range", 900))
-	preferred_radius = attack_range * 0.85
+	preferred_radius = attack_range * 0.75
 	preferred_angle = 0.0
 	if is_inside_tree():
 		_refresh_visuals()
 
 
+func _job_interval(j: String, balance: Dictionary) -> float:
+	var table: Dictionary = balance.get("job_attack_interval", {})
+	if table.has(j):
+		return float(table[j])
+	match j:
+		"tank":
+			return 1.15
+		"lord":
+			return 0.95
+		"dps":
+			return 0.65
+		"mage":
+			return 1.30
+		"healer":
+			return 1.50
+		_:
+			return 1.0
+
+
 func _apply_role_offsets() -> void:
 	match job:
 		"tank":
-			attack_range = 78.0
-			move_speed *= 0.95
-			preferred_radius = 68.0
+			attack_range = 72.0
+			move_speed *= 0.98
+			preferred_radius = 62.0
 			preferred_angle = PI + 0.08
 		"lord":
-			attack_range = 88.0
-			preferred_radius = 78.0
-			preferred_angle = PI - 0.7
+			attack_range = 70.0
+			preferred_radius = 60.0
+			preferred_angle = PI - 0.65
 		"dps":
-			attack_range = 86.0
+			attack_range = 68.0
 			atk *= 1.08
-			preferred_radius = 76.0
-			preferred_angle = PI + 0.85
+			preferred_radius = 58.0
+			preferred_angle = PI + 0.8
 		"healer":
-			attack_range = 150.0
-			atk *= 0.7
+			attack_range = 160.0
+			atk *= 0.55
 			move_speed *= 0.95
-			preferred_radius = 128.0
+			preferred_radius = 130.0
 			preferred_angle = PI - 1.15
 		"mage":
-			attack_range = 160.0
-			atk *= 1.05
+			attack_range = 170.0
+			atk *= 1.12
 			move_speed *= 0.92
-			preferred_radius = 138.0
+			preferred_radius = 140.0
 			preferred_angle = PI + 1.2
 		"enemy":
-			preferred_radius = 64.0 + float(formation_slot) * 14.0
+			preferred_radius = 52.0 + float(formation_slot) * 12.0
 			preferred_angle = 0.15 + float(formation_slot) * 0.7
 		_:
-			preferred_radius = 78.0
+			preferred_radius = 60.0
 			preferred_angle = PI
 
 
@@ -168,8 +190,8 @@ func _build_visuals() -> void:
 	_sprite = AnimatedSprite2D.new()
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_sprite.centered = true
-	# Combat sprites ~96px tall; feet near body origin.
 	_sprite.position = Vector2(0, -30)
+	_shake_base = _sprite.position
 	_sprite.scale = Vector2(0.95, 0.95)
 	_sprite.animation_finished.connect(_on_anim_finished)
 	_sprite.frame_changed.connect(_on_frame_changed)
@@ -210,7 +232,6 @@ func _build_visuals() -> void:
 		ui.apply_font(_name_label, 11)
 	add_child(_name_label)
 	_layout_overhead_ui()
-
 	_refresh_visuals()
 
 
@@ -299,10 +320,10 @@ func _on_anim_finished() -> void:
 	if is_dead:
 		return
 	if _is_attacking():
-		# Safety: if active frame was skipped, still apply once.
 		_apply_pending_damage()
 		_pending_target = null
 		_pending_damage = 0.0
+		_pending_heal = false
 		_damage_applied = false
 		_set_anim_state(AnimState.IDLE)
 		_play_anim("idle", true)
@@ -318,17 +339,51 @@ func _apply_pending_damage() -> void:
 	_damage_applied = true
 	_set_anim_state(AnimState.APPLY_DAMAGE)
 	var target := _pending_target
-	var dmg := _pending_damage
-	if target == null or target.is_dead or dmg <= 0.0:
+	if target == null or not is_instance_valid(target) or target.is_dead:
 		return
-	_spawn_attack_vfx(target)
-	# Light lunge toward target on the hit frame for readable impact.
+
+	if _pending_heal:
+		_apply_heal(target)
+		return
+
+	if job == "mage" and team == Team.ALLY:
+		_launch_fireball(target, _pending_damage)
+		return
+
+	# Melee / monster hit
+	_spawn_melee_vfx(target)
 	var toward := target.global_position - global_position
 	if toward.length() > 1.0:
-		global_position += toward.normalized() * 6.0
-	target.take_damage(dmg, self)
+		global_position += toward.normalized() * (8.0 if job == "tank" else 5.0)
+	var heavy := job in ["tank", "lord"]
+	target.take_damage(_pending_damage, self, {"heavy": heavy})
+	if heavy and _manager != null and _manager.has_method("shake_camera"):
+		_manager.shake_camera(2.8 if job == "tank" else 1.8, 0.1)
+		CombatFx.hit_stop(_manager, 0.045 if job == "tank" else 0.03)
 	if _manager != null and _manager.has_method("log_combat"):
-		_manager.log_combat("%s → %s  %d" % [display_name, target.display_name, int(round(dmg))])
+		_manager.log_combat("%s → %s  %d" % [display_name, target.display_name, int(round(_pending_damage))])
+
+
+func _apply_heal(ally: CombatCharacter) -> void:
+	var amount := maxf(8.0, heal_power)
+	ally.receive_heal(amount, self)
+	_spawn_heal_vfx(ally)
+	if _manager != null and _manager.has_method("log_combat"):
+		_manager.log_combat("%s ♥ %s  +%d" % [display_name, ally.display_name, int(round(amount))])
+
+
+func _launch_fireball(target: CombatCharacter, dmg: float) -> void:
+	var bolt := CombatProjectile.new()
+	var parent_node: Node = get_parent()
+	if parent_node:
+		parent_node.add_child(bolt)
+	else:
+		add_child(bolt)
+	var origin := global_position + Vector2(18 if _face_right else -18, -28)
+	var travel: float = 0.35
+	if not _balance.is_empty():
+		travel = float(_balance.get("projectile_travel", 0.35))
+	bolt.setup(origin, target, dmg, self, _manager, travel)
 
 
 func _physics_process(delta: float) -> void:
@@ -339,7 +394,7 @@ func _physics_process(delta: float) -> void:
 
 	if _flash_t > 0.0:
 		_flash_t -= delta
-		if _sprite and _flash_t <= 0.0:
+		if _sprite and _flash_t <= 0.0 and _anim_state != AnimState.HIT:
 			_sprite.modulate = Color(1, 1, 1, 1)
 	if _hit_lock_t > 0.0:
 		_hit_lock_t -= delta
@@ -355,12 +410,19 @@ func _physics_process(delta: float) -> void:
 
 	_atk_timer = maxf(0.0, _atk_timer - delta)
 
-	# During attack, hold ground — do not let walk/idle overwrite animation.
 	if _is_attacking():
 		velocity = Vector2.ZERO
 		_apply_separation(delta)
 		_clamp_to_field()
 		return
+
+	# Healer: prefer heal when someone is hurt
+	if job == "healer" and team == Team.ALLY and _can_start_attack():
+		var hurt := _find_heal_target()
+		if hurt != null:
+			_face_toward(hurt)
+			_perform_heal(hurt)
+			return
 
 	var target := _find_target()
 	if target == null:
@@ -375,45 +437,77 @@ func _physics_process(delta: float) -> void:
 	var to_slot := desired - global_position
 	var slot_dist := to_slot.length()
 	var dist_to_target := global_position.distance_to(target.global_position)
-
-	if absf(target.global_position.x - global_position.x) > 0.05:
-		_face_right = target.global_position.x > global_position.x
-		_sprite.flip_h = not _face_right
+	_face_toward(target)
 
 	var in_attack_range := dist_to_target <= attack_range
-	var near_slot := slot_dist <= 10.0
-
-	if not in_attack_range or not near_slot:
-		var dir := Vector2.ZERO
-		if slot_dist > 1.0:
-			dir = to_slot.normalized()
-		if team == Team.ALLY and job in ["mage", "healer"] and dist_to_target < preferred_radius * 0.72:
-			dir = (global_position - target.global_position).normalized()
-		velocity = dir * move_speed
-		_apply_separation(delta)
-		move_and_slide()
-		_clamp_to_field()
-		if _anim_state != AnimState.HIT:
-			if velocity.length() > 8.0:
-				_set_anim_state(AnimState.WALK)
-				_play_anim("walk")
-			else:
+	# Backline: keep preferred distance; never rush into melee.
+	if team == Team.ALLY and job in ["mage", "healer"]:
+		if dist_to_target < preferred_radius * 0.78:
+			velocity = (global_position - target.global_position).normalized() * move_speed
+			_apply_separation(delta)
+			move_and_slide()
+			_clamp_to_field()
+			_set_anim_state(AnimState.WALK)
+			_play_anim("walk")
+			return
+		# In good range — stop and cast/attack
+		if in_attack_range:
+			velocity = Vector2.ZERO
+			if slot_dist > SLOT_ARRIVE:
+				global_position = global_position.lerp(desired, clampf(4.0 * delta, 0.0, 0.25))
+			_apply_separation(delta)
+			_clamp_to_field()
+			if _anim_state != AnimState.HIT:
 				_set_anim_state(AnimState.IDLE)
 				_play_anim("idle")
-	else:
-		global_position = global_position.lerp(desired, clampf(6.0 * delta, 0.0, 0.35))
-		if dist_to_target < 48.0:
-			var away := (global_position - target.global_position)
-			if away.length() > 0.1:
-				global_position += away.normalized() * minf(5.0, 48.0 - dist_to_target)
+			if _can_start_attack():
+				_perform_attack(target)
+			return
+
+	# Melee / monsters: attack as soon as in range — do not wait for perfect slot.
+	if in_attack_range:
 		velocity = Vector2.ZERO
+		# Soft settle toward slot without circling
+		if slot_dist > SLOT_ARRIVE:
+			global_position = global_position.lerp(desired, clampf(5.0 * delta, 0.0, 0.3))
+		if dist_to_target < 40.0:
+			var away := global_position - target.global_position
+			if away.length() > 0.1:
+				global_position += away.normalized() * minf(4.0, 40.0 - dist_to_target)
 		_apply_separation(delta)
 		_clamp_to_field()
 		if _anim_state != AnimState.HIT:
 			_set_anim_state(AnimState.IDLE)
 			_play_anim("idle")
-		if _atk_timer <= 0.0 and in_attack_range:
+		if _can_start_attack():
 			_perform_attack(target)
+		return
+
+	# Out of range — move to slot / close distance
+	var dir := Vector2.ZERO
+	if slot_dist > 1.0:
+		dir = to_slot.normalized()
+	else:
+		dir = (target.global_position - global_position).normalized()
+	velocity = dir * move_speed
+	_apply_separation(delta)
+	move_and_slide()
+	_clamp_to_field()
+	if _anim_state != AnimState.HIT:
+		if velocity.length() > 8.0:
+			_set_anim_state(AnimState.WALK)
+			_play_anim("walk")
+		else:
+			_set_anim_state(AnimState.IDLE)
+			_play_anim("idle")
+
+
+func _face_toward(who: CombatCharacter) -> void:
+	if who == null or _sprite == null:
+		return
+	if absf(who.global_position.x - global_position.x) > 0.05:
+		_face_right = who.global_position.x > global_position.x
+		_sprite.flip_h = not _face_right
 
 
 func _desired_slot_position(target: CombatCharacter) -> Vector2:
@@ -448,8 +542,8 @@ func _apply_separation(_delta: float) -> void:
 			continue
 		var strength := ((MIN_SEPARATION - d) / MIN_SEPARATION)
 		push += delta_pos.normalized() * strength * move_speed * SEPARATION_STRENGTH
-		if d < MIN_SEPARATION * 0.85:
-			global_position += delta_pos.normalized() * minf(6.0, (MIN_SEPARATION - d) * 0.35)
+		if d < MIN_SEPARATION * 0.8:
+			global_position += delta_pos.normalized() * minf(5.0, (MIN_SEPARATION - d) * 0.3)
 	if push.length() > 0.0:
 		velocity += push
 
@@ -473,67 +567,110 @@ func _find_target() -> CombatCharacter:
 		alive.append(c)
 	if alive.is_empty():
 		return null
-	if team == Team.ALLY and alive.size() > 1:
-		return alive[formation_slot % alive.size()]
+	# Nearest living foe (stable; avoids slot-forced far targets delaying attacks)
 	var best: CombatCharacter = null
 	var best_d := INF
 	for c in alive:
 		var d := global_position.distance_to(c.global_position)
+		# Slight slot bias so allies don't all pile the same target
+		if team == Team.ALLY and alive.size() > 1:
+			d += float((formation_slot + c.formation_slot) % alive.size()) * 8.0
 		if d < best_d:
 			best_d = d
 			best = c
 	return best
 
 
+func _find_heal_target() -> CombatCharacter:
+	if _manager == null or not _manager.has_method("get_allies"):
+		return null
+	var thresh: float = 0.75
+	if not _balance.is_empty():
+		thresh = float(_balance.get("heal_threshold", 0.75))
+	var best: CombatCharacter = null
+	var best_ratio := 2.0
+	for a in _manager.get_allies():
+		var c := a as CombatCharacter
+		if c == null or c.is_dead or c == self:
+			continue
+		var r := c.hp_ratio()
+		if r <= thresh and r < best_ratio:
+			best_ratio = r
+			best = c
+	return best
+
+
+func _can_start_attack() -> bool:
+	return (not _is_attacking()) and _atk_timer <= 0.0
+
+
+func _arm_attack_cooldown() -> void:
+	_atk_timer = attack_interval
+	attacks_started += 1
+
+
 func _perform_attack(target: CombatCharacter) -> void:
 	if target == null or target.is_dead:
 		return
-	if _is_attacking():
+	if not _can_start_attack():
 		return
-	_atk_timer = attack_interval
+	_arm_attack_cooldown()
 	var mit: float = 0.5
 	if _manager != null and _manager.has_method("get_def_mitigation"):
 		mit = float(_manager.get_def_mitigation())
 	var dmg := maxf(1.0, atk - target.defense * mit)
 	_pending_target = target
 	_pending_damage = dmg
+	_pending_heal = false
 	_damage_applied = false
 	_set_anim_state(AnimState.ATTACK_START)
 	_play_anim("attack", true)
 	_set_anim_state(AnimState.ATTACK_WINDUP)
 
 
-func _spawn_attack_vfx(target: CombatCharacter) -> void:
+func _perform_heal(ally: CombatCharacter) -> void:
+	if ally == null or ally.is_dead:
+		return
+	if not _can_start_attack():
+		return
+	_arm_attack_cooldown()
+	_pending_target = ally
+	_pending_damage = 0.0
+	_pending_heal = true
+	_damage_applied = false
+	_set_anim_state(AnimState.ATTACK_START)
+	_play_anim("attack", true)
+	_set_anim_state(AnimState.ATTACK_WINDUP)
+
+
+func _spawn_melee_vfx(target: CombatCharacter) -> void:
 	var kind := "slash"
 	var scale := 1.0
 	var lift := Vector2(0, -14)
 	if team == Team.ALLY:
 		match job:
-			"mage":
-				kind = "magic"
-				scale = 1.15
-				lift = Vector2(0, -20)
-			"healer":
-				kind = "heal"
-				scale = 1.1
-				lift = Vector2(0, -24)
-			"tank", "lord":
+			"tank":
+				kind = "hit"
+				scale = 1.25
+				lift = Vector2(0, -8)
+			"lord":
 				kind = "slash"
-				scale = 1.05
-			_:
+				scale = 1.1
+			"dps":
 				kind = "slash"
 				scale = 0.95
+			_:
+				kind = "slash"
 	else:
 		kind = "hit"
 		scale = 0.9
-
 	var vfx := AnimatedSprite2D.new()
 	vfx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	vfx.sprite_frames = SpriteFactory.vfx_frames(kind)
 	vfx.z_index = 40
 	vfx.centered = true
 	vfx.scale = Vector2(scale, scale)
-	var mid := global_position.lerp(target.global_position, 0.7) + lift
+	var mid := global_position.lerp(target.global_position, 0.65) + lift
 	var parent_node: Node = get_parent()
 	if parent_node:
 		parent_node.add_child(vfx)
@@ -543,35 +680,90 @@ func _spawn_attack_vfx(target: CombatCharacter) -> void:
 	vfx.play("play")
 	vfx.animation_finished.connect(vfx.queue_free)
 	var life := Timer.new()
-	life.wait_time = 0.55
+	life.wait_time = 0.4
 	life.one_shot = true
 	vfx.add_child(life)
 	life.timeout.connect(vfx.queue_free)
 	life.start()
 
 
-func take_damage(amount: float, attacker: CombatCharacter = null) -> void:
+func _spawn_heal_vfx(ally: CombatCharacter) -> void:
+	var vfx := AnimatedSprite2D.new()
+	vfx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	vfx.sprite_frames = SpriteFactory.vfx_frames("heal")
+	vfx.z_index = 42
+	vfx.centered = true
+	vfx.scale = Vector2(1.25, 1.25)
+	var parent_node: Node = get_parent()
+	if parent_node:
+		parent_node.add_child(vfx)
+	else:
+		add_child(vfx)
+	vfx.global_position = ally.global_position + Vector2(0, -24)
+	vfx.play("play")
+	vfx.animation_finished.connect(vfx.queue_free)
+	var life := Timer.new()
+	life.wait_time = 0.5
+	life.one_shot = true
+	vfx.add_child(life)
+	life.timeout.connect(vfx.queue_free)
+	life.start()
+
+
+func take_damage(amount: float, attacker: CombatCharacter = null, opts: Dictionary = {}) -> void:
 	if is_dead:
 		return
 	hp = maxf(0.0, hp - amount)
 	if _hp_bar:
 		_hp_bar.value = hp
 	hp_changed.emit(hp, hp_max)
-	_flash_t = 0.14
+
+	var heavy: bool = bool(opts.get("heavy", false))
+	var magic: bool = bool(opts.get("magic", false))
+	var kind := "heavy" if heavy or magic else "damage"
+	if amount >= atk * 1.4:
+		kind = "crit"
+
+	var parent_node: Node = get_parent()
+	CombatFx.spawn_number(parent_node if parent_node else self, global_position, int(round(amount)), kind)
+
+	# White flash for readable hit feedback
+	_flash_t = 0.12
 	if _sprite:
-		_sprite.modulate = Color(1.4, 0.7, 0.7, 1)
-	# Short knockback away from attacker without collapsing formation.
+		CombatFx.white_flash(_sprite, 0.12)
+		CombatFx.shake_sprite(_sprite, 5.0 if heavy else 3.2, 3)
+
 	if attacker != null and is_instance_valid(attacker):
 		var away := global_position - attacker.global_position
 		if away.length() > 0.1:
-			global_position += away.normalized() * 5.0
-	# Hit anim only when not mid-attack (attack must finish).
+			var kb := 10.0 if heavy else 5.0
+			if magic:
+				kb = 7.0
+			global_position += away.normalized() * kb
+
 	if not _is_attacking() and _sprite:
 		_set_anim_state(AnimState.HIT)
-		_hit_lock_t = 0.18
+		_hit_lock_t = 0.12
 		_play_anim("hit", true)
 	if hp <= 0.0:
 		_die()
+
+
+func receive_heal(amount: float, _healer: CombatCharacter = null) -> void:
+	if is_dead:
+		return
+	var before := hp
+	hp = minf(hp_max, hp + amount)
+	var gained := hp - before
+	if _hp_bar:
+		_hp_bar.value = hp
+	hp_changed.emit(hp, hp_max)
+	if gained > 0.0:
+		var parent_node: Node = get_parent()
+		CombatFx.spawn_number(parent_node if parent_node else self, global_position, int(round(gained)), "heal")
+		if _sprite:
+			_sprite.modulate = Color(0.75, 1.25, 0.85, 1)
+			_flash_t = 0.14
 
 
 func _die() -> void:
@@ -581,6 +773,7 @@ func _die() -> void:
 	velocity = Vector2.ZERO
 	_pending_target = null
 	_pending_damage = 0.0
+	_pending_heal = false
 	_damage_applied = true
 	_set_anim_state(AnimState.DEATH)
 	if _sprite:
@@ -606,6 +799,5 @@ func hp_ratio() -> float:
 	return hp / hp_max
 
 
-## Test helper: current animation state name.
 func get_anim_state_name() -> String:
 	return String(AnimState.find_key(_anim_state))
