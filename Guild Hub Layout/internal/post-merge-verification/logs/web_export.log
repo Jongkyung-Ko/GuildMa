@@ -1,0 +1,679 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+reimport: begin: (Re)Importing Assets steps: 66
+	reimport: step 0: 03_combat_epic_rock.ogg
+	reimport: step 2: 05_combat_heroic_anthem.ogg
+	reimport: step 3: 06_combat_boss_intensity.ogg
+	reimport: step 4: click_13_f5_combat_early.png
+	reimport: step 6: click_11_f4_combat_result.png
+	reimport: step 7: click_11_f3_combat_result.png
+	reimport: step 8: click_10_hub_f4_selected.png
+	reimport: step 9: click_10_hub_f3_selected.png
+	reimport: step 10: click_09_f2_combat_result.png
+	reimport: step 11: click_08_hub_f2_selected.png
+	reimport: step 12: click_07_hub_after_f1.png
+	reimport: step 13: click_06_f1_victory.png
+	reimport: step 14: click_05_f1_combat_early.png
+	reimport: step 15: click_05b_f1_combat_mid.png
+	reimport: step 16: click_04_dungeon_hub.png
+	reimport: step 17: click_03_gate_facility.png
+	reimport: step 18: click_02_town.png
+	reimport: step 19: click_14_f5_combat_result.png
+	reimport: step 20: click_15_hub_f6_selected.png
+	reimport: step 21: click_15_hub_f7_selected.png
+	reimport: step 22: click_15_hub_f8_selected.png
+	reimport: step 23: click_15_hub_f9_selected.png
+	reimport: step 24: click_16_f6_combat_result.png
+	reimport: step 25: click_16_f7_combat_result.png
+	reimport: step 26: click_16_f8_combat_result.png
+	reimport: step 27: click_16_f9_combat_result.png
+	reimport: step 28: click_17_hub_f10_selected.png
+	reimport: step 29: click_18_f10_combat_early.png
+	reimport: step 30: click_19_f10_combat_result.png
+	reimport: step 31: click_20_hub_after_f10_final.png
+	reimport: step 32: index.apple-touch-icon.png
+	reimport: step 33: index.icon.png
+	reimport: step 34: index.png
+	reimport: step 35: 01_hub_f1.png
+	reimport: step 36: 02_combat_f1_spawn.png
+	reimport: step 37: 03_combat_f5_spawn.png
+	reimport: step 38: 04_combat_f10_spawn.png
+	reimport: step 39: 05_combat_f5_mid_boss_win.png
+	reimport: step 40: 06_combat_f10_final_boss_win.png
+	reimport: step 41: 07_combat_f11_win.png
+	reimport: step 42: 01_title.png
+	reimport: step 43: 02_town.png
+	reimport: step 44: 03_dungeon_hub.png
+	reimport: step 45: 04_f1_combat.png
+	reimport: step 46: 05_f1_victory.png
+	reimport: step 47: 06_next_floor.png
+	reimport: step 48: 07_f5_boss.png
+	reimport: step 49: 08_f10_boss.png
+	reimport: step 50: 09_final_victory.png
+	reimport: step 51: 10_return_town.png
+	reimport: step 52: 10_web_pages.png
+	reimport: step 53: 01_dungeon_hub.png
+	reimport: step 54: 02_dungeon_f1_combat.png
+	reimport: step 55: 03_dungeon_f5_miniboss.png
+	reimport: step 56: 04_dungeon_f10_final_boss.png
+	reimport: step 57: 05b_dungeon_hub_after_clear_next.png
+	reimport: step 58: 05_dungeon_victory.png
+	reimport: step 59: 06_title_screen.png
+	reimport: step 60: 07_town_screen.png
+	reimport: step 61: 08_dungeon_entry.png
+	reimport: step 62: 09_dungeon_floor_transition.png
+	reimport: step 63: 10_web_preview.png
+	reimport: step 64: 11_mobile_preview.png
+	reimport: step 65: click_01_title.png
+reimport: end
+savepack: begin: Packing steps: 102
+	savepack: step 2: Storing File: res://.godot/imported/01_town_theme.ogg-5afff071027ef12929ff28fe3c979f16.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/01_town_theme.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/02_hunting_grounds_rock.ogg-6260ad54b309666e6e17b820f1d4c175.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/02_hunting_grounds_rock.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/03_combat_epic_rock.ogg-8b796792b4baeccea100b4083207ff02.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/03_combat_epic_rock.ogg.import
+	savepack: step 2: Storing File: res://.godot/imported/04_combat_metal_drive.ogg-28b2360c91d1ce5a295c252893945778.oggvorbisstr
+	savepack: step 2: Storing File: res://assets/audio/bgm/04_combat_metal_drive.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/05_combat_heroic_anthem.ogg-b8732c543c63acb99dd4313d6283191d.oggvorbisstr
+	savepack: step 3: Storing File: res://assets/audio/bgm/05_combat_heroic_anthem.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/06_combat_boss_intensity.ogg-6571c88bdf4feb1009527bb675b7ff8f.oggvorbisstr
+	savepack: step 3: Storing File: res://assets/audio/bgm/06_combat_boss_intensity.ogg.import
+	savepack: step 3: Storing File: res://.godot/imported/01_ui_button_click.wav-f704689c8db8f2451de8f989dc833fef.sample
+	savepack: step 3: Storing File: res://assets/audio/sfx/01_ui_button_click.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/02_battle_ambience_loop.wav-e554fe828203b84971a7fe57b45d279d.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/02_battle_ambience_loop.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/03_combat_hit.wav-62c2a3351470de498c26853f243cf54b.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/03_combat_hit.wav.import
+	savepack: step 4: Storing File: res://.godot/imported/04_magic_cast.wav-590dff60c295e05b736da5f2da368160.sample
+	savepack: step 4: Storing File: res://assets/audio/sfx/04_magic_cast.wav.import
+	savepack: step 5: Storing File: res://.godot/imported/05_item_equip.wav-f78596eea674504210ea9fe24beaa413.sample
+	savepack: step 5: Storing File: res://assets/audio/sfx/05_item_equip.wav.import
+	savepack: step 5: Storing File: res://.godot/imported/combat_bg.png-3336790e4aa918c8fc9298bc35414661.ctex
+	savepack: step 5: Storing File: res://assets/backgrounds/combat_bg.png.import
+	savepack: step 5: Storing File: res://.godot/imported/guild_interior.png-488ae1e6d03b4e5a37400493f8b4cb81.ctex
+	savepack: step 5: Storing File: res://assets/backgrounds/guild_interior.png.import
+	savepack: step 6: Storing File: res://.godot/imported/hunt_select.png-a4e5793e740f47a25e3beade0b43733a.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/hunt_select.png.import
+	savepack: step 6: Storing File: res://.godot/imported/inn_interior.png-3e56a99866ba068947b611742e5919d8.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/inn_interior.png.import
+	savepack: step 6: Storing File: res://.godot/imported/med_interior.png-b9a297f12b78b86fba8204c96459d277.ctex
+	savepack: step 6: Storing File: res://assets/backgrounds/med_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/quest_interior.png-59aaff28a4aa44f9495cf7405c3d1375.ctex
+	savepack: step 7: Storing File: res://assets/backgrounds/quest_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/shop_interior.png-943c66252ca8d7397f16470c68e1da66.ctex
+	savepack: step 7: Storing File: res://assets/backgrounds/shop_interior.png.import
+	savepack: step 7: Storing File: res://.godot/imported/smith_interior.png-06bc400294131f7239e8a373d644427e.ctex
+	savepack: step 7: Storing File: res://assets/backgrounds/smith_interior.png.import
+	savepack: step 8: Storing File: res://.godot/imported/title_bg.png-d1a15c0df28b20ecd1e8a190e59f19f9.ctex
+	savepack: step 8: Storing File: res://assets/backgrounds/title_bg.png.import
+	savepack: step 8: Storing File: res://.godot/imported/town_bg.png-05521d2b5db3b761f72204bbe2633b23.ctex
+	savepack: step 8: Storing File: res://assets/backgrounds/town_bg.png.import
+	savepack: step 8: Storing File: res://.godot/imported/train_interior.png-4f80aaea8716e85864531181f8581b56.ctex
+	savepack: step 8: Storing File: res://assets/backgrounds/train_interior.png.import
+	savepack: step 9: Storing File: res://.godot/imported/warehouse_interior.png-05c8941315eed8d08f8f02229bb35261.ctex
+	savepack: step 9: Storing File: res://assets/backgrounds/warehouse_interior.png.import
+	savepack: step 9: Storing File: res://.godot/imported/NotoSansKR-Bold.otf-9b3f922514af37ed13b59ff598b396af.fontdata
+	savepack: step 9: Storing File: res://assets/fonts/NotoSansKR-Bold.otf.import
+	savepack: step 9: Storing File: res://.godot/imported/NotoSansKR-Regular.otf-4ae8f7324dc2aeada04fca31f5caeaa7.fontdata
+	savepack: step 9: Storing File: res://assets/fonts/NotoSansKR-Regular.otf.import
+	savepack: step 10: Storing File: res://.godot/imported/blacksmith.png-62eebcd821301049c635a6eb99eb7092.ctex
+	savepack: step 10: Storing File: res://assets/sprites/buildings/blacksmith.png.import
+	savepack: step 10: Storing File: res://.godot/imported/gate.png-c1e8d6320668de295dbe421791855c1c.ctex
+	savepack: step 10: Storing File: res://assets/sprites/buildings/gate.png.import
+	savepack: step 10: Storing File: res://.godot/imported/guild_hq.png-dfc91d7468dfd345a726bc108151f609.ctex
+	savepack: step 10: Storing File: res://assets/sprites/buildings/guild_hq.png.import
+	savepack: step 11: Storing File: res://.godot/imported/infirmary.png-7eba94e7f795db178dc61827b82c76be.ctex
+	savepack: step 11: Storing File: res://assets/sprites/buildings/infirmary.png.import
+	savepack: step 11: Storing File: res://.godot/imported/inn.png-c8a26b74794f2a368162bc8e0114975b.ctex
+	savepack: step 11: Storing File: res://assets/sprites/buildings/inn.png.import
+	savepack: step 11: Storing File: res://.godot/imported/quest_board.png-5483a8e75a4cf5c87a61e37b3d899a9b.ctex
+	savepack: step 11: Storing File: res://assets/sprites/buildings/quest_board.png.import
+	savepack: step 12: Storing File: res://.godot/imported/shop.png-0d9f146b07b6aefa1a7e04d9d0050ea9.ctex
+	savepack: step 12: Storing File: res://assets/sprites/buildings/shop.png.import
+	savepack: step 12: Storing File: res://.godot/imported/training.png-92109b78895fc0ae2208296735009a49.ctex
+	savepack: step 12: Storing File: res://assets/sprites/buildings/training.png.import
+	savepack: step 12: Storing File: res://.godot/imported/warehouse.png-64b982284e573d56b930412db8f1da65.ctex
+	savepack: step 12: Storing File: res://assets/sprites/buildings/warehouse.png.import
+	savepack: step 13: Storing File: res://.godot/imported/combat_00.png-f17c6b988ab5c984cbe3b46f4f9bd4b8.ctex
+	savepack: step 13: Storing File: res://assets/sprites/characters/dps/combat_00.png.import
+	savepack: step 13: Storing File: res://.godot/imported/combat_01.png-4a916e19ebcb2f3bbe9299d4d55c1ae6.ctex
+	savepack: step 13: Storing File: res://assets/sprites/characters/dps/combat_01.png.import
+	savepack: step 13: Storing File: res://.godot/imported/combat_02.png-c0b130bd96eab4f8f9f2d86710551bed.ctex
+	savepack: step 13: Storing File: res://assets/sprites/characters/dps/combat_02.png.import
+	savepack: step 14: Storing File: res://.godot/imported/combat_03.png-4b3316f6df462d236bf95bc36fc55cee.ctex
+	savepack: step 14: Storing File: res://assets/sprites/characters/dps/combat_03.png.import
+	savepack: step 14: Storing File: res://.godot/imported/combat_04.png-b56f517704b382ed17c28d26f7754c30.ctex
+	savepack: step 14: Storing File: res://assets/sprites/characters/dps/combat_04.png.import
+	savepack: step 14: Storing File: res://.godot/imported/combat_05.png-630b3d3fb89cbbe8cc44b690e6031b97.ctex
+	savepack: step 14: Storing File: res://assets/sprites/characters/dps/combat_05.png.import
+	savepack: step 15: Storing File: res://.godot/imported/combat_06.png-983f50ff61e16512f7413f2231e6f722.ctex
+	savepack: step 15: Storing File: res://assets/sprites/characters/dps/combat_06.png.import
+	savepack: step 15: Storing File: res://.godot/imported/combat_07.png-2537f9c44c2b6cd61b6943ed4603f169.ctex
+	savepack: step 15: Storing File: res://assets/sprites/characters/dps/combat_07.png.import
+	savepack: step 15: Storing File: res://.godot/imported/frame_00.png-6c1377ba02f1e740163cd2238e19740c.ctex
+	savepack: step 15: Storing File: res://assets/sprites/characters/dps/frame_00.png.import
+	savepack: step 16: Storing File: res://.godot/imported/frame_01.png-27bc73ce4b82124aef43f51a616c6429.ctex
+	savepack: step 16: Storing File: res://assets/sprites/characters/dps/frame_01.png.import
+	savepack: step 16: Storing File: res://.godot/imported/frame_02.png-83ab4f46b554988c23256c5fbce04848.ctex
+	savepack: step 16: Storing File: res://assets/sprites/characters/dps/frame_02.png.import
+	savepack: step 16: Storing File: res://.godot/imported/frame_03.png-5f15fe766e4013f887536b76e2217233.ctex
+	savepack: step 16: Storing File: res://assets/sprites/characters/dps/frame_03.png.import
+	savepack: step 16: Storing File: res://.godot/imported/frame_04.png-bf64bed781ddc37948ab6aa47c27e3ec.ctex
+	savepack: step 16: Storing File: res://assets/sprites/characters/dps/frame_04.png.import
+	savepack: step 17: Storing File: res://.godot/imported/frame_05.png-10b296380d25d64cafbe970a8c896d7e.ctex
+	savepack: step 17: Storing File: res://assets/sprites/characters/dps/frame_05.png.import
+	savepack: step 17: Storing File: res://.godot/imported/frame_06.png-c8cc4fd907b53d4587987c4f8f2aba28.ctex
+	savepack: step 17: Storing File: res://assets/sprites/characters/dps/frame_06.png.import
+	savepack: step 17: Storing File: res://.godot/imported/frame_07.png-2aceaf6001e119cede4d6c643a972682.ctex
+	savepack: step 17: Storing File: res://assets/sprites/characters/dps/frame_07.png.import
+	savepack: step 18: Storing File: res://.godot/imported/sheet.png-8d52d1029179801b3f68c59d3a44d9d6.ctex
+	savepack: step 18: Storing File: res://assets/sprites/characters/dps/sheet.png.import
+	savepack: step 18: Storing File: res://.godot/imported/combat_00.png-a80dfcfbf4c4fcc680811268596342a2.ctex
+	savepack: step 18: Storing File: res://assets/sprites/characters/healer/combat_00.png.import
+	savepack: step 18: Storing File: res://.godot/imported/combat_01.png-91e0f28b43f34c3a3c7cefc884873fbf.ctex
+	savepack: step 18: Storing File: res://assets/sprites/characters/healer/combat_01.png.import
+	savepack: step 19: Storing File: res://.godot/imported/combat_02.png-8165e1dd40215c511b18047b2c59ef59.ctex
+	savepack: step 19: Storing File: res://assets/sprites/characters/healer/combat_02.png.import
+	savepack: step 19: Storing File: res://.godot/imported/combat_03.png-d362483bea71b0c07e3bbac2e1b754d3.ctex
+	savepack: step 19: Storing File: res://assets/sprites/characters/healer/combat_03.png.import
+	savepack: step 19: Storing File: res://.godot/imported/combat_04.png-97ac5d04c8493b5d622a277b9161b4b8.ctex
+	savepack: step 19: Storing File: res://assets/sprites/characters/healer/combat_04.png.import
+	savepack: step 20: Storing File: res://.godot/imported/combat_05.png-16dcceaa716b78163758f9b4e54a2ba4.ctex
+	savepack: step 20: Storing File: res://assets/sprites/characters/healer/combat_05.png.import
+	savepack: step 20: Storing File: res://.godot/imported/combat_06.png-2ba9a162fbd2770d978c1b94c417a9cd.ctex
+	savepack: step 20: Storing File: res://assets/sprites/characters/healer/combat_06.png.import
+	savepack: step 20: Storing File: res://.godot/imported/combat_07.png-2904da3d16219fac85242733d2ebee12.ctex
+	savepack: step 20: Storing File: res://assets/sprites/characters/healer/combat_07.png.import
+	savepack: step 21: Storing File: res://.godot/imported/frame_00.png-bae42e87759abc63e04bb17c905901c7.ctex
+	savepack: step 21: Storing File: res://assets/sprites/characters/healer/frame_00.png.import
+	savepack: step 21: Storing File: res://.godot/imported/frame_01.png-36c1fcc6a6b55260362e28abf4c602f7.ctex
+	savepack: step 21: Storing File: res://assets/sprites/characters/healer/frame_01.png.import
+	savepack: step 21: Storing File: res://.godot/imported/frame_02.png-2e4aa24b139d4815359e912f0724af4b.ctex
+	savepack: step 21: Storing File: res://assets/sprites/characters/healer/frame_02.png.import
+	savepack: step 22: Storing File: res://.godot/imported/frame_03.png-22f531c4888fdbaf0c6226d0b7f0da44.ctex
+	savepack: step 22: Storing File: res://assets/sprites/characters/healer/frame_03.png.import
+	savepack: step 22: Storing File: res://.godot/imported/frame_04.png-048dbdf48ae93bb85873e10b6e630b04.ctex
+	savepack: step 22: Storing File: res://assets/sprites/characters/healer/frame_04.png.import
+	savepack: step 22: Storing File: res://.godot/imported/frame_05.png-4d5f92ebb458855a0d9000a8daff7dcd.ctex
+	savepack: step 22: Storing File: res://assets/sprites/characters/healer/frame_05.png.import
+	savepack: step 23: Storing File: res://.godot/imported/frame_06.png-1d3a22126202addd4909d1cdb2c2776f.ctex
+	savepack: step 23: Storing File: res://assets/sprites/characters/healer/frame_06.png.import
+	savepack: step 23: Storing File: res://.godot/imported/frame_07.png-46b58611c8649e777e0b0f1bad6f9e8d.ctex
+	savepack: step 23: Storing File: res://assets/sprites/characters/healer/frame_07.png.import
+	savepack: step 23: Storing File: res://.godot/imported/sheet.png-65f5f56a4d10a45320842eb05824b6b6.ctex
+	savepack: step 23: Storing File: res://assets/sprites/characters/healer/sheet.png.import
+	savepack: step 24: Storing File: res://.godot/imported/combat_00.png-0444afed6a62ef630504e7938daa85b0.ctex
+	savepack: step 24: Storing File: res://assets/sprites/characters/lord/combat_00.png.import
+	savepack: step 24: Storing File: res://.godot/imported/combat_01.png-93e41b705a84addf68ec001db90013ee.ctex
+	savepack: step 24: Storing File: res://assets/sprites/characters/lord/combat_01.png.import
+	savepack: step 24: Storing File: res://.godot/imported/combat_02.png-1bce4c86084a7bf50ac061398c928a33.ctex
+	savepack: step 24: Storing File: res://assets/sprites/characters/lord/combat_02.png.import
+	savepack: step 25: Storing File: res://.godot/imported/combat_03.png-e727bcd7868c519e7206a3e1dd092308.ctex
+	savepack: step 25: Storing File: res://assets/sprites/characters/lord/combat_03.png.import
+	savepack: step 25: Storing File: res://.godot/imported/combat_04.png-433abd251fdf9d16dece69db090f4e22.ctex
+	savepack: step 25: Storing File: res://assets/sprites/characters/lord/combat_04.png.import
+	savepack: step 25: Storing File: res://.godot/imported/combat_05.png-89f73c851420684ec130164b85629342.ctex
+	savepack: step 25: Storing File: res://assets/sprites/characters/lord/combat_05.png.import
+	savepack: step 26: Storing File: res://.godot/imported/combat_06.png-01f3fa6ffcd12420eedb61d5f4521cda.ctex
+	savepack: step 26: Storing File: res://assets/sprites/characters/lord/combat_06.png.import
+	savepack: step 26: Storing File: res://.godot/imported/combat_07.png-9d43bc4a8a676985076254f03de37f99.ctex
+	savepack: step 26: Storing File: res://assets/sprites/characters/lord/combat_07.png.import
+	savepack: step 26: Storing File: res://.godot/imported/frame_00.png-808b586bd8a7f23b0511331ecbcb1c78.ctex
+	savepack: step 26: Storing File: res://assets/sprites/characters/lord/frame_00.png.import
+	savepack: step 27: Storing File: res://.godot/imported/frame_01.png-58a6b655e5ce6481e19076a5101d6e5a.ctex
+	savepack: step 27: Storing File: res://assets/sprites/characters/lord/frame_01.png.import
+	savepack: step 27: Storing File: res://.godot/imported/frame_02.png-aac66e1a2da6634b0b3b3617d7c0833d.ctex
+	savepack: step 27: Storing File: res://assets/sprites/characters/lord/frame_02.png.import
+	savepack: step 27: Storing File: res://.godot/imported/frame_03.png-9307bda01994f760781cca2dc2dbcf83.ctex
+	savepack: step 27: Storing File: res://assets/sprites/characters/lord/frame_03.png.import
+	savepack: step 28: Storing File: res://.godot/imported/frame_04.png-cfa801603ab12d5a6270fac9ca8bf531.ctex
+	savepack: step 28: Storing File: res://assets/sprites/characters/lord/frame_04.png.import
+	savepack: step 28: Storing File: res://.godot/imported/frame_05.png-4f877d306aa8970cd402d27d1afa017a.ctex
+	savepack: step 28: Storing File: res://assets/sprites/characters/lord/frame_05.png.import
+	savepack: step 28: Storing File: res://.godot/imported/frame_06.png-ee2dc1fe810c6f7fd541761c72d9eed2.ctex
+	savepack: step 28: Storing File: res://assets/sprites/characters/lord/frame_06.png.import
+	savepack: step 29: Storing File: res://.godot/imported/frame_07.png-98f0120373e8ff449a06fa94702eaf77.ctex
+	savepack: step 29: Storing File: res://assets/sprites/characters/lord/frame_07.png.import
+	savepack: step 29: Storing File: res://.godot/imported/sheet.png-b412d0537322d6c4df12059edfd8522b.ctex
+	savepack: step 29: Storing File: res://assets/sprites/characters/lord/sheet.png.import
+	savepack: step 29: Storing File: res://.godot/imported/combat_00.png-968863c2f0b8545733f5ade23a4cfd0a.ctex
+	savepack: step 29: Storing File: res://assets/sprites/characters/mage/combat_00.png.import
+	savepack: step 30: Storing File: res://.godot/imported/combat_01.png-8f2178f012686272bd0a473c1554c19c.ctex
+	savepack: step 30: Storing File: res://assets/sprites/characters/mage/combat_01.png.import
+	savepack: step 30: Storing File: res://.godot/imported/combat_02.png-60589a09d17fba5f54896c5e6c4b386a.ctex
+	savepack: step 30: Storing File: res://assets/sprites/characters/mage/combat_02.png.import
+	savepack: step 30: Storing File: res://.godot/imported/combat_03.png-79560e3e65a7950f11c87ef43b53077f.ctex
+	savepack: step 30: Storing File: res://assets/sprites/characters/mage/combat_03.png.import
+	savepack: step 30: Storing File: res://.godot/imported/combat_04.png-c070603fe511174dc7fbcd09f353347a.ctex
+	savepack: step 30: Storing File: res://assets/sprites/characters/mage/combat_04.png.import
+	savepack: step 31: Storing File: res://.godot/imported/combat_05.png-4082a7e0030c8dfaba600a0eaf92447f.ctex
+	savepack: step 31: Storing File: res://assets/sprites/characters/mage/combat_05.png.import
+	savepack: step 31: Storing File: res://.godot/imported/combat_06.png-f9ddcf14cd2867636dbc3b2b84242b63.ctex
+	savepack: step 31: Storing File: res://assets/sprites/characters/mage/combat_06.png.import
+	savepack: step 31: Storing File: res://.godot/imported/combat_07.png-62454137c938f0d51992decabbce56ff.ctex
+	savepack: step 31: Storing File: res://assets/sprites/characters/mage/combat_07.png.import
+	savepack: step 32: Storing File: res://.godot/imported/frame_00.png-4003e9b6a383a0435f1af3e77d029104.ctex
+	savepack: step 32: Storing File: res://assets/sprites/characters/mage/frame_00.png.import
+	savepack: step 32: Storing File: res://.godot/imported/frame_01.png-db50cad7ba8421b13edd6aef2d3bb32b.ctex
+	savepack: step 32: Storing File: res://assets/sprites/characters/mage/frame_01.png.import
+	savepack: step 32: Storing File: res://.godot/imported/frame_02.png-c8ea8e84117f918a1294c9bfc633483b.ctex
+	savepack: step 32: Storing File: res://assets/sprites/characters/mage/frame_02.png.import
+	savepack: step 33: Storing File: res://.godot/imported/frame_03.png-b26801e61ca7d2913e70d0520312d662.ctex
+	savepack: step 33: Storing File: res://assets/sprites/characters/mage/frame_03.png.import
+	savepack: step 33: Storing File: res://.godot/imported/frame_04.png-c92e70b899ae5bd1a46bdd8df8864841.ctex
+	savepack: step 33: Storing File: res://assets/sprites/characters/mage/frame_04.png.import
+	savepack: step 33: Storing File: res://.godot/imported/frame_05.png-08d11a7412abfb4a5eedf9b2995a3485.ctex
+	savepack: step 33: Storing File: res://assets/sprites/characters/mage/frame_05.png.import
+	savepack: step 34: Storing File: res://.godot/imported/frame_06.png-c63e4e0ab6bd95f2fcb1734bba38d63d.ctex
+	savepack: step 34: Storing File: res://assets/sprites/characters/mage/frame_06.png.import
+	savepack: step 34: Storing File: res://.godot/imported/frame_07.png-5b2afb9530813b07e03b5b7397ffd979.ctex
+	savepack: step 34: Storing File: res://assets/sprites/characters/mage/frame_07.png.import
+	savepack: step 34: Storing File: res://.godot/imported/sheet.png-f38d028bb25193ad93fa386527ce3aa4.ctex
+	savepack: step 34: Storing File: res://assets/sprites/characters/mage/sheet.png.import
+	savepack: step 35: Storing File: res://.godot/imported/combat_00.png-b17d822e57333518c6cd1299f637f4f3.ctex
+	savepack: step 35: Storing File: res://assets/sprites/characters/tank/combat_00.png.import
+	savepack: step 35: Storing File: res://.godot/imported/combat_01.png-db8762d2671e6455614e57264ed3a4c1.ctex
+	savepack: step 35: Storing File: res://assets/sprites/characters/tank/combat_01.png.import
+	savepack: step 35: Storing File: res://.godot/imported/combat_02.png-1e3fe600beae207d08916dd3d895681f.ctex
+	savepack: step 35: Storing File: res://assets/sprites/characters/tank/combat_02.png.import
+	savepack: step 36: Storing File: res://.godot/imported/combat_03.png-6582be76da7a6c8bf585da2aad010dd8.ctex
+	savepack: step 36: Storing File: res://assets/sprites/characters/tank/combat_03.png.import
+	savepack: step 36: Storing File: res://.godot/imported/combat_04.png-6ce41d0301a829028f500b3373b428b0.ctex
+	savepack: step 36: Storing File: res://assets/sprites/characters/tank/combat_04.png.import
+	savepack: step 36: Storing File: res://.godot/imported/combat_05.png-2c575dbfe1cba649384ec59dc9709be7.ctex
+	savepack: step 36: Storing File: res://assets/sprites/characters/tank/combat_05.png.import
+	savepack: step 37: Storing File: res://.godot/imported/combat_06.png-ea9aaccc25400fac55ea92c3bbb3ad03.ctex
+	savepack: step 37: Storing File: res://assets/sprites/characters/tank/combat_06.png.import
+	savepack: step 37: Storing File: res://.godot/imported/combat_07.png-db49d28ee8070419042f20ce1c374cfb.ctex
+	savepack: step 37: Storing File: res://assets/sprites/characters/tank/combat_07.png.import
+	savepack: step 37: Storing File: res://.godot/imported/frame_00.png-c03816d84b9b276a75e48e9604a5f87c.ctex
+	savepack: step 37: Storing File: res://assets/sprites/characters/tank/frame_00.png.import
+	savepack: step 38: Storing File: res://.godot/imported/frame_01.png-83704739ba5a260085d1b8a4f4032475.ctex
+	savepack: step 38: Storing File: res://assets/sprites/characters/tank/frame_01.png.import
+	savepack: step 38: Storing File: res://.godot/imported/frame_02.png-726700e711579acf92544d3d2f0eea4e.ctex
+	savepack: step 38: Storing File: res://assets/sprites/characters/tank/frame_02.png.import
+	savepack: step 38: Storing File: res://.godot/imported/frame_03.png-c1397a6fef939313a8a5aae675484ca0.ctex
+	savepack: step 38: Storing File: res://assets/sprites/characters/tank/frame_03.png.import
+	savepack: step 39: Storing File: res://.godot/imported/frame_04.png-9c22e364ed6db68dd056b968990aa597.ctex
+	savepack: step 39: Storing File: res://assets/sprites/characters/tank/frame_04.png.import
+	savepack: step 39: Storing File: res://.godot/imported/frame_05.png-44c6a077643f9568fcac47d4a4f25798.ctex
+	savepack: step 39: Storing File: res://assets/sprites/characters/tank/frame_05.png.import
+	savepack: step 39: Storing File: res://.godot/imported/frame_06.png-6b9de9b60c32715359945eda6e24181c.ctex
+	savepack: step 39: Storing File: res://assets/sprites/characters/tank/frame_06.png.import
+	savepack: step 40: Storing File: res://.godot/imported/frame_07.png-f0750e118b052b215490a0e0cb2e5a03.ctex
+	savepack: step 40: Storing File: res://assets/sprites/characters/tank/frame_07.png.import
+	savepack: step 40: Storing File: res://.godot/imported/sheet.png-9d2143b345d2fb39640354a417518adc.ctex
+	savepack: step 40: Storing File: res://assets/sprites/characters/tank/sheet.png.import
+	savepack: step 40: Storing File: res://.godot/imported/portrait_dps.png-d6e1f70e87b20412713873cad4e4b7bf.ctex
+	savepack: step 40: Storing File: res://assets/sprites/characters/portrait_dps.png.import
+	savepack: step 41: Storing File: res://.godot/imported/portrait_healer.png-6c3f4396001b5683fcf986e55a817fee.ctex
+	savepack: step 41: Storing File: res://assets/sprites/characters/portrait_healer.png.import
+	savepack: step 41: Storing File: res://.godot/imported/portrait_lord.png-977d0df07223d1abb1044590bda2b8fb.ctex
+	savepack: step 41: Storing File: res://assets/sprites/characters/portrait_lord.png.import
+	savepack: step 41: Storing File: res://.godot/imported/portrait_mage.png-2a0b610280ab325fea4a4cfe75b0db07.ctex
+	savepack: step 41: Storing File: res://assets/sprites/characters/portrait_mage.png.import
+	savepack: step 42: Storing File: res://.godot/imported/portrait_tank.png-54f84d7e6f54ac7914522987740bfefd.ctex
+	savepack: step 42: Storing File: res://assets/sprites/characters/portrait_tank.png.import
+	savepack: step 42: Storing File: res://.godot/imported/gate.png-3868221c156a6413494a2f883fe32acf.ctex
+	savepack: step 42: Storing File: res://assets/sprites/icons/gate.png.import
+	savepack: step 42: Storing File: res://.godot/imported/gold.png-358063eae575448744f9449402e10b83.ctex
+	savepack: step 42: Storing File: res://assets/sprites/icons/gold.png.import
+	savepack: step 43: Storing File: res://.godot/imported/guild.png-2ff6ab335dcc6a93700d2c56dc8c64f6.ctex
+	savepack: step 43: Storing File: res://assets/sprites/icons/guild.png.import
+	savepack: step 43: Storing File: res://.godot/imported/inn.png-7b190f2a9c205ec1045977724e25351e.ctex
+	savepack: step 43: Storing File: res://assets/sprites/icons/inn.png.import
+	savepack: step 43: Storing File: res://.godot/imported/med.png-ade54c664f609fbd23d23f5c7fff8a30.ctex
+	savepack: step 43: Storing File: res://assets/sprites/icons/med.png.import
+	savepack: step 44: Storing File: res://.godot/imported/quest.png-8346aaee8137712ca5be85d2871c4446.ctex
+	savepack: step 44: Storing File: res://assets/sprites/icons/quest.png.import
+	savepack: step 44: Storing File: res://.godot/imported/rep.png-df98cf7e723b730b7e8b0dd13151e81a.ctex
+	savepack: step 44: Storing File: res://assets/sprites/icons/rep.png.import
+	savepack: step 44: Storing File: res://.godot/imported/shop.png-5149fbd3031e5107c730f71034ec361b.ctex
+	savepack: step 44: Storing File: res://assets/sprites/icons/shop.png.import
+	savepack: step 44: Storing File: res://.godot/imported/smith.png-ddd1194b5b95f6ae1d409d6623dc7987.ctex
+	savepack: step 44: Storing File: res://assets/sprites/icons/smith.png.import
+	savepack: step 45: Storing File: res://.godot/imported/storage.png-6d839bcf00519e0720d6027a932ebcc1.ctex
+	savepack: step 45: Storing File: res://assets/sprites/icons/storage.png.import
+	savepack: step 45: Storing File: res://.godot/imported/time.png-c764eed521fcad3fb60823462eb43918.ctex
+	savepack: step 45: Storing File: res://assets/sprites/icons/time.png.import
+	savepack: step 45: Storing File: res://.godot/imported/train.png-d3b6312e64b0a2dabeaadd4643b6d9d4.ctex
+	savepack: step 45: Storing File: res://assets/sprites/icons/train.png.import
+	savepack: step 46: Storing File: res://.godot/imported/frame_00.png-fa966184fa4804baeec82ce46c6a4c15.ctex
+	savepack: step 46: Storing File: res://assets/sprites/monsters/goblin/frame_00.png.import
+	savepack: step 46: Storing File: res://.godot/imported/frame_01.png-af47dea4a0bdc5697ac32aea1481eea5.ctex
+	savepack: step 46: Storing File: res://assets/sprites/monsters/goblin/frame_01.png.import
+	savepack: step 46: Storing File: res://.godot/imported/frame_02.png-a090a7388cab935b438caecbaf11b0f9.ctex
+	savepack: step 46: Storing File: res://assets/sprites/monsters/goblin/frame_02.png.import
+	savepack: step 47: Storing File: res://.godot/imported/frame_03.png-9bf40d677e3cbd9b4f7d4a03b90baf8a.ctex
+	savepack: step 47: Storing File: res://assets/sprites/monsters/goblin/frame_03.png.import
+	savepack: step 47: Storing File: res://.godot/imported/frame_04.png-9c8b95ca19aae543383f9fe0f20a0f7a.ctex
+	savepack: step 47: Storing File: res://assets/sprites/monsters/goblin/frame_04.png.import
+	savepack: step 47: Storing File: res://.godot/imported/frame_05.png-0d4300bc1e5d652c66680245488b8364.ctex
+	savepack: step 47: Storing File: res://assets/sprites/monsters/goblin/frame_05.png.import
+	savepack: step 48: Storing File: res://.godot/imported/frame_00.png-f90ee6a28dbea1754b19e29a51fbc993.ctex
+	savepack: step 48: Storing File: res://assets/sprites/monsters/slime/frame_00.png.import
+	savepack: step 48: Storing File: res://.godot/imported/frame_01.png-6e188df414e6786e192137c191fc5645.ctex
+	savepack: step 48: Storing File: res://assets/sprites/monsters/slime/frame_01.png.import
+	savepack: step 48: Storing File: res://.godot/imported/frame_02.png-d4b0e0c102036c8fe78dd43f576cd086.ctex
+	savepack: step 48: Storing File: res://assets/sprites/monsters/slime/frame_02.png.import
+	savepack: step 49: Storing File: res://.godot/imported/frame_03.png-a2c1021185c20246c27e7aca77e96297.ctex
+	savepack: step 49: Storing File: res://assets/sprites/monsters/slime/frame_03.png.import
+	savepack: step 49: Storing File: res://.godot/imported/frame_04.png-98b8dd3b850ee97ecfb9674341535c5f.ctex
+	savepack: step 49: Storing File: res://assets/sprites/monsters/slime/frame_04.png.import
+	savepack: step 49: Storing File: res://.godot/imported/frame_05.png-3f4a1de55675039d9b016cdf44096fb7.ctex
+	savepack: step 49: Storing File: res://assets/sprites/monsters/slime/frame_05.png.import
+	savepack: step 50: Storing File: res://.godot/imported/frame_00.png-3e802b02da692a1bda7f49d100ee9694.ctex
+	savepack: step 50: Storing File: res://assets/sprites/monsters/wolf/frame_00.png.import
+	savepack: step 50: Storing File: res://.godot/imported/frame_01.png-29208185c51cad3105eb223ba88d5189.ctex
+	savepack: step 50: Storing File: res://assets/sprites/monsters/wolf/frame_01.png.import
+	savepack: step 50: Storing File: res://.godot/imported/frame_02.png-9de4ff75e63cae413d3b3dc0ceff9d1c.ctex
+	savepack: step 50: Storing File: res://assets/sprites/monsters/wolf/frame_02.png.import
+	savepack: step 51: Storing File: res://.godot/imported/frame_03.png-889e2f3978e5acf55c9a54ff8483cb29.ctex
+	savepack: step 51: Storing File: res://assets/sprites/monsters/wolf/frame_03.png.import
+	savepack: step 51: Storing File: res://.godot/imported/frame_04.png-af97ad63036bd64ca27f2f6319c83393.ctex
+	savepack: step 51: Storing File: res://assets/sprites/monsters/wolf/frame_04.png.import
+	savepack: step 51: Storing File: res://.godot/imported/frame_05.png-f87d6c26755bc4fffb18a3dc5087011e.ctex
+	savepack: step 51: Storing File: res://assets/sprites/monsters/wolf/frame_05.png.import
+	savepack: step 52: Storing File: res://.godot/imported/frame_00.png-3a16ade6f8b495b026dc25cdf68b6787.ctex
+	savepack: step 52: Storing File: res://assets/sprites/vfx/heal/frame_00.png.import
+	savepack: step 52: Storing File: res://.godot/imported/frame_01.png-9a1aa0360383d631437f85676b5d436c.ctex
+	savepack: step 52: Storing File: res://assets/sprites/vfx/heal/frame_01.png.import
+	savepack: step 52: Storing File: res://.godot/imported/frame_02.png-3ac0f4bf96fc3dc4124fd533ff1c549d.ctex
+	savepack: step 52: Storing File: res://assets/sprites/vfx/heal/frame_02.png.import
+	savepack: step 53: Storing File: res://.godot/imported/frame_03.png-b749e387ed0ed310f1fe203f3d6cdc5c.ctex
+	savepack: step 53: Storing File: res://assets/sprites/vfx/heal/frame_03.png.import
+	savepack: step 53: Storing File: res://.godot/imported/frame_04.png-abd248f563fd8487d69751e24d8becb7.ctex
+	savepack: step 53: Storing File: res://assets/sprites/vfx/heal/frame_04.png.import
+	savepack: step 53: Storing File: res://.godot/imported/frame_00.png-f54b1ea32475d99379b4641aea1bf34c.ctex
+	savepack: step 53: Storing File: res://assets/sprites/vfx/hit/frame_00.png.import
+	savepack: step 54: Storing File: res://.godot/imported/frame_01.png-63e6719d156213f825db2ee186fd3c4a.ctex
+	savepack: step 54: Storing File: res://assets/sprites/vfx/hit/frame_01.png.import
+	savepack: step 54: Storing File: res://.godot/imported/frame_02.png-8e2c18d1cad34b1b8aeff982ae5de6ce.ctex
+	savepack: step 54: Storing File: res://assets/sprites/vfx/hit/frame_02.png.import
+	savepack: step 54: Storing File: res://.godot/imported/frame_03.png-5735875df11764bdc861f9547d2d2b61.ctex
+	savepack: step 54: Storing File: res://assets/sprites/vfx/hit/frame_03.png.import
+	savepack: step 55: Storing File: res://.godot/imported/frame_04.png-65ccbb7e597b04d8bfc2148f72d717da.ctex
+	savepack: step 55: Storing File: res://assets/sprites/vfx/hit/frame_04.png.import
+	savepack: step 55: Storing File: res://.godot/imported/frame_00.png-e3497b6369f7910b56fe904eef882235.ctex
+	savepack: step 55: Storing File: res://assets/sprites/vfx/magic/frame_00.png.import
+	savepack: step 55: Storing File: res://.godot/imported/frame_01.png-2fd5515c706835a0b32469c5a5d4e886.ctex
+	savepack: step 55: Storing File: res://assets/sprites/vfx/magic/frame_01.png.import
+	savepack: step 56: Storing File: res://.godot/imported/frame_02.png-5f140dcb5cf7c70613f1509f783d8178.ctex
+	savepack: step 56: Storing File: res://assets/sprites/vfx/magic/frame_02.png.import
+	savepack: step 56: Storing File: res://.godot/imported/frame_03.png-6f4fcfb7a731aea96febb536223ce673.ctex
+	savepack: step 56: Storing File: res://assets/sprites/vfx/magic/frame_03.png.import
+	savepack: step 56: Storing File: res://.godot/imported/frame_04.png-8bdb279f42d22e458a14f015a2e2673e.ctex
+	savepack: step 56: Storing File: res://assets/sprites/vfx/magic/frame_04.png.import
+	savepack: step 57: Storing File: res://.godot/imported/frame_05.png-03ca0e0db306cb3b6f88a956e6be5549.ctex
+	savepack: step 57: Storing File: res://assets/sprites/vfx/magic/frame_05.png.import
+	savepack: step 57: Storing File: res://.godot/imported/frame_00.png-bf65bc5512148406d4f6975f1ec110fa.ctex
+	savepack: step 57: Storing File: res://assets/sprites/vfx/slash/frame_00.png.import
+	savepack: step 57: Storing File: res://.godot/imported/frame_01.png-ac53d8bbeb0ab28e0a5dc03295559371.ctex
+	savepack: step 57: Storing File: res://assets/sprites/vfx/slash/frame_01.png.import
+	savepack: step 58: Storing File: res://.godot/imported/frame_02.png-0ca2e4e940b7749bb1a22d29f3dd6183.ctex
+	savepack: step 58: Storing File: res://assets/sprites/vfx/slash/frame_02.png.import
+	savepack: step 58: Storing File: res://.godot/imported/frame_03.png-b8667ced6138cdefd4da30dd585852b9.ctex
+	savepack: step 58: Storing File: res://assets/sprites/vfx/slash/frame_03.png.import
+	savepack: step 58: Storing File: res://.godot/imported/frame_04.png-ac291f5bca7bbb07c381ed6208ffb269.ctex
+	savepack: step 58: Storing File: res://assets/sprites/vfx/slash/frame_04.png.import
+	savepack: step 59: Storing File: res://.godot/imported/button.png-473760ec7449fb30c95f607492aecb17.ctex
+	savepack: step 59: Storing File: res://assets/ui/button.png.import
+	savepack: step 59: Storing File: res://.godot/imported/button_active.png-b75f6dd3245c839072f7766addd1737f.ctex
+	savepack: step 59: Storing File: res://assets/ui/button_active.png.import
+	savepack: step 59: Storing File: res://.godot/imported/button_hover.png-4b92caaef1fac61fa5bd6833aa7648ff.ctex
+	savepack: step 59: Storing File: res://assets/ui/button_hover.png.import
+	savepack: step 59: Storing File: res://.godot/imported/panel.png-3b9543c06792d57fdee8f168520a6a81.ctex
+	savepack: step 59: Storing File: res://assets/ui/panel.png.import
+	savepack: step 60: Storing File: res://.godot/imported/index.apple-touch-icon.png-21031f526f7942c8019a62913b80e091.ctex
+	savepack: step 60: Storing File: res://build/web/index.apple-touch-icon.png.import
+	savepack: step 60: Storing File: res://.godot/imported/index.icon.png-a9d2f4f7433eeddc29dad75f5e7f8710.ctex
+	savepack: step 60: Storing File: res://build/web/index.icon.png.import
+	savepack: step 60: Storing File: res://.godot/imported/index.png-7e97af7272d6fa0065ffc53e96463470.ctex
+	savepack: step 60: Storing File: res://build/web/index.png.import
+	savepack: step 61: Storing File: res://data/combat/balance_combat.json
+	savepack: step 61: Storing File: res://data/combat/dungeons.json
+	savepack: step 61: Storing File: res://data/combat/enemies.json
+	savepack: step 62: Storing File: res://data/combat/hunts.json
+	savepack: step 62: Storing File: res://data/combat/sprite_pivots.json
+	savepack: step 62: Storing File: res://data/adventurers.json
+	savepack: step 63: Storing File: res://data/balance.json
+	savepack: step 63: Storing File: res://data/items.json
+	savepack: step 63: Storing File: res://data/quests.json
+	savepack: step 64: Storing File: res://scripts/ui/title_screen.gdc
+	savepack: step 64: Storing File: res://scripts/ui/settings_screen.gdc
+	savepack: step 64: Storing File: res://scripts/exploration/hunt_minimap.gdc
+	savepack: step 65: Storing File: res://scripts/exploration/maze_generator.gdc
+	savepack: step 65: Storing File: res://scripts/ui/facility_screen.gdc
+	savepack: step 65: Storing File: res://.godot/exported/133200997/export-19246414aa9fb561ced4b8dce477acec-default_bus_layout.res
+	savepack: step 66: Storing File: res://.godot/imported/index.apple-touch-icon.png-939ec69c79bbf504b92ad8ceed469d51.ctex
+	savepack: step 66: Storing File: res://web/index.apple-touch-icon.png.import
+	savepack: step 66: Storing File: res://.godot/imported/index.png-80964ad67552d78b1e33f58ad16188ff.ctex
+	savepack: step 66: Storing File: res://web/index.png.import
+	savepack: step 66: Storing File: res://scripts/ui/town_screen.gdc
+	savepack: step 67: Storing File: res://scripts/ui/ui_style.gdc
+	savepack: step 67: Storing File: res://.godot/imported/index.icon.png-c615af856eabc03ca93d51f6a8f07b60.ctex
+	savepack: step 67: Storing File: res://web/index.icon.png.import
+	savepack: step 67: Storing File: res://scripts/exploration/hunt_map_modal.gdc
+	savepack: step 68: Storing File: res://scripts/dungeon/dungeon_minimap.gdc
+	savepack: step 68: Storing File: res://scripts/dungeon/dungeon_hub_screen.gdc
+	savepack: step 68: Storing File: res://scripts/core/validate_pause.gdc
+	savepack: step 69: Storing File: res://scripts/core/validate_phase2_1.gdc
+	savepack: step 69: Storing File: res://scripts/exploration/hunt_direction_pad.gdc
+	savepack: step 69: Storing File: res://scripts/core/validate_sprite_align.gdc
+	savepack: step 70: Storing File: res://scripts/core/validate_combat_ai.gdc
+	savepack: step 70: Storing File: res://scripts/core/smoke_combat.gdc
+	savepack: step 70: Storing File: res://scripts/core/validate_attack_anim.gdc
+	savepack: step 71: Storing File: res://scripts/core/capture_release_path.gdc
+	savepack: step 71: Storing File: res://scripts/core/game_state.gdc
+	savepack: step 71: Storing File: res://scripts/core/smoke_test.gdc
+	savepack: step 72: Storing File: res://scripts/core/capture_sprite_align.gdc
+	savepack: step 72: Storing File: res://scripts/core/validate_combat_feel.gdc
+	savepack: step 72: Storing File: res://scripts/core/validate_audio.gdc
+	savepack: step 73: Storing File: res://scripts/core/main.gdc
+	savepack: step 73: Storing File: res://scripts/core/validate_combat_spacing.gdc
+	savepack: step 73: Storing File: res://scripts/core/scene_router.gdc
+	savepack: step 73: Storing File: res://scripts/core/capture_mage_cast.gdc
+	savepack: step 74: Storing File: res://scripts/core/validate_korean_font.gdc
+	savepack: step 74: Storing File: res://scripts/core/validate_hunt_maze.gdc
+	savepack: step 74: Storing File: res://scripts/core/validate_direction_travel.gdc
+	savepack: step 75: Storing File: res://scripts/core/validate_dungeon.gdc
+	savepack: step 75: Storing File: res://.godot/imported/01_title.png-56388b2076a21f8a68b90f94c73d367d.ctex
+	savepack: step 75: Storing File: res://emulator/media/01_title.png.import
+	savepack: step 75: Storing File: res://.godot/imported/02_town.png-6f47b16dd1059fd3f2bc0c90e8d0ab41.ctex
+	savepack: step 75: Storing File: res://emulator/media/02_town.png.import
+	savepack: step 76: Storing File: res://.godot/imported/03_facility_gate.png-e64da269df3fa4aba94a8a8d970479f1.ctex
+	savepack: step 76: Storing File: res://emulator/media/03_facility_gate.png.import
+	savepack: step 76: Storing File: res://.godot/imported/04_combat_start.png-fc1ccb3f0d7bd54b3ad37fb059e0256e.ctex
+	savepack: step 76: Storing File: res://emulator/media/04_combat_start.png.import
+	savepack: step 76: Storing File: res://.godot/imported/05_combat_mid_90f.png-fb563a9133b0cf31a683a3cee627b789.ctex
+	savepack: step 76: Storing File: res://emulator/media/05_combat_mid_90f.png.import
+	savepack: step 77: Storing File: res://.godot/imported/06_combat_end.png-29f51a7b62b57cf57fab5e4c2d1e8d53.ctex
+	savepack: step 77: Storing File: res://emulator/media/06_combat_end.png.import
+	savepack: step 77: Storing File: res://.godot/imported/01_title.png-685babe4ca3bdb0ead9f045927e089fc.ctex
+	savepack: step 77: Storing File: res://Guild Hub Layout/internal/post-merge-verification/01_title.png.import
+	savepack: step 77: Storing File: res://.godot/imported/02_town.png-697e60c4fd792e94f97e1fda36c6dafc.ctex
+	savepack: step 77: Storing File: res://Guild Hub Layout/internal/post-merge-verification/02_town.png.import
+	savepack: step 78: Storing File: res://.godot/imported/03_dungeon_hub.png-0ad531d0351a63769a11d7c7b1eddcb5.ctex
+	savepack: step 78: Storing File: res://Guild Hub Layout/internal/post-merge-verification/03_dungeon_hub.png.import
+	savepack: step 78: Storing File: res://.godot/imported/04_f1_combat.png-c301167378046fbf07287171a72892b6.ctex
+	savepack: step 78: Storing File: res://Guild Hub Layout/internal/post-merge-verification/04_f1_combat.png.import
+	savepack: step 78: Storing File: res://.godot/imported/05_f1_victory.png-4ecac98c8c88b4be31392be75b7c6224.ctex
+	savepack: step 78: Storing File: res://Guild Hub Layout/internal/post-merge-verification/05_f1_victory.png.import
+	savepack: step 79: Storing File: res://.godot/imported/06_next_floor.png-3c58f5633bcd6672c2b4c56ac8343169.ctex
+	savepack: step 79: Storing File: res://Guild Hub Layout/internal/post-merge-verification/06_next_floor.png.import
+	savepack: step 79: Storing File: res://.godot/imported/07_f5_boss.png-2943d60d6115e729791ff55d01d0572f.ctex
+	savepack: step 79: Storing File: res://Guild Hub Layout/internal/post-merge-verification/07_f5_boss.png.import
+	savepack: step 79: Storing File: res://.godot/imported/08_f10_boss.png-12007f5ce601ce679d107e68768e6220.ctex
+	savepack: step 79: Storing File: res://Guild Hub Layout/internal/post-merge-verification/08_f10_boss.png.import
+	savepack: step 80: Storing File: res://.godot/imported/09_final_victory.png-e722a07e7e31d4eac0caee5a8592495d.ctex
+	savepack: step 80: Storing File: res://Guild Hub Layout/internal/post-merge-verification/09_final_victory.png.import
+	savepack: step 80: Storing File: res://.godot/imported/10_return_town.png-b42b7af4bcb026997b5016ce148837e3.ctex
+	savepack: step 80: Storing File: res://Guild Hub Layout/internal/post-merge-verification/10_return_town.png.import
+	savepack: step 80: Storing File: res://.godot/imported/10_web_pages.png-ced46a76513f36e9f1d759ecd2ac2d7b.ctex
+	savepack: step 80: Storing File: res://Guild Hub Layout/internal/post-merge-verification/10_web_pages.png.import
+	savepack: step 81: Storing File: res://.godot/imported/01_dungeon_hub.png-2828a5c26d187ea6ed85c76ea404ec0b.ctex
+	savepack: step 81: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/01_dungeon_hub.png.import
+	savepack: step 81: Storing File: res://.godot/imported/02_dungeon_f1_combat.png-7576f7b48c209d165a5c89259968b155.ctex
+	savepack: step 81: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/02_dungeon_f1_combat.png.import
+	savepack: step 81: Storing File: res://.godot/imported/03_dungeon_f5_miniboss.png-8bf830804805eb342c2a451a74ea9838.ctex
+	savepack: step 81: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/03_dungeon_f5_miniboss.png.import
+	savepack: step 82: Storing File: res://.godot/imported/04_dungeon_f10_final_boss.png-db2760c4cc80deea6491e6a34c02fa5d.ctex
+	savepack: step 82: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/04_dungeon_f10_final_boss.png.import
+	savepack: step 82: Storing File: res://.godot/imported/05b_dungeon_hub_after_clear_next.png-0680f7083720ab50fb0a48f7d7de3951.ctex
+	savepack: step 82: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/05b_dungeon_hub_after_clear_next.png.import
+	savepack: step 82: Storing File: res://.godot/imported/05_dungeon_victory.png-56f20bb5816fb1530f9f16a81458fa8c.ctex
+	savepack: step 82: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/05_dungeon_victory.png.import
+	savepack: step 83: Storing File: res://.godot/imported/06_title_screen.png-654fa33b399e0e5bd0b4d024f1134d02.ctex
+	savepack: step 83: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/06_title_screen.png.import
+	savepack: step 83: Storing File: res://.godot/imported/07_town_screen.png-1951429ba18a40fa3299345ff02aa978.ctex
+	savepack: step 83: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/07_town_screen.png.import
+	savepack: step 83: Storing File: res://.godot/imported/08_dungeon_entry.png-5826b73b264e43c4795648bc5bfc1d16.ctex
+	savepack: step 83: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/08_dungeon_entry.png.import
+	savepack: step 84: Storing File: res://.godot/imported/09_dungeon_floor_transition.png-b6d433a27c94f0463462c8b10d94d3f3.ctex
+	savepack: step 84: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/09_dungeon_floor_transition.png.import
+	savepack: step 84: Storing File: res://.godot/imported/10_web_preview.png-10f14fb01db828d59ec6b276096ae19b.ctex
+	savepack: step 84: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/10_web_preview.png.import
+	savepack: step 84: Storing File: res://.godot/imported/11_mobile_preview.png-4a3597fa529c2c284458a8e4172d6c75.ctex
+	savepack: step 84: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/11_mobile_preview.png.import
+	savepack: step 85: Storing File: res://.godot/imported/click_01_title.png-fb5eca356ba347b527da713a0444fc2c.ctex
+	savepack: step 85: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_01_title.png.import
+	savepack: step 85: Storing File: res://.godot/imported/click_02_town.png-1f12e6427363ec1c3905b0b9bc8f8e29.ctex
+	savepack: step 85: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_02_town.png.import
+	savepack: step 85: Storing File: res://.godot/imported/click_03_gate_facility.png-b66226e673adb353601528c03856396e.ctex
+	savepack: step 85: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_03_gate_facility.png.import
+	savepack: step 86: Storing File: res://.godot/imported/click_04_dungeon_hub.png-97daea10d52e0533bb36b1c5fabadc07.ctex
+	savepack: step 86: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_04_dungeon_hub.png.import
+	savepack: step 86: Storing File: res://.godot/imported/click_05b_f1_combat_mid.png-4680663bd0f14a419edbfaaffdf1193a.ctex
+	savepack: step 86: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_05b_f1_combat_mid.png.import
+	savepack: step 86: Storing File: res://.godot/imported/click_05_f1_combat_early.png-fb4a9eb2054ada55fce9ff322925daa3.ctex
+	savepack: step 86: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_05_f1_combat_early.png.import
+	savepack: step 87: Storing File: res://.godot/imported/click_06_f1_victory.png-721a1073f2ff032ce59b6b61122a5132.ctex
+	savepack: step 87: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_06_f1_victory.png.import
+	savepack: step 87: Storing File: res://.godot/imported/click_07_hub_after_f1.png-2cf00bafdf4b47d3aa8047617b6ab9b7.ctex
+	savepack: step 87: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_07_hub_after_f1.png.import
+	savepack: step 87: Storing File: res://.godot/imported/click_08_hub_f2_selected.png-d53d41ecec243abe8670e0849024a115.ctex
+	savepack: step 87: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_08_hub_f2_selected.png.import
+	savepack: step 87: Storing File: res://.godot/imported/click_09_f2_combat_result.png-0e1f8c8ce662f41efd3b9af6c6c59f7b.ctex
+	savepack: step 87: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_09_f2_combat_result.png.import
+	savepack: step 88: Storing File: res://.godot/imported/click_10_hub_f3_selected.png-dd424c7bed1ad146c03fc6cd97b7991d.ctex
+	savepack: step 88: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_10_hub_f3_selected.png.import
+	savepack: step 88: Storing File: res://.godot/imported/click_10_hub_f4_selected.png-308e6171084e8eada4dc832a95a89bcb.ctex
+	savepack: step 88: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_10_hub_f4_selected.png.import
+	savepack: step 88: Storing File: res://.godot/imported/click_11_f3_combat_result.png-f73608a9ce5971e33cc4dec440da37c5.ctex
+	savepack: step 88: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_11_f3_combat_result.png.import
+	savepack: step 89: Storing File: res://.godot/imported/click_11_f4_combat_result.png-39ec34dff12d923cfe22e1fbd8ce040f.ctex
+	savepack: step 89: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_11_f4_combat_result.png.import
+	savepack: step 89: Storing File: res://.godot/imported/click_12_hub_f5_selected.png-d8c33950c7c9084ccb5711bd09a5837b.ctex
+	savepack: step 89: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_12_hub_f5_selected.png.import
+	savepack: step 89: Storing File: res://.godot/imported/click_13_f5_combat_early.png-e4ffff12d115b307901a1cda9cd1afda.ctex
+	savepack: step 89: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_13_f5_combat_early.png.import
+	savepack: step 90: Storing File: res://.godot/imported/click_14_f5_combat_result.png-963f80aef430141a8cbae04821da3ed5.ctex
+	savepack: step 90: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_14_f5_combat_result.png.import
+	savepack: step 90: Storing File: res://.godot/imported/click_15_hub_f6_selected.png-258140dcb154f54be70bff5f0862d19b.ctex
+	savepack: step 90: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_15_hub_f6_selected.png.import
+	savepack: step 90: Storing File: res://.godot/imported/click_15_hub_f7_selected.png-73b9ab06a1f5df41e21050982a956fbc.ctex
+	savepack: step 90: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_15_hub_f7_selected.png.import
+	savepack: step 91: Storing File: res://.godot/imported/click_15_hub_f8_selected.png-4e4cdf8a0780a882c5846d3b0b2fbe99.ctex
+	savepack: step 91: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_15_hub_f8_selected.png.import
+	savepack: step 91: Storing File: res://.godot/imported/click_15_hub_f9_selected.png-d201d72f952019b3165ab9d9e4fcc423.ctex
+	savepack: step 91: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_15_hub_f9_selected.png.import
+	savepack: step 91: Storing File: res://.godot/imported/click_16_f6_combat_result.png-4bbe296db9e19b440f4e1040365ee6f7.ctex
+	savepack: step 91: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_16_f6_combat_result.png.import
+	savepack: step 92: Storing File: res://.godot/imported/click_16_f7_combat_result.png-7e2244a6c89456fedc9bb3b229dd53c0.ctex
+	savepack: step 92: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_16_f7_combat_result.png.import
+	savepack: step 92: Storing File: res://.godot/imported/click_16_f8_combat_result.png-c5efbe6814455327301117a9b19e47f5.ctex
+	savepack: step 92: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_16_f8_combat_result.png.import
+	savepack: step 92: Storing File: res://.godot/imported/click_16_f9_combat_result.png-7cd54ce4b58b09ad4c77f86af1642c4c.ctex
+	savepack: step 92: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_16_f9_combat_result.png.import
+	savepack: step 93: Storing File: res://.godot/imported/click_17_hub_f10_selected.png-408da7e66f69529289aae923c05a9178.ctex
+	savepack: step 93: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_17_hub_f10_selected.png.import
+	savepack: step 93: Storing File: res://.godot/imported/click_18_f10_combat_early.png-847655fdcb7d8a47acbb5ccf3fdae57c.ctex
+	savepack: step 93: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_18_f10_combat_early.png.import
+	savepack: step 93: Storing File: res://.godot/imported/click_19_f10_combat_result.png-6cea4bfda6fd6d53a8298a5bf17f9de5.ctex
+	savepack: step 93: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_19_f10_combat_result.png.import
+	savepack: step 94: Storing File: res://.godot/imported/click_20_hub_after_f10_final.png-595315c6aa800757a26d785b6f04b45a.ctex
+	savepack: step 94: Storing File: res://Guild Hub Layout/internal/pr9-visual-verification/click_20_hub_after_f10_final.png.import
+	savepack: step 94: Storing File: res://.godot/exported/133200997/export-59b4c5dc0bfea26f1b301d58a725d92c-combat.scn
+	savepack: step 94: Storing File: res://.godot/exported/133200997/export-cf92c66c74b415f17f3071481b67c20c-dungeon_hub.scn
+	savepack: step 95: Storing File: res://.godot/exported/133200997/export-abe7650c58dc0fef12f23a80c49f3098-facility.scn
+	savepack: step 95: Storing File: res://.godot/exported/133200997/export-f39996a6d27a38698d16421ab974097b-main.scn
+	savepack: step 95: Storing File: res://.godot/exported/133200997/export-683bfc045a607beaf0d51045646189fc-settings.scn
+	savepack: step 96: Storing File: res://.godot/exported/133200997/export-746ba1f4777b517f6975d5476e460451-title.scn
+	savepack: step 96: Storing File: res://.godot/exported/133200997/export-3f158363dbd184d895da01a7c43fc215-town.scn
+	savepack: step 96: Storing File: res://scripts/combat/character_base.gdc
+	savepack: step 97: Storing File: res://scripts/combat/combat_fx.gdc
+	savepack: step 97: Storing File: res://scripts/combat/combat_manager.gdc
+	savepack: step 97: Storing File: res://scripts/combat/combat_ui.gdc
+	savepack: step 98: Storing File: res://scripts/combat/enemy_base.gdc
+	savepack: step 98: Storing File: res://scripts/combat/floating_text.gdc
+	savepack: step 98: Storing File: res://scripts/combat/party_member_actor.gdc
+	savepack: step 99: Storing File: res://scripts/combat/player_lord_actor.gdc
+	savepack: step 99: Storing File: res://scripts/combat/projectile.gdc
+	savepack: step 99: Storing File: res://scripts/combat/sprite_factory.gdc
+	savepack: step 100: Storing File: res://scripts/core/audio_manager.gdc
+	savepack: step 100: Storing File: res://scripts/core/capture_attack_phases.gdc
+	savepack: step 100: Storing File: res://scripts/core/capture_combat_feel.gdc
+	savepack: step 101: Storing File: res://scripts/core/capture_direction_pad.gdc
+	savepack: step 101: Storing File: res://scripts/core/capture_dungeon_visual.gdc
+	savepack: step 101: Storing File: res://scripts/core/capture_hunt_minimap.gdc
+	savepack: step 101: Storing File: res://scripts/ui/title_screen.gd.remap
+	savepack: step 101: Storing File: res://scripts/ui/settings_screen.gd.remap
+	savepack: step 101: Storing File: res://scripts/exploration/hunt_minimap.gd.remap
+	savepack: step 101: Storing File: res://scripts/exploration/maze_generator.gd.remap
+	savepack: step 101: Storing File: res://scripts/ui/facility_screen.gd.remap
+	savepack: step 101: Storing File: res://default_bus_layout.tres.remap
+	savepack: step 101: Storing File: res://scripts/ui/town_screen.gd.remap
+	savepack: step 101: Storing File: res://scripts/ui/ui_style.gd.remap
+	savepack: step 101: Storing File: res://scripts/exploration/hunt_map_modal.gd.remap
+	savepack: step 101: Storing File: res://scripts/dungeon/dungeon_minimap.gd.remap
+	savepack: step 101: Storing File: res://scripts/dungeon/dungeon_hub_screen.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_pause.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_phase2_1.gd.remap
+	savepack: step 101: Storing File: res://scripts/exploration/hunt_direction_pad.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_sprite_align.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_combat_ai.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/smoke_combat.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_attack_anim.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_release_path.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/game_state.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/smoke_test.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_sprite_align.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_combat_feel.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_audio.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/main.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_combat_spacing.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/scene_router.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_mage_cast.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_korean_font.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_hunt_maze.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_direction_travel.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/validate_dungeon.gd.remap
+	savepack: step 101: Storing File: res://scenes/combat/combat.tscn.remap
+	savepack: step 101: Storing File: res://scenes/dungeon/dungeon_hub.tscn.remap
+	savepack: step 101: Storing File: res://scenes/facilities/facility.tscn.remap
+	savepack: step 101: Storing File: res://scenes/main/main.tscn.remap
+	savepack: step 101: Storing File: res://scenes/title/settings.tscn.remap
+	savepack: step 101: Storing File: res://scenes/title/title.tscn.remap
+	savepack: step 101: Storing File: res://scenes/town/town.tscn.remap
+	savepack: step 101: Storing File: res://scripts/combat/character_base.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/combat_fx.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/combat_manager.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/combat_ui.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/enemy_base.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/floating_text.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/party_member_actor.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/player_lord_actor.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/projectile.gd.remap
+	savepack: step 101: Storing File: res://scripts/combat/sprite_factory.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/audio_manager.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_attack_phases.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_combat_feel.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_direction_pad.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_dungeon_visual.gd.remap
+	savepack: step 101: Storing File: res://scripts/core/capture_hunt_minimap.gd.remap
+	savepack: step 101: Storing File: res://.godot/global_script_class_cache.cfg
+	savepack: step 101: Storing File: res://assets/sprites/icons/guild.png
+	savepack: step 101: Storing File: res://.godot/uid_cache.bin
+	savepack: step 101: Storing File: res://project.binary
+savepack: end
