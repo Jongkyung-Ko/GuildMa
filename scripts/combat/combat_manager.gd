@@ -45,8 +45,12 @@ func _ready() -> void:
 	hunt_id = str(get_tree().root.get_meta("hunt_id", ""))
 	_ensure_game_state()
 	if hunt_id != "" and dungeon_id == "":
-		GameState.start_hunt_run(hunt_id, bool(get_tree().root.get_meta("hunt_force_new", false)))
+		var force_new := bool(get_tree().root.get_meta("hunt_force_new", false))
+		# Town→hunt / re-entry always requests entrance spawn (not mid-maze resume).
+		var spawn_at_start := bool(get_tree().root.get_meta("hunt_spawn_at_start", true))
+		GameState.start_hunt_run(hunt_id, force_new, spawn_at_start)
 		get_tree().root.set_meta("hunt_force_new", false)
+		get_tree().root.set_meta("hunt_spawn_at_start", false)
 	_build_ground()
 	_setup_camera()
 	_spawn_party()
@@ -63,9 +67,11 @@ func _ready() -> void:
 		])
 	elif is_hunt_combat():
 		var room := GameState.get_current_hunt_room()
-		log_combat("사냥 시작 — %s / %s" % [
+		log_combat("사냥 시작 — %s / %s (room=%s type=%s)" % [
 			str(GameState.get_active_hunt_map().get("hunt_name", hunt_id)),
 			str(room.get("name", "")),
+			str(room.get("room_id", "")),
+			str(room.get("room_type", "")),
 		])
 		if bool(room.get("cleared", false)):
 			# Revisit cleared room: no fight, allow map travel.
@@ -199,9 +205,9 @@ func return_to_town() -> void:
 	if dungeon_id != "":
 		SceneRouter.go_dungeon_hub(dungeon_id)
 	else:
-		# Full leave: reset hunt re-entry to start room (keep cleared progress).
-		if is_hunt_combat() and GameState:
-			GameState.leave_hunt_session()
+		# Full leave: always pass local hunt_id so reset works even if active_hunt_id was cleared.
+		if hunt_id != "" and GameState:
+			GameState.leave_hunt_session(hunt_id)
 		SceneRouter.go_town()
 
 

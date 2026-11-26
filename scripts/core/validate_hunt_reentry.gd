@@ -61,10 +61,14 @@ func _run() -> void:
 	await _wait_bgm(am)
 	var hunt_track := str(am.call("get_current_bgm"))
 	var hunt_mode := str(am.call("get_combat_mode"))
-	if hunt_mode == "none" or hunt_track == "town":
-		print("FAIL: hunt combat BGM not started"); failed += 1
+	var paths: Dictionary = am.get("BGM_PATHS")
+	print("LOG: hunt enter key=%s mode=%s path=%s" % [hunt_track, hunt_mode, paths.get(hunt_track, "")])
+	if hunt_track != "hunt" or hunt_mode != "hunt":
+		print("FAIL: hunt BGM expected hunt/hunt got %s/%s" % [hunt_track, hunt_mode]); failed += 1
+	elif str(paths.get("hunt", "")).find("tobitate_aoi_sora.mp3") < 0:
+		print("FAIL: hunt path not Tobitate: %s" % str(paths.get("hunt", ""))); failed += 1
 	else:
-		_pass("Hunt combat BGM started (%s / %s)" % [hunt_mode, hunt_track])
+		_pass("Hunt combat BGM started (hunt / Tobitate MP3)")
 	var hunt_pos1: float = float(am.call("get_bgm_playback_position"))
 
 	# 3) Move to an adjacent room (must clear first)
@@ -141,6 +145,7 @@ func _run() -> void:
 		_pass("Forced town restart from near start (pos=%.3f)" % town_pos3)
 
 	# 5) Re-enter same hunt — must be at start, BGM from 0
+	# pending_spawn_at_start from leave should force entrance even without spawn_at_start arg.
 	var re: Dictionary = gs.call("start_hunt_run", "beginner_forest", false)
 	var re_cur := str(re.get("current_room_id", ""))
 	var re_start := str(gs.call("get_hunt_start_room_id", re))
@@ -155,21 +160,25 @@ func _run() -> void:
 
 	am.call("on_enter_combat", true)
 	await _wait_bgm(am)
+	var re_key := str(am.call("get_current_bgm"))
 	var re_pos: float = float(am.call("get_bgm_playback_position"))
-	if re_pos > 5.0:
+	print("LOG: re-entry BGM key=%s mode=%s pos=%.3f" % [re_key, am.call("get_combat_mode"), re_pos])
+	if re_key != "hunt":
+		print("FAIL: re-entry BGM not hunt"); failed += 1
+	elif re_pos > 5.0:
 		print("FAIL: re-entry combat BGM mid-track (%.3f)" % re_pos); failed += 1
 	else:
-		_pass("Re-entry combat BGM from near start (pos=%.3f)" % re_pos)
+		_pass("Re-entry hunt Tobitate from near start (pos=%.3f)" % re_pos)
 
 	# 6) Internal continuity still works after re-entry
 	var t_before := str(am.call("get_current_bgm"))
 	var p_before: float = float(am.call("get_bgm_playback_position"))
 	am.call("on_enter_combat", false)
 	await process_frame
-	if str(am.call("get_current_bgm")) != t_before and str(am.call("get_combat_mode")) == "playlist":
-		print("FAIL: same-intensity refresh changed track unexpectedly"); failed += 1
+	if str(am.call("get_current_bgm")) != t_before:
+		print("FAIL: same-zone refresh changed track unexpectedly"); failed += 1
 	else:
-		_pass("Post-reentry internal refresh keeps track")
+		_pass("Post-reentry internal refresh keeps Tobitate")
 	var p_after: float = float(am.call("get_bgm_playback_position"))
 	if p_before > 0.2 and p_after < 0.05:
 		print("FAIL: internal refresh seeked to 0"); failed += 1

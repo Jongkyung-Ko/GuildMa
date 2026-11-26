@@ -60,10 +60,12 @@ func go_hunt(hunt_id: String = "beginner_forest", force_new: bool = false) -> vo
 	current_facility = ""
 	get_tree().root.set_meta("hunt_id", hunt_id)
 	get_tree().root.set_meta("hunt_force_new", force_new)
+	# Town→hunt / re-entry: always spawn at entrance (internal travel never uses go_hunt).
+	get_tree().root.set_meta("hunt_spawn_at_start", true)
 	get_tree().root.set_meta("combat_hunt_id", hunt_id)
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
-	# Fresh town→hunt (or re-entry): restart combat BGM from the beginning.
+	# Fresh town→hunt (or re-entry): restart hunt MP3 from the beginning.
 	if AudioManager:
 		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)
