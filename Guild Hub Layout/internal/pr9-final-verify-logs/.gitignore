@@ -1,0 +1,3 @@
+# Keep verification raw logs in this folder
+!.gitignore
+!*.log
