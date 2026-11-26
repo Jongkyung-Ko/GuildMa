@@ -2,13 +2,13 @@ Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
 
 === HUNT MAZE VALIDATION ===
 PASS: hunt catalog has beginner_forest
-PASS: run 0 seed=185613519 persisted
-PASS: run 1 seed=1759251502 persisted
-PASS: run 2 seed=267947715 persisted
-PASS: 3 new maps have distinct seeds [185613519, 1759251502, 267947715]
+PASS: run 0 seed=3641152997 persisted
+PASS: run 1 seed=286642860 persisted
+PASS: run 2 seed=4277606898 persisted
+PASS: 3 new maps have distinct seeds [3641152997, 286642860, 4277606898]
 PASS: at least one layout differs across 3 runs
-PASS: resume keeps seed 3881599063
-PASS: resume keeps current room r_4_3
+PASS: resume keeps seed 462524147
+PASS: resume keeps current room r_0_3
 PASS: resume keeps room layout
 PASS: second 출정 resumes in-progress map
 PASS: generated map validates (seed 42)
