@@ -50,6 +50,52 @@
       "exp": 14,
       "gold_min": 4,
       "gold_max": 10
+    },
+    {
+      "id": "boss_crypt_warden",
+      "sprite": "goblin",
+      "name": "묘실 감시자",
+      "tier": "boss_mid",
+      "hp": 220,
+      "atk": 16,
+      "def": 6,
+      "move": 85,
+      "aspd": 0.85,
+      "aggro_range": 1100,
+      "attack_range": 36,
+      "behavior": "chase_melee",
+      "exp": 80,
+      "gold_min": 40,
+      "gold_max": 70,
+      "color": [
+        0.55,
+        0.35,
+        0.75,
+        1.0
+      ]
+    },
+    {
+      "id": "boss_crypt_lord",
+      "sprite": "wolf",
+      "name": "지하묘 군주",
+      "tier": "boss_final",
+      "hp": 380,
+      "atk": 22,
+      "def": 9,
+      "move": 95,
+      "aspd": 0.95,
+      "aggro_range": 1200,
+      "attack_range": 40,
+      "behavior": "chase_melee",
+      "exp": 160,
+      "gold_min": 90,
+      "gold_max": 140,
+      "color": [
+        0.75,
+        0.2,
+        0.25,
+        1.0
+      ]
     }
   ]
 }

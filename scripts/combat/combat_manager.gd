@@ -23,6 +23,10 @@ var _shake_t: float = 0.0
 var _shake_amp: float = 0.0
 var _hit_stop_t: float = 0.0
 var _cam_home: Vector2 = Vector2(640, 360)
+## Dungeon vertical mode (empty = hunt / phase test combat). Separate from hunt N/S/E/W.
+var dungeon_id: String = ""
+var dungeon_floor: int = 0
+var _floor_cleared_reported: bool = false
 
 @onready var _battlefield: Node2D = $Battlefield
 @onready var _ally_root: Node2D = $Battlefield/Allies
@@ -33,13 +37,25 @@ var _cam_home: Vector2 = Vector2(640, 360)
 func _ready() -> void:
 	balance = _read_json(BALANCE_PATH)
 	enemy_catalog = _read_json(ENEMIES_PATH)
+	dungeon_id = str(get_tree().root.get_meta("dungeon_id", ""))
+	dungeon_floor = int(get_tree().root.get_meta("dungeon_floor", 0))
 	_ensure_game_state()
 	_build_ground()
 	_setup_camera()
 	_spawn_party()
 	_spawn_enemies()
 	_ui.setup(self)
-	log_combat("전투 시작 — 자동전투 (Phase 2-2)")
+	if dungeon_id != "" and dungeon_floor > 0:
+		var fdef := GameState.get_dungeon_floor_def(dungeon_id, dungeon_floor)
+		var boss := str(fdef.get("boss", ""))
+		var tag := "중층 보스" if boss == "mid" else ("최종 보스" if boss == "final" else "일반")
+		log_combat("던전 전투 시작 — %s %d층 (%s)" % [
+			str(GameState.get_dungeon_def(dungeon_id).get("name", dungeon_id)),
+			dungeon_floor,
+			tag,
+		])
+	else:
+		log_combat("전투 시작 — 자동전투 (Phase 2-2)")
 	set_process(true)
 
 
@@ -158,7 +174,14 @@ func toggle_pause() -> void:
 func return_to_town() -> void:
 	Engine.time_scale = 1.0
 	_hit_stop_t = 0.0
-	SceneRouter.go_town()
+	if dungeon_id != "":
+		SceneRouter.go_dungeon_hub(dungeon_id)
+	else:
+		SceneRouter.go_town()
+
+
+func is_dungeon_combat() -> bool:
+	return dungeon_id != "" and dungeon_floor > 0
 
 
 func _ensure_game_state() -> void:
@@ -217,24 +240,20 @@ func _spawn_party() -> void:
 
 
 func _spawn_enemies() -> void:
-	var list: Array = enemy_catalog.get("enemies", [])
-	if list.is_empty():
-		return
-	# Prefer a mixed encounter of up to 3 distinct monsters when available.
-	var roster: Array = []
-	for id_wanted in ["wolf", "slime", "goblin"]:
-		for e in list:
-			if str(e.get("id", "")) == id_wanted:
-				roster.append(e)
-				break
+	var roster: Array = _resolve_enemy_roster()
 	if roster.is_empty():
-		roster.append(list[0])
-	var count: int = int(balance.get("enemy_count_phase_2_1", 3))
-	count = clampi(count, 1, maxi(3, roster.size()))
+		return
+	var count: int = roster.size()
 	# Keep enemies left of the right HUD (~268px) so sprites are not clipped.
-	var slots := [Vector2(860, 240), Vector2(920, 360), Vector2(800, 440)]
+	var slots := [
+		Vector2(860, 240),
+		Vector2(920, 360),
+		Vector2(800, 440),
+		Vector2(940, 300),
+		Vector2(820, 500),
+	]
 	for i in range(count):
-		var data: Dictionary = roster[i % roster.size()]
+		var data: Dictionary = roster[i]
 		var enemy: Node = ENEMY_SCRIPT.new()
 		enemy.name = "Enemy_%s_%d" % [str(data.get("id", "mob")), i]
 		_enemy_root.add_child(enemy)
@@ -248,6 +267,45 @@ func _spawn_enemies() -> void:
 		enemy.died.connect(_on_combatant_died)
 		enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
 		_enemies.append(enemy)
+
+
+func _resolve_enemy_roster() -> Array:
+	var list: Array = enemy_catalog.get("enemies", [])
+	if list.is_empty():
+		return []
+	# Dungeon floor encounter from dungeons.json (vertical progression).
+	if dungeon_id != "" and dungeon_floor > 0:
+		var fdef := GameState.get_dungeon_floor_def(dungeon_id, dungeon_floor)
+		var ids: Array = fdef.get("enemies", [])
+		var out: Array = []
+		for eid in ids:
+			var data := _enemy_def_by_id(str(eid))
+			if not data.is_empty():
+				out.append(data)
+		if out.is_empty() and not list.is_empty():
+			out.append(list[0])
+		return out
+	# Hunt / phase test: mixed encounter of up to 3 distinct monsters.
+	var roster: Array = []
+	for id_wanted in ["wolf", "slime", "goblin"]:
+		var data := _enemy_def_by_id(id_wanted)
+		if not data.is_empty():
+			roster.append(data)
+	if roster.is_empty():
+		roster.append(list[0])
+	var count: int = int(balance.get("enemy_count_phase_2_1", 3))
+	count = clampi(count, 1, maxi(3, roster.size()))
+	var out2: Array = []
+	for i in range(count):
+		out2.append(roster[i % roster.size()])
+	return out2
+
+
+func _enemy_def_by_id(enemy_id: String) -> Dictionary:
+	for e in enemy_catalog.get("enemies", []):
+		if str(e.get("id", "")) == enemy_id:
+			return e
+	return {}
 
 
 func _on_combatant_died(_who: Node) -> void:
@@ -268,6 +326,7 @@ func _check_end_conditions() -> void:
 		Engine.time_scale = 1.0
 		_hit_stop_t = 0.0
 		log_combat("승리 — 적 전멸 (보상은 후속 Phase)")
+		_on_dungeon_victory()
 		return
 	var allies_alive := false
 	for a in _allies:
@@ -279,6 +338,20 @@ func _check_end_conditions() -> void:
 		Engine.time_scale = 1.0
 		_hit_stop_t = 0.0
 		log_combat("패배 — 파티 전원 전투불능 (보상은 후속 Phase)")
+
+
+func _on_dungeon_victory() -> void:
+	if _floor_cleared_reported:
+		return
+	if dungeon_id == "" or dungeon_floor <= 0:
+		return
+	_floor_cleared_reported = true
+	var kills := _enemies.size()
+	GameState.mark_dungeon_floor_cleared(dungeon_id, dungeon_floor, kills)
+	log_combat("%s %d층 클리어 기록" % [
+		str(GameState.get_dungeon_def(dungeon_id).get("name", dungeon_id)),
+		dungeon_floor,
+	])
 
 
 func _read_json(path: String) -> Dictionary:

@@ -55,7 +55,7 @@ func _build() -> void:
 	top_row.add_child(_pause_btn)
 
 	_town_btn = Button.new()
-	_town_btn.text = "마을로"
+	_town_btn.text = "던전으로" if (_manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat()) else "마을로"
 	UIStyle.apply_button(_town_btn)
 	_town_btn.pressed.connect(_on_town)
 	top_row.add_child(_town_btn)
@@ -128,7 +128,10 @@ func refresh() -> void:
 	var pname: String = _manager.get_phase_name()
 	match pname:
 		"fighting":
-			_status.text = "전투 중 — Phase 2-2"
+			if _manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
+				_status.text = "던전 전투 — %d층" % int(_manager.dungeon_floor)
+			else:
+				_status.text = "전투 중 — Phase 2-2"
 			_status.add_theme_color_override("font_color", UIStyle.GOLD_BRIGHT)
 			_pause_btn.disabled = false
 			_pause_btn.text = "일시정지 (Esc)"
@@ -138,7 +141,10 @@ func refresh() -> void:
 			_pause_btn.disabled = false
 			_pause_btn.text = "재개 (Esc)"
 		"victory":
-			_status.text = "승리! (보상은 후속 Phase)"
+			if _manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
+				_status.text = "승리! — 층 클리어"
+			else:
+				_status.text = "승리! (보상은 후속 Phase)"
 			_status.add_theme_color_override("font_color", UIStyle.OK)
 			_pause_btn.disabled = true
 		"defeat":

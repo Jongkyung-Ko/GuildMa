@@ -9,6 +9,7 @@ var balance: Dictionary = {}
 var catalog_items: Array = []
 var adventurer_pool: Array = []
 var quest_catalog: Array = []
+var dungeon_catalog: Dictionary = {}
 
 var gold: int = 0
 var reputation: int = 0
@@ -22,6 +23,8 @@ var members: Array = []
 var inventory: Array = [] # {id, qty}
 var active_quests: Array = []
 var recruited_ids: Array = []
+## Separate from hunting-ground exploration. Keyed by dungeon id.
+var dungeon_progress: Dictionary = {}
 var has_save: bool = false
 var is_playing: bool = false
 var message_log: Array = []
@@ -58,6 +61,7 @@ func _load_static_data() -> void:
 	catalog_items = _read_json("res://data/items.json").get("items", [])
 	adventurer_pool = _read_json("res://data/adventurers.json").get("pool", [])
 	quest_catalog = _read_json("res://data/quests.json").get("quests", [])
+	dungeon_catalog = _read_json("res://data/combat/dungeons.json")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -83,6 +87,7 @@ func new_game() -> void:
 	inventory = []
 	active_quests = []
 	recruited_ids = []
+	dungeon_progress = {}
 	message_log = []
 	members = _create_starting_party()
 	is_playing = true
@@ -331,6 +336,7 @@ func save_game() -> void:
 		"inventory": inventory,
 		"active_quests": active_quests,
 		"recruited_ids": recruited_ids,
+		"dungeon_progress": dungeon_progress,
 		"message_log": message_log,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -362,11 +368,125 @@ func load_game() -> bool:
 	inventory = data.get("inventory", [])
 	active_quests = data.get("active_quests", [])
 	recruited_ids = data.get("recruited_ids", [])
+	dungeon_progress = data.get("dungeon_progress", {})
+	if typeof(dungeon_progress) != TYPE_DICTIONARY:
+		dungeon_progress = {}
 	message_log = data.get("message_log", [])
 	is_playing = true
 	emit_message("게임을 불러왔습니다.")
 	state_changed.emit()
 	return true
+
+
+# --- Dungeon vertical progression (separate from hunting-ground exploration) ---
+
+func get_dungeon_def(dungeon_id: String) -> Dictionary:
+	for d in dungeon_catalog.get("dungeons", []):
+		if str(d.get("id", "")) == dungeon_id:
+			return d
+	return {}
+
+
+func ensure_dungeon_progress(dungeon_id: String) -> Dictionary:
+	if dungeon_progress.has(dungeon_id) and typeof(dungeon_progress[dungeon_id]) == TYPE_DICTIONARY:
+		return dungeon_progress[dungeon_id]
+	var fresh := {
+		"current_floor": 1,
+		"deepest_floor": 1,
+		"visited": [1],
+		"cleared": [],
+		"floors": {},
+		"mid_boss_defeated": false,
+		"final_boss_defeated": false,
+	}
+	dungeon_progress[dungeon_id] = fresh
+	return fresh
+
+
+func get_dungeon_floor_def(dungeon_id: String, floor: int) -> Dictionary:
+	var def := get_dungeon_def(dungeon_id)
+	var floors: Dictionary = def.get("floors", {})
+	return floors.get(str(floor), {})
+
+
+func dungeon_current_floor(dungeon_id: String) -> int:
+	return int(ensure_dungeon_progress(dungeon_id).get("current_floor", 1))
+
+
+func dungeon_is_floor_cleared(dungeon_id: String, floor: int) -> bool:
+	var prog := ensure_dungeon_progress(dungeon_id)
+	var cleared: Array = prog.get("cleared", [])
+	return cleared.has(floor) or cleared.has(float(floor)) or cleared.has(str(floor))
+
+
+func dungeon_is_floor_unlocked(dungeon_id: String, floor: int) -> bool:
+	if floor <= 1:
+		return true
+	# Next floor unlocks only after previous is cleared.
+	return dungeon_is_floor_cleared(dungeon_id, floor - 1)
+
+
+func dungeon_can_go_next(dungeon_id: String) -> bool:
+	var prog := ensure_dungeon_progress(dungeon_id)
+	var cur := int(prog.get("current_floor", 1))
+	var def := get_dungeon_def(dungeon_id)
+	var max_f := int(def.get("max_floor", 1))
+	if cur >= max_f:
+		return false
+	if not dungeon_is_floor_cleared(dungeon_id, cur):
+		return false
+	return dungeon_is_floor_unlocked(dungeon_id, cur + 1)
+
+
+func dungeon_set_floor(dungeon_id: String, floor: int) -> bool:
+	var def := get_dungeon_def(dungeon_id)
+	if def.is_empty():
+		return false
+	var max_f := int(def.get("max_floor", 1))
+	floor = clampi(floor, 1, max_f)
+	if not dungeon_is_floor_unlocked(dungeon_id, floor):
+		emit_message("%d층은 아직 잠겨 있습니다." % floor, true)
+		return false
+	var prog := ensure_dungeon_progress(dungeon_id)
+	prog["current_floor"] = floor
+	var visited: Array = prog.get("visited", [])
+	if not (visited.has(floor) or visited.has(float(floor)) or visited.has(str(floor))):
+		visited.append(floor)
+	prog["visited"] = visited
+	prog["deepest_floor"] = maxi(int(prog.get("deepest_floor", 1)), floor)
+	var floors: Dictionary = prog.get("floors", {})
+	if not floors.has(str(floor)):
+		floors[str(floor)] = {"cleared": false, "kills": 0}
+	prog["floors"] = floors
+	dungeon_progress[dungeon_id] = prog
+	save_game()
+	state_changed.emit()
+	return true
+
+
+func mark_dungeon_floor_cleared(dungeon_id: String, floor: int, kills: int = 0) -> void:
+	var prog := ensure_dungeon_progress(dungeon_id)
+	var cleared: Array = prog.get("cleared", [])
+	if not (cleared.has(floor) or cleared.has(float(floor)) or cleared.has(str(floor))):
+		cleared.append(floor)
+	prog["cleared"] = cleared
+	var floors: Dictionary = prog.get("floors", {})
+	var entry: Dictionary = floors.get(str(floor), {"cleared": false, "kills": 0})
+	entry["cleared"] = true
+	entry["kills"] = maxi(int(entry.get("kills", 0)), kills)
+	floors[str(floor)] = entry
+	prog["floors"] = floors
+	prog["deepest_floor"] = maxi(int(prog.get("deepest_floor", 1)), floor)
+	var floor_def := get_dungeon_floor_def(dungeon_id, floor)
+	var boss := str(floor_def.get("boss", ""))
+	if boss == "mid":
+		prog["mid_boss_defeated"] = true
+	elif boss == "final":
+		prog["final_boss_defeated"] = true
+	dungeon_progress[dungeon_id] = prog
+	save_game()
+	state_changed.emit()
+	emit_message("%s %d층 클리어" % [str(get_dungeon_def(dungeon_id).get("name", dungeon_id)), floor])
 
 
 func _next_season(s: String) -> String:

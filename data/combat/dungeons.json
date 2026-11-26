@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "dungeons": [
+    {
+      "id": "shadow_crypt",
+      "name": "그림자 지하묘",
+      "blurb": "마을 성문 아래 깊이 내려가는 지하묘. 층마다 내려갈수록 적의 기세가 강해진다.",
+      "max_floor": 11,
+      "boss_floors": {
+        "5": {
+          "type": "mid",
+          "enemy_id": "boss_crypt_warden",
+          "label": "중층 보스"
+        },
+        "10": {
+          "type": "final",
+          "enemy_id": "boss_crypt_lord",
+          "label": "최종 보스"
+        }
+      },
+      "floors": {
+        "1": {
+          "name": "입구 회랑",
+          "difficulty": 1,
+          "enemies": ["slime", "slime", "wolf"]
+        },
+        "2": {
+          "name": "이끼 석실",
+          "difficulty": 2,
+          "enemies": ["slime", "wolf", "goblin"]
+        },
+        "3": {
+          "name": "뼈무더기 통로",
+          "difficulty": 2,
+          "enemies": ["wolf", "goblin", "wolf"]
+        },
+        "4": {
+          "name": "어두운 예배당",
+          "difficulty": 3,
+          "enemies": ["goblin", "goblin", "wolf"]
+        },
+        "5": {
+          "name": "중층 감시실",
+          "difficulty": 4,
+          "enemies": ["boss_crypt_warden"],
+          "boss": "mid"
+        },
+        "6": {
+          "name": "금이 간 회랑",
+          "difficulty": 4,
+          "enemies": ["wolf", "goblin", "slime", "wolf"]
+        },
+        "7": {
+          "name": "봉인된 서고",
+          "difficulty": 5,
+          "enemies": ["goblin", "wolf", "goblin"]
+        },
+        "8": {
+          "name": "지하 예배당",
+          "difficulty": 5,
+          "enemies": ["wolf", "goblin", "wolf", "slime"]
+        },
+        "9": {
+          "name": "최종 계단참",
+          "difficulty": 6,
+          "enemies": ["goblin", "goblin", "wolf", "goblin"]
+        },
+        "10": {
+          "name": "군주의 묘실",
+          "difficulty": 7,
+          "enemies": ["boss_crypt_lord"],
+          "boss": "final"
+        },
+        "11": {
+          "name": "심층 잔해",
+          "difficulty": 6,
+          "enemies": ["wolf", "goblin", "slime", "goblin"]
+        }
+      }
+    }
+  ]
+}

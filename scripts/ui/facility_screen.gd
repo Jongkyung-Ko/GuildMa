@@ -450,12 +450,26 @@ func _build_quest() -> void:
 func _build_gate() -> void:
 	_content.add_child(UIStyle.label("사냥터 이동", 20, UIStyle.GOLD_BRIGHT))
 	var hint := UIStyle.label(
-		"Phase 2-1: 전투 시험 출정 가능. HuntSelect는 후속 Phase.",
+		"사냥터 N/S/E/W 탐사는 후속. 던전은 층 하강만 지원합니다.",
 		13, UIStyle.TEXT_DIM
 	)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(420, 0)
 	_content.add_child(hint)
+
+	_content.add_child(UIStyle.label("던전 (수직 하강)", 15, UIStyle.GOLD_BRIGHT))
+	var dun_row := HBoxContainer.new()
+	dun_row.add_theme_constant_override("separation", 10)
+	var dun_lbl := UIStyle.label("그림자 지하묘", 15, UIStyle.TEXT)
+	dun_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dun_row.add_child(dun_lbl)
+	var dun_btn := Button.new()
+	dun_btn.text = "입장"
+	dun_btn.custom_minimum_size = Vector2(80, 0)
+	UIStyle.apply_button(dun_btn)
+	dun_btn.pressed.connect(func(): SceneRouter.go_dungeon("shadow_crypt"))
+	dun_row.add_child(dun_btn)
+	_content.add_child(dun_row)
 
 	var test_row := HBoxContainer.new()
 	test_row.add_theme_constant_override("separation", 10)
