@@ -195,7 +195,8 @@ func play_bgm(track: String, force: bool = false) -> void:
 		return
 	if not force and _current_bgm == track and _bgm.playing and not _bgm.stream_paused:
 		return
-	_switch_to_track(track, true, force)
+	# force=true → restart from 0 even if same track (town/hunt zone re-entry).
+	_switch_to_track(track, true, true, force)
 
 
 func stop_bgm() -> void:
@@ -290,8 +291,8 @@ func start_combat_ambience() -> void:
 	ensure_combat_ambience()
 
 
-func ensure_combat_ambience() -> void:
-	if _ambience and _ambience.playing and _ambience.stream != null:
+func ensure_combat_ambience(force_restart: bool = false) -> void:
+	if not force_restart and _ambience and _ambience.playing and _ambience.stream != null:
 		_pending_ambience = false
 		return
 	var path: String = SFX_PATHS["ambience"]
@@ -305,7 +306,8 @@ func ensure_combat_ambience() -> void:
 	var stream: AudioStream = base.duplicate()
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-	# Do not stop a playing ambience (already early-returned). Only configure when idle.
+	if _ambience.playing:
+		_ambience.stop()
 	_ambience.stream = stream
 	_ambience.volume_db = _linear_to_db(AMBIENCE_VOL_SCALE)
 	if not _unlocked:
@@ -330,21 +332,23 @@ func on_enter_title() -> void:
 func on_enter_town() -> void:
 	stop_combat_ambience()
 	_leave_combat_music_mode()
-	play_bgm("town")
+	# Zone entry (incl. hunt→town): always start town BGM from the beginning.
+	play_bgm("town", true)
 
 
 func on_enter_facility() -> void:
-	# Still in town hub flow — keep town theme, no stack.
+	# Still in town hub flow — keep town theme position if already playing.
 	stop_combat_ambience()
 	_leave_combat_music_mode()
-	play_bgm("town")
+	play_bgm("town", false)
 
 
-func on_enter_combat() -> void:
-	## Hunt room travel / combat entry. Same intensity must NOT restart BGM.
+func on_enter_combat(restart_bgm: bool = false) -> void:
+	## restart_bgm=true: town→hunt / dungeon floor entry — start combat BGM at 0.
+	## restart_bgm=false: hunt internal room travel — keep playback position.
 	var intensity := resolve_combat_intensity()
-	_apply_combat_intensity(intensity, false)
-	ensure_combat_ambience()
+	_apply_combat_intensity(intensity, restart_bgm)
+	ensure_combat_ambience(restart_bgm)
 
 
 func get_bgm_playback_position() -> float:
@@ -426,7 +430,7 @@ func start_combat_playlist(force: bool = false) -> void:
 	var next := _pop_next_playlist_track()
 	if next == "":
 		next = "combat_hunting"
-	_switch_to_track(next, false, true)
+	_switch_to_track(next, false, true, force)
 
 
 ## Elite encounter: prefer Metal Drive (loop for the fight).
@@ -440,7 +444,7 @@ func start_elite_combat_bgm(force: bool = false) -> void:
 	_kill_fade()
 	_combat_mode = "elite"
 	_playlist_queue.clear()
-	_switch_to_track("combat_metal", true, true)
+	_switch_to_track("combat_metal", true, true, force)
 
 
 ## Mid boss: Heroic Anthem loop (distinct from final boss intensity).
@@ -454,7 +458,7 @@ func start_mid_boss_bgm(force: bool = false) -> void:
 	_kill_fade()
 	_combat_mode = "mid"
 	_playlist_queue.clear()
-	_switch_to_track("combat_heroic", true, true)
+	_switch_to_track("combat_heroic", true, true, force)
 
 
 ## Final boss: Boss Intensity only — no normal shuffle during the fight.
@@ -468,7 +472,7 @@ func start_final_boss_bgm(force: bool = false) -> void:
 	_kill_fade()
 	_combat_mode = "final"
 	_playlist_queue.clear()
-	_switch_to_track("combat_boss", true, true)
+	_switch_to_track("combat_boss", true, true, force)
 
 
 ## Backward-compatible alias → final boss track.
@@ -584,7 +588,7 @@ func _kill_fade() -> void:
 	_fade_tween = null
 
 
-func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
+func _switch_to_track(track: String, loop: bool, with_fade: bool, restart: bool = false) -> void:
 	if not BGM_PATHS.has(track):
 		push_warning("AudioManager: unknown BGM '%s'" % track)
 		return
@@ -592,9 +596,10 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 	if not ResourceLoader.exists(path):
 		push_warning("AudioManager: missing BGM %s" % path)
 		return
-	# Identical request while already playing: do not stop/seek/restart.
+	# Identical request while already playing: do not stop/seek/restart (unless restart).
 	if (
-		_current_bgm == track
+		not restart
+		and _current_bgm == track
 		and _bgm
 		and _bgm.playing
 		and not _bgm.stream_paused
@@ -611,22 +616,22 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 	if _combat_mode == "playlist":
 		_last_playlist_track = track
 
-	var do_fade_out := with_fade and _bgm.playing and prev != "" and prev != track
+	var do_fade_out := with_fade and not restart and _bgm.playing and prev != "" and prev != track
 	if do_fade_out:
 		_fade_tween = create_tween()
 		_fade_tween.tween_property(_bgm, "volume_db", -40.0, FADE_SEC)
 		_fade_tween.tween_callback(func():
-			_apply_stream(track, path, loop)
+			_apply_stream(track, path, loop, false)
 			_fade_in()
 		)
 	else:
-		# Same track mid-request after early-guard miss: still avoid hard restart.
-		if prev == track and _bgm.playing and _bgm.stream != null:
+		# Same track without restart: keep position.
+		if not restart and prev == track and _bgm.playing and _bgm.stream != null:
 			_bgm.volume_db = 0.0
 			_switching = false
 			return
-		_apply_stream(track, path, loop)
-		if with_fade and prev != "" and prev != track:
+		_apply_stream(track, path, loop, false)
+		if with_fade and prev != "" and prev != track and not restart:
 			_bgm.volume_db = -40.0
 			_fade_in()
 		else:
@@ -634,14 +639,10 @@ func _switch_to_track(track: String, loop: bool, with_fade: bool) -> void:
 			_switching = false
 
 
-func _apply_stream(track: String, path: String, loop: bool) -> void:
-	# Only stop when replacing the stream — never called for same-track continuity.
+func _apply_stream(track: String, path: String, loop: bool, keep_position: bool = false) -> void:
 	var pos_keep := 0.0
-	var reuse := false
-	if _bgm.stream != null and _current_bgm == track and _bgm.playing:
-		# Should be rare due to guards; keep position if somehow hit.
+	if keep_position and _bgm.stream != null and _bgm.playing:
 		pos_keep = _bgm.get_playback_position()
-		reuse = true
 	_bgm.stop()
 	var stream: AudioStream = (load(path) as AudioStream).duplicate()
 	if stream == null:
@@ -656,10 +657,10 @@ func _apply_stream(track: String, path: String, loop: bool) -> void:
 			AudioStreamWAV.LOOP_FORWARD if loop else AudioStreamWAV.LOOP_DISABLED
 		)
 	_bgm.stream = stream
-	if reuse and pos_keep > 0.05:
+	if keep_position and pos_keep > 0.05:
 		_bgm.play(pos_keep)
 	else:
-		_bgm.play()
+		_bgm.play(0.0)
 	_current_bgm = track
 	_pending_bgm = ""
 	if _combat_mode == "playlist":
