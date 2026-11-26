@@ -3,31 +3,23 @@
 ## Layout
 
 - `sfx/` — WAV one-shots / loops from SFX Pack v1
-- `bgm/` — source `.mid` (MIDI Pack v2 + Combat Pack v3) **and** playback `.ogg` renders
+- `music/` — primary player-facing BGM (MP3)
+- `bgm/` — legacy MIDI/OGG pack (boss intensity still uses OGG)
 
-## MIDI note
+## Active BGM map (`AudioManager`)
 
-Godot 4.3 (and the HTML5 export) has **no built-in General MIDI synthesizer**.
-Shipping a SoundFont + GDExtension is unreliable on web without COOP/COEP.
+| Key | File | When |
+|-----|------|------|
+| `title` | `music/sovereign_of_the_keep.mp3` | Game start / title screen |
+| `town` | `music/morning_dew_on_stone.mp3` | Town + facilities |
+| `combat` | `music/tobitate_aoi_sora.mp3` | Normal / elite / mid combat (loops) |
+| `combat_boss` | `bgm/06_combat_boss_intensity.ogg` | Final boss floors |
 
-So BGM is:
+Web browsers require a first click/key before audio starts.
 
-1. Keep the authored `.mid` files in-repo as the source of truth.
-2. Offline-render them with FluidSynth + FluidR3_GM to loopable `.ogg`.
-3. `AudioManager` plays the `.ogg` streams.
+## Legacy MIDI / OGG pack
 
-### Tracks
-
-| File | Role |
-|------|------|
-| `01_town_theme` | Town / facility (loops) |
-| `02_hunting_grounds_rock` | Combat playlist #4 |
-| `03_combat_epic_rock` | Combat playlist #1 (Epic) |
-| `04_combat_metal_drive` | Combat playlist #3 (Metal) |
-| `05_combat_heroic_anthem` | Combat playlist #2 (Heroic) |
-| `06_combat_boss_intensity` | Boss combat only (loops) |
-
-Normal combat rotates Epic → Heroic → Metal → Hunting with end-of-track fade (no immediate repeats). Boss floors use Boss Intensity only.
+Godot 4.3 HTML5 has **no GM synth**, so older authored `.mid` files were rendered to `.ogg` under `bgm/`. Those remain for boss intensity and as source archives.
 
 Re-render (dev machine):
 

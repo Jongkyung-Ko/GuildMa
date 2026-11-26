@@ -25,7 +25,7 @@ func go_town() -> void:
 
 
 func go_settings(from_title: bool = true) -> void:
-	# settings scene reads a flag via meta
+	# Keep whatever BGM is already playing.
 	get_tree().root.set_meta("settings_from_title", from_title)
 	get_tree().change_scene_to_file(SETTINGS)
 

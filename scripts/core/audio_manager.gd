@@ -14,22 +14,22 @@ const SFX_PATHS := {
 }
 
 const BGM_PATHS := {
-	"town": "res://assets/audio/bgm/01_town_theme.ogg",
-	## Legacy single-key alias → hunting grounds (kept for older callers / tests).
-	"combat": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
-	"combat_epic": "res://assets/audio/bgm/03_combat_epic_rock.ogg",
-	"combat_metal": "res://assets/audio/bgm/04_combat_metal_drive.ogg",
-	"combat_heroic": "res://assets/audio/bgm/05_combat_heroic_anthem.ogg",
-	"combat_hunting": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
+	## Player-provided licensed cues (MP3).
+	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
+	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
+	## Primary combat theme.
+	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	"combat_epic": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	"combat_metal": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	"combat_heroic": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	"combat_hunting": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	## Boss floors keep the dedicated intensity loop.
 	"combat_boss": "res://assets/audio/bgm/06_combat_boss_intensity.ogg",
 }
 
-## Normal combat rotation order (diversity): Epic → Heroic → Metal → Hunting.
+## Normal combat: single looping theme (Tobitate).
 const COMBAT_PLAYLIST := [
-	"combat_epic",
-	"combat_heroic",
-	"combat_metal",
-	"combat_hunting",
+	"combat",
 ]
 
 const SFX_POOL_SIZE := 6
@@ -265,7 +265,8 @@ func stop_combat_ambience() -> void:
 
 func on_enter_title() -> void:
 	stop_combat_ambience()
-	stop_bgm()
+	_leave_combat_music_mode()
+	play_bgm("title")
 
 
 func on_enter_town() -> void:
@@ -344,21 +345,18 @@ func _apply_combat_intensity(intensity: String, force: bool) -> void:
 			start_combat_playlist(force)
 
 
-## Normal combat: rotate playlist; each track plays to natural end, then fades to next.
+## Normal combat: loop Tobitate (playlist kept for API compatibility).
 func start_combat_playlist(force: bool = false) -> void:
 	if not _unlocked:
 		_pending_combat_intensity = "normal"
 		_pending_bgm = ""
 		return
-	if not force and _combat_mode == "playlist" and _bgm.playing:
+	if not force and _combat_mode == "playlist" and _current_bgm == "combat" and _bgm.playing:
 		return
 	_kill_fade()
 	_combat_mode = "playlist"
-	_rebuild_playlist_queue(true)
-	var next := _pop_next_playlist_track()
-	if next == "":
-		next = "combat_hunting"
-	_switch_to_track(next, false, true)
+	_playlist_queue.clear()
+	_switch_to_track("combat", true, true)
 
 
 ## Elite encounter: prefer Metal Drive (loop for the fight).
@@ -560,6 +558,12 @@ func _apply_stream(track: String, path: String, loop: bool) -> void:
 		return
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = loop
+	elif stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = loop
+	elif stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = (
+			AudioStreamWAV.LOOP_FORWARD if loop else AudioStreamWAV.LOOP_DISABLED
+		)
 	_bgm.stream = stream
 	_bgm.play()
 	_current_bgm = track
