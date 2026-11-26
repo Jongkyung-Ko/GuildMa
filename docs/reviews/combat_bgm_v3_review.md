@@ -1,7 +1,7 @@
 # Combat BGM Pack v3 — review
 
 **Date:** 2026-11-27 (Asia/Seoul)  
-**Repo:** Jongkyung-Ko/GuildMa `main`  
+**Repo:** Jongkyung-Ko/GuildMa `main` @ `73b2500`  
 **Pack:** `GuildMaster_Combat_Music_Pack_v3.zip`
 
 ## Summary
