@@ -65,6 +65,18 @@ var _damage_applied: bool = false
 var _attack_active_idx: int = 2
 var _hit_lock_t: float = 0.0
 var _shake_base: Vector2 = Vector2.ZERO
+## Safety: if animation_finished is missed, force leave attack after this many seconds.
+var _attack_elapsed: float = 0.0
+var _attack_timeout: float = 1.6
+## Instrumentation for automated combat AI tests.
+## attacks_started: attack anim began
+## attacks_landed: melee swing connected OR (legacy) release tick
+## projectiles_fired: mage fireball spawned
+## damage_hits: actual HP damage applied to a living target (melee or bolt impact)
+var attacks_landed: int = 0
+var projectiles_fired: int = 0
+var damage_hits: int = 0
+var heals_landed: int = 0
 
 
 func _ready() -> void:
@@ -119,11 +131,14 @@ func setup_from_enemy(data: Dictionary) -> void:
 	atk = float(data.get("atk", 8))
 	defense = float(data.get("def", 2))
 	move_speed = float(data.get("move", 100)) * 1.35
-	attack_interval = 1.10
-	attack_range = float(data.get("attack_range", 36))
+	var aspd: float = float(data.get("aspd", 1.0))
+	attack_interval = clampf(1.15 / maxf(0.5, aspd), 0.7, 1.6)
+	# Floor attack_range so chase slot (preferred_radius) can sit inside swing reach.
+	attack_range = maxf(40.0, float(data.get("attack_range", 36)))
 	aggro_range = float(data.get("aggro_range", 900))
-	preferred_radius = attack_range * 0.75
+	preferred_radius = attack_range * 0.72
 	preferred_angle = 0.0
+	_apply_role_offsets()
 	if is_inside_tree():
 		_refresh_visuals()
 
@@ -176,8 +191,10 @@ func _apply_role_offsets() -> void:
 			preferred_radius = 140.0
 			preferred_angle = PI + 1.2
 		"enemy":
-			preferred_radius = 52.0 + float(formation_slot) * 12.0
-			preferred_angle = 0.15 + float(formation_slot) * 0.7
+			# Must stay INSIDE attack_range or chase AI never swings.
+			# (Previously forced ~52px while wolf attack_range was ~28.)
+			preferred_radius = maxf(12.0, attack_range * 0.72)
+			preferred_angle = 0.15 + float(formation_slot) * 0.55
 		_:
 			preferred_radius = 60.0
 			preferred_angle = PI
@@ -185,6 +202,7 @@ func _apply_role_offsets() -> void:
 
 func _build_visuals() -> void:
 	var shape := CollisionShape2D.new()
+	shape.name = "CollisionShape2D"
 	var circle := CircleShape2D.new()
 	circle.radius = 12.0
 	shape.shape = circle
@@ -387,17 +405,23 @@ func _on_anim_finished() -> void:
 	if is_dead:
 		return
 	if _is_attacking():
-		_apply_pending_damage()
-		_pending_target = null
-		_pending_damage = 0.0
-		_pending_heal = false
-		_damage_applied = false
-		_set_anim_state(AnimState.IDLE)
-		_play_anim("idle", true)
+		_finish_attack_cycle()
 		return
 	if _anim_state == AnimState.HIT:
 		_set_anim_state(AnimState.IDLE)
 		_play_anim("idle", true)
+
+
+func _finish_attack_cycle() -> void:
+	## Always leave attack states so the next swing can start (missed signals OK).
+	_apply_pending_damage()
+	_pending_target = null
+	_pending_damage = 0.0
+	_pending_heal = false
+	_damage_applied = false
+	_attack_elapsed = 0.0
+	_set_anim_state(AnimState.IDLE)
+	_play_anim("idle", true)
 
 
 func _apply_pending_damage() -> void:
@@ -415,6 +439,9 @@ func _apply_pending_damage() -> void:
 
 	if job == "mage" and team == Team.ALLY:
 		_launch_fireball(target, _pending_damage)
+		# attacks_landed = release/spawn tick; damage_hits increments on bolt impact.
+		attacks_landed += 1
+		projectiles_fired += 1
 		return
 
 	# Melee / monster hit
@@ -424,6 +451,8 @@ func _apply_pending_damage() -> void:
 		global_position += toward.normalized() * (8.0 if job == "tank" else 5.0)
 	var heavy := job in ["tank", "lord"]
 	target.take_damage(_pending_damage, self, {"heavy": heavy})
+	attacks_landed += 1
+	damage_hits += 1
 	if heavy and _manager != null and _manager.has_method("shake_camera"):
 		_manager.shake_camera(2.8 if job == "tank" else 1.8, 0.1)
 		CombatFx.hit_stop(_manager, 0.045 if job == "tank" else 0.03)
@@ -434,6 +463,7 @@ func _apply_pending_damage() -> void:
 func _apply_heal(ally: CombatCharacter) -> void:
 	var amount := maxf(8.0, heal_power)
 	ally.receive_heal(amount, self)
+	heals_landed += 1
 	_spawn_heal_vfx(ally)
 	var audio_h := get_node_or_null("/root/AudioManager")
 	if audio_h and audio_h.has_method("play_magic"):
@@ -485,9 +515,22 @@ func _physics_process(delta: float) -> void:
 	_atk_timer = maxf(0.0, _atk_timer - delta)
 
 	if _is_attacking():
+		_attack_elapsed += delta
 		velocity = Vector2.ZERO
 		_apply_separation(delta)
 		_clamp_to_field()
+		# Missed animation_finished / interrupted attack → never soft-lock.
+		# Grace window so play() can start before we treat "not playing" as finished.
+		var anim_dead := (
+			_attack_elapsed > 0.12
+			and (
+				_sprite == null
+				or _sprite.animation != "attack"
+				or not _sprite.is_playing()
+			)
+		)
+		if anim_dead or _attack_elapsed >= _attack_timeout:
+			_finish_attack_cycle()
 		return
 
 	# Healer: prefer heal when someone is hurt
@@ -516,7 +559,7 @@ func _physics_process(delta: float) -> void:
 	var in_attack_range := dist_to_target <= attack_range
 	# Backline: keep preferred distance; never rush into melee.
 	if team == Team.ALLY and job in ["mage", "healer"]:
-		if dist_to_target < preferred_radius * 0.78:
+		if dist_to_target < preferred_radius * 0.72:
 			velocity = (global_position - target.global_position).normalized() * move_speed
 			_apply_separation(delta)
 			move_and_slide()
@@ -544,10 +587,12 @@ func _physics_process(delta: float) -> void:
 		# Soft settle toward slot without circling
 		if slot_dist > SLOT_ARRIVE:
 			global_position = global_position.lerp(desired, clampf(5.0 * delta, 0.0, 0.3))
-		if dist_to_target < 40.0:
+		# Only nudge out of body-overlap — never push past attack_range.
+		var crowd := maxf(14.0, attack_range * 0.4)
+		if dist_to_target < crowd:
 			var away := global_position - target.global_position
 			if away.length() > 0.1:
-				global_position += away.normalized() * minf(4.0, 40.0 - dist_to_target)
+				global_position += away.normalized() * minf(3.0, crowd - dist_to_target)
 		_apply_separation(delta)
 		_clamp_to_field()
 		if _anim_state != AnimState.HIT:
@@ -697,6 +742,8 @@ func _perform_attack(target: CombatCharacter) -> void:
 	_pending_damage = dmg
 	_pending_heal = false
 	_damage_applied = false
+	_attack_elapsed = 0.0
+	_attack_timeout = maxf(1.2, attack_interval * 1.25)
 	_set_anim_state(AnimState.ATTACK_START)
 	_play_anim("attack", true)
 	_set_anim_state(AnimState.ATTACK_WINDUP)
@@ -712,9 +759,45 @@ func _perform_heal(ally: CombatCharacter) -> void:
 	_pending_damage = 0.0
 	_pending_heal = true
 	_damage_applied = false
+	_attack_elapsed = 0.0
+	_attack_timeout = maxf(1.2, attack_interval * 1.25)
 	_set_anim_state(AnimState.ATTACK_START)
 	_play_anim("attack", true)
 	_set_anim_state(AnimState.ATTACK_WINDUP)
+
+
+func reset_for_next_encounter() -> void:
+	## Used after hunt room travel — revive + clear attack soft-locks.
+	is_dead = false
+	_pending_target = null
+	_pending_damage = 0.0
+	_pending_heal = false
+	_damage_applied = false
+	_attack_elapsed = 0.0
+	_atk_timer = 0.15
+	_hit_lock_t = 0.0
+	_flash_t = 0.0
+	_set_anim_state(AnimState.IDLE)
+	if _sprite:
+		_sprite.modulate = Color(1, 1, 1, 1)
+		_play_anim("idle", true)
+	if _name_label:
+		_name_label.modulate = Color(1, 1, 1, 1)
+	var cs := _collision_shape()
+	if cs:
+		cs.disabled = false
+	set_physics_process(true)
+	visible = true
+
+
+func _collision_shape() -> CollisionShape2D:
+	var named := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if named:
+		return named
+	for c in get_children():
+		if c is CollisionShape2D:
+			return c as CollisionShape2D
+	return null
 
 
 func _spawn_melee_vfx(target: CombatCharacter) -> void:
@@ -895,7 +978,7 @@ func _die() -> void:
 	died.emit(self)
 	if _manager != null and _manager.has_method("log_combat"):
 		_manager.log_combat("%s 전투불능" % display_name)
-	var cs := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var cs := _collision_shape()
 	if cs:
 		cs.disabled = true
 	set_physics_process(false)

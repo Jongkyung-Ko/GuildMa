@@ -96,6 +96,8 @@ static func attack_sheet_indices(job: String) -> Array:
 			return [3, 4, 5, 6]
 		"lord":
 			return [3, 4, 5, 6, 7]
+		"enemy":
+			return [2, 3, 4, 3]
 		_:
 			return [3, 4, 5, 6, 7]
 

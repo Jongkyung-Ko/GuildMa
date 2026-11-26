@@ -37,6 +37,9 @@ func _draw() -> void:
 	var col := Color(_color.r, _color.g, _color.b, alpha)
 	var outline := Color(0.05, 0.05, 0.08, alpha * 0.95)
 	var font: Font = ThemeDB.fallback_font
+	var ui := get_node_or_null("/root/UIStyle")
+	if ui != null and ui.has_method("draw_font"):
+		font = ui.draw_font()
 	# Outline
 	for ox in [-1, 0, 1]:
 		for oy in [-1, 0, 1]:

@@ -6,6 +6,7 @@ extends CanvasLayer
 
 const HUNT_MINIMAP := preload("res://scripts/exploration/hunt_minimap.gd")
 const HUNT_MODAL := preload("res://scripts/exploration/hunt_map_modal.gd")
+const HUNT_DIR_PAD := preload("res://scripts/exploration/hunt_direction_pad.gd")
 const DUNGEON_MINIMAP := preload("res://scripts/dungeon/dungeon_minimap.gd")
 
 var _manager: Node = null
@@ -20,6 +21,7 @@ var _auto_label: Label
 var _hunt_mini: Control = null
 var _dungeon_mini: Control = null
 var _modal: CanvasLayer = null
+var _dir_pad: Control = null
 
 
 func setup(manager: Node) -> void:
@@ -151,8 +153,10 @@ func _attach_minimap() -> void:
 		_hunt_mini.custom_minimum_size = mini_size
 		_root.add_child(_hunt_mini)
 		_hunt_mini.open_requested.connect(_open_hunt_modal)
-		# Shift bottom log right edge slightly? Keep as-is; minimap is top-left away from log.
 		_hunt_mini.refresh()
+		_dir_pad = HUNT_DIR_PAD.new()
+		_root.add_child(_dir_pad)
+		_dir_pad.travel_dir.connect(_on_dir_travel)
 
 
 func _open_hunt_modal() -> void:
@@ -205,7 +209,7 @@ func refresh() -> void:
 			if _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
 				_status.text = "승리! — 층 클리어"
 			elif _manager.has_method("is_hunt_combat") and _manager.is_hunt_combat():
-				_status.text = "승리! — 방 클리어 (맵에서 이동)"
+				_status.text = "승리! — 방 클리어 (화살표로 이동)"
 			else:
 				_status.text = "승리! (보상은 후속 Phase)"
 			_status.add_theme_color_override("font_color", UIStyle.OK)
@@ -225,6 +229,23 @@ func refresh() -> void:
 		_dungeon_mini.refresh()
 	if _modal != null and is_instance_valid(_modal) and _modal.has_method("set_combat_active"):
 		_modal.set_combat_active(pname == "fighting")
+	_refresh_dir_pad(pname)
+
+
+func _refresh_dir_pad(pname: String) -> void:
+	if _dir_pad == null or not is_instance_valid(_dir_pad):
+		return
+	# Hunt victory / cleared-room idle only — never during fight or dungeon.
+	var hunt: bool = _manager != null and _manager.has_method("is_hunt_combat") and bool(_manager.is_hunt_combat())
+	var show: bool = hunt and pname == "victory"
+	if _dir_pad.has_method("refresh"):
+		_dir_pad.refresh(show)
+
+
+func _on_dir_travel(dir: String) -> void:
+	if _manager and _manager.has_method("travel_hunt_direction"):
+		_manager.travel_hunt_direction(dir)
+	refresh()
 
 
 func _fill_list(box: VBoxContainer, units: Array, is_ally: bool) -> void:

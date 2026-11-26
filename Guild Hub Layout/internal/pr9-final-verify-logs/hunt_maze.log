@@ -1,0 +1,26 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+=== HUNT MAZE VALIDATION ===
+PASS: hunt catalog has beginner_forest
+PASS: run 0 seed=3641152997 persisted
+PASS: run 1 seed=286642860 persisted
+PASS: run 2 seed=4277606898 persisted
+PASS: 3 new maps have distinct seeds [3641152997, 286642860, 4277606898]
+PASS: at least one layout differs across 3 runs
+PASS: resume keeps seed 462524147
+PASS: resume keeps current room r_0_3
+PASS: resume keeps room layout
+PASS: second 출정 resumes in-progress map
+PASS: generated map validates (seed 42)
+PASS: room count=14
+PASS: dead-ends=2
+PASS: branch rooms=6
+PASS: maze goal boss tagged hunt_goal at r_0_1
+PASS: hunt goal clear leaves dungeon mid/final flags false
+PASS: goal_boss_cleared set on hunt_progress only
+PASS: dungeon boss_floors 5 mid + 10 final intact
+PASS: start neighbors=2
+PASS: move blocked before clear
+PASS: move allowed after clear to connected room
+PASS: dungeon catalog intact
+=== HUNT MAZE RESULT: PASS (22 pass / 0 fail) ===

@@ -6,7 +6,6 @@ extends Control
 signal open_requested
 
 const NODE := 10.0
-const CELL := 18.0
 
 var _btn: Button
 var _hint: Label
@@ -22,7 +21,7 @@ func _ready() -> void:
 	_btn.pressed.connect(func(): open_requested.emit())
 	add_child(_btn)
 	_hint = Label.new()
-	_hint.text = "맵"
+	_hint.text = "미니맵"
 	_hint.add_theme_font_size_override("font_size", 11)
 	_hint.add_theme_color_override("font_color", UIStyle.GOLD)
 	_hint.position = Vector2(8, 4)
@@ -38,6 +37,13 @@ func refresh() -> void:
 	queue_redraw()
 
 
+func _font() -> Font:
+	var ui := get_node_or_null("/root/UIStyle")
+	if ui and ui.has_method("draw_font"):
+		return ui.draw_font()
+	return ThemeDB.fallback_font
+
+
 func _draw() -> void:
 	var panel := Rect2(Vector2.ZERO, size)
 	draw_rect(panel, Color(0.07, 0.08, 0.12, 0.78), true)
@@ -45,12 +51,11 @@ func _draw() -> void:
 
 	var map := GameState.get_active_hunt_map()
 	if map.is_empty():
-		draw_string(ThemeDB.fallback_font, Vector2(10, 70), "—", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT_DIM)
+		draw_string(_font(), Vector2(10, 70), "—", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UIStyle.TEXT_DIM)
 		return
 
 	var rooms: Dictionary = map.get("rooms", {})
 	var cur := str(map.get("current_room_id", ""))
-	# Fit discovered rooms
 	var min_x := 999
 	var min_y := 999
 	var max_x := -999
@@ -81,7 +86,6 @@ func _draw() -> void:
 	var ox := pad + (usable_w - cell * cols) * 0.5
 	var oy := pad + 12.0 + (usable_h - cell * rows) * 0.5
 
-	# Corridors
 	for r in visible:
 		var p: Array = r.get("position", [0, 0])
 		var ax := ox + (float(int(p[0]) - min_x) + 0.5) * cell
@@ -94,7 +98,6 @@ func _draw() -> void:
 			var oid := str(o)
 			if not rooms.has(oid) or not bool(rooms[oid].get("discovered", false)):
 				continue
-			# draw each undirected once
 			if oid < str(r.get("room_id")):
 				continue
 			var op: Array = rooms[oid].get("position", [0, 0])
@@ -102,7 +105,6 @@ func _draw() -> void:
 			var by := oy + (float(int(op[1]) - min_y) + 0.5) * cell
 			draw_line(Vector2(ax, ay), Vector2(bx, by), Color(0.55, 0.48, 0.32, 0.85), 2.0)
 
-	# Nodes
 	for r in visible:
 		var p: Array = r.get("position", [0, 0])
 		var cx := ox + (float(int(p[0]) - min_x) + 0.5) * cell
@@ -126,11 +128,12 @@ func _draw() -> void:
 		var rect := Rect2(cx - half, cy - half, NODE, NODE)
 		draw_rect(rect, col, true)
 		draw_rect(rect, border, false, 1.4 if is_cur else 1.0)
+		# Geometric icons — avoid unsupported unicode glyphs (✓/☠) on web.
 		if cleared and not is_cur:
-			draw_string(ThemeDB.fallback_font, Vector2(cx - 3, cy + 3), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.6, 0.9, 0.6))
+			draw_line(Vector2(cx - 3, cy), Vector2(cx - 1, cy + 3), Color(0.6, 0.9, 0.6), 1.4)
+			draw_line(Vector2(cx - 1, cy + 3), Vector2(cx + 3, cy - 3), Color(0.6, 0.9, 0.6), 1.4)
 		if boss:
-			draw_string(ThemeDB.fallback_font, Vector2(cx - 3, cy + 3), "☠", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 0.7, 0.7))
+			draw_circle(Vector2(cx, cy), 2.2, Color(1, 0.55, 0.55))
 
-	# Magnifier cue
 	draw_circle(Vector2(size.x - 14, size.y - 14), 7.0, Color(0.12, 0.12, 0.16, 0.9))
 	draw_arc(Vector2(size.x - 14, size.y - 14), 5.0, 0, TAU, 16, UIStyle.GOLD, 1.2)

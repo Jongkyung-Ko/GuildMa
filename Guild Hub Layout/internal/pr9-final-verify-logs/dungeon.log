@@ -1,0 +1,66 @@
+Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
+
+=== Dungeon vertical progression validation ===
+Godot: 4.3-stable (official)
+Time UTC: 2026-11-26T14:42:12
+PASS: Autoloads present
+PASS: dungeon catalog loaded (그림자 지하묘)
+PASS: next blocked while F1 uncleared
+PASS: set_floor(2) rejected while locked
+PASS: F1 cleared
+PASS: next unlocked after F1 clear
+PASS: moved to F2
+PASS: previous floor (F2→F1) works
+PASS: climbed F1→F11 via clear/next
+PASS: deepest_floor=11
+PASS: mid_boss_defeated after F5
+PASS: final_boss_defeated after F10
+PASS: next blocked at F11 (max)
+PASS: previous floor from F11→F10
+PASS: memory wipe cleared dungeon_progress
+PASS: reload current_floor=10
+PASS: reload deepest_floor=11
+PASS: reload mid/final boss flags intact
+PASS: reload cleared floors include F5 mid + F10 final
+PASS: boss_floors extensible map has 5 mid + 10 final
+PASS: SceneRouter.go_dungeon / go_dungeon_combat present
+--- Hub scene ---
+SKIP capture under headless (no GPU texture): hub_f1
+PASS: hub loaded for shadow_crypt
+--- Combat spawn F1 ---
+F1 enemies=3
+PASS: F1 spawned 3 (슬라임,슬라임,늑대)
+SKIP capture under headless (no GPU texture): combat_f1_spawn
+--- Combat spawn F5 ---
+F5 enemies=1
+PASS: F5 spawned 1 (묘실 감시자) [boss]
+SKIP capture under headless (no GPU texture): combat_f5_spawn
+--- Combat spawn F10 ---
+F10 enemies=1
+PASS: F10 spawned 1 (지하묘 군주) [boss]
+SKIP capture under headless (no GPU texture): combat_f10_spawn
+--- Force-clear climb F1→F11 via combat victory hook ---
+PASS: F1 combat victory → floor cleared
+PASS: F2 combat victory → floor cleared
+PASS: F3 combat victory → floor cleared
+PASS: F4 combat victory → floor cleared
+PASS: F5 combat victory → floor cleared
+SKIP capture under headless (no GPU texture): combat_f5_mid_boss_win
+PASS: F6 combat victory → floor cleared
+PASS: F7 combat victory → floor cleared
+PASS: F8 combat victory → floor cleared
+PASS: F9 combat victory → floor cleared
+PASS: F10 combat victory → floor cleared
+SKIP capture under headless (no GPU texture): combat_f10_final_boss_win
+PASS: F11 combat victory → floor cleared
+SKIP capture under headless (no GPU texture): combat_f11_win
+PASS: combat climb left mid+final flags and deepest>=11
+PASS: post-climb previous floor to F6
+PASS: final save after climb
+NOTE: Mobile phone UI not verified in this headless run (desktop viewport only).
+NOTE: GitHub Pages web build verified by CI after push to main (not in this script).
+=== RESULT: OK ===
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+     at: cleanup (core/object/object.cpp:2284)
+ERROR: 1 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:604)

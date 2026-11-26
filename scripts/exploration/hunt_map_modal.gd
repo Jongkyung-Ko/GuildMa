@@ -231,9 +231,11 @@ func _draw_map() -> void:
 		_map_view.draw_rect(rect, border, false, 2.0 if rid == _selected or is_cur else 1.2)
 		_node_rects[rid] = rect
 		if cleared:
-			_map_view.draw_string(ThemeDB.fallback_font, Vector2(cx - 4, cy + 4), "✓", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 1.0, 0.7))
+			_map_view.draw_line(Vector2(cx - 5, cy), Vector2(cx - 1, cy + 4), Color(0.7, 1.0, 0.7), 2.0)
+			_map_view.draw_line(Vector2(cx - 1, cy + 4), Vector2(cx + 5, cy - 4), Color(0.7, 1.0, 0.7), 2.0)
 		elif boss:
-			_map_view.draw_string(ThemeDB.fallback_font, Vector2(cx - 5, cy + 4), "☠", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.6, 0.6))
+			_map_view.draw_circle(Vector2(cx, cy), 4.0, Color(0.95, 0.35, 0.35))
+			_map_view.draw_circle(Vector2(cx, cy), 1.6, Color(0.15, 0.05, 0.05))
 
 
 func _on_map_input(ev: InputEvent) -> void:
@@ -266,17 +268,17 @@ func _refresh_detail() -> void:
 	var mons: Array = r.get("monsters", [])
 	var mparts: PackedStringArray = PackedStringArray()
 	for m in mons:
-		mparts.append(str(m))
+		mparts.append(_monster_label(str(m)))
 	var mtxt := ", ".join(mparts) if mparts.size() > 0 else "—"
 	_detail.add_child(UIStyle.label("출현 몬스터: %s" % mtxt, 13, UIStyle.TEXT_DIM))
 	if bool(r.get("boss_flag", false)) or str(r.get("boss_kind", "")) == MazeGenerator.BOSS_KIND_HUNT_GOAL:
 		_detail.add_child(UIStyle.label("미로 목표 보스 (사냥터)", 13, UIStyle.DANGER))
 	var cons: Dictionary = r.get("connected_rooms", {})
-	var exits: Array = []
+	var exits: PackedStringArray = PackedStringArray()
 	for d in MazeGenerator.DIRS:
 		if cons.get(d, null) != null:
-			exits.append(d)
-	_detail.add_child(UIStyle.label("연결된 출구: %s" % (", ".join(PackedStringArray(exits)) if exits.size() > 0 else "없음"), 12, UIStyle.TEXT_DIM))
+			exits.append(_dir_label(str(d)))
+	_detail.add_child(UIStyle.label("연결된 출구: %s" % (", ".join(exits) if exits.size() > 0 else "없음"), 12, UIStyle.TEXT_DIM))
 
 	var cur := str(map.get("current_room_id", ""))
 	var can := GameState.hunt_can_move_to(_selected)
@@ -307,6 +309,39 @@ func _on_move() -> void:
 		_refresh_detail()
 		return
 	travel_requested.emit(_selected)
+
+
+func _dir_label(d: String) -> String:
+	match d:
+		"N":
+			return "북쪽"
+		"E":
+			return "동쪽"
+		"S":
+			return "남쪽"
+		"W":
+			return "서쪽"
+		_:
+			return d
+
+
+func _monster_label(id: String) -> String:
+	match id:
+		"wolf":
+			return "늑대"
+		"slime":
+			return "슬라임"
+		"goblin":
+			return "고블린"
+		_:
+			var f := FileAccess.open("res://data/combat/enemies.json", FileAccess.READ)
+			if f:
+				var data = JSON.parse_string(f.get_as_text())
+				if typeof(data) == TYPE_DICTIONARY:
+					for e in data.get("enemies", []):
+						if str(e.get("id", "")) == id:
+							return str(e.get("name", id))
+			return id
 
 
 func _close() -> void:

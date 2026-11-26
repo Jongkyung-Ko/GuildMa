@@ -20,6 +20,8 @@ const FONT_BOLD_PATH := "res://assets/fonts/NotoSansKR-Bold.otf"
 const FONT_WARMUP := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" \
 	+ "가나다라마바사아자차카타파하한글길드마스터상점대장간여관훈련창고의무의뢰사냥전투" \
 	+ "공격방어체력경험치골드명성파티적새게임이어하기설정마을시설구매장착강화부상출정" \
+	+ "미니맵현재위치이동가능클리어한방보스방연결된출구출현몬스터이동하기북쪽남쪽동쪽서쪽" \
+	+ "전투중에는이동할수없습니다화살표탐험승리패배자동" \
 	+ "—·/()[]{}.,!?:+-%"
 
 var ui_font: Font = null
@@ -117,6 +119,13 @@ func apply_font(control: Control, size: int = -1) -> void:
 
 func is_mobile_like() -> bool:
 	return _mobile_like
+
+
+func draw_font() -> Font:
+	## Prefer embedded Noto Sans KR for CanvasItem.draw_string (maps / custom draw).
+	if ui_font != null:
+		return ui_font
+	return ThemeDB.fallback_font
 
 
 func _detect_mobile_like() -> bool:

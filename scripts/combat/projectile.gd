@@ -101,6 +101,8 @@ func _impact() -> void:
 
 	if target != null and is_instance_valid(target) and not target.is_dead and damage > 0.0:
 		target.take_damage(damage, _attacker, {"heavy": true, "magic": true})
+		if _attacker != null and is_instance_valid(_attacker):
+			_attacker.damage_hits += 1
 		if _manager != null and _manager.has_method("log_combat") and _attacker != null:
 			_manager.log_combat("%s → %s  %d" % [_attacker.display_name, target.display_name, int(round(damage))])
 		if _manager != null and _manager.has_method("shake_camera"):

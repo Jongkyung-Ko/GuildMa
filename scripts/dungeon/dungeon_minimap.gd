@@ -94,4 +94,8 @@ func _draw() -> void:
 		if boss_info != null:
 			var btype := str(boss_info.get("type", ""))
 			label += " ◆" if btype == "final" else " ▲"
-		draw_string(ThemeDB.fallback_font, Vector2(r.position.x + 8, r.position.y + 14), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, text_c)
+		var font: Font = ThemeDB.fallback_font
+		var ui := get_node_or_null("/root/UIStyle")
+		if ui and ui.has_method("draw_font"):
+			font = ui.draw_font()
+		draw_string(font, Vector2(r.position.x + 8, r.position.y + 14), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, text_c)
