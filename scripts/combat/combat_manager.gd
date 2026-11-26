@@ -199,6 +199,9 @@ func return_to_town() -> void:
 	if dungeon_id != "":
 		SceneRouter.go_dungeon_hub(dungeon_id)
 	else:
+		# Full leave: reset hunt re-entry to start room (keep cleared progress).
+		if is_hunt_combat() and GameState:
+			GameState.leave_hunt_session()
 		SceneRouter.go_town()
 
 

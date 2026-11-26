@@ -12,6 +12,8 @@ var current_facility: String = ""
 
 func go_title() -> void:
 	current_facility = ""
+	if GameState and GameState.active_hunt_id != "":
+		GameState.leave_hunt_session()
 	if AudioManager:
 		AudioManager.on_enter_title()
 	get_tree().change_scene_to_file(TITLE)
@@ -19,6 +21,9 @@ func go_title() -> void:
 
 func go_town() -> void:
 	current_facility = ""
+	# If a hunt session is still marked active (edge paths), clear re-entry spawn.
+	if GameState and GameState.active_hunt_id != "":
+		GameState.leave_hunt_session()
 	if AudioManager:
 		AudioManager.on_enter_town()
 	get_tree().change_scene_to_file(TOWN)
@@ -46,7 +51,7 @@ func go_combat(_hunt_id: String = "phase_2_1_test") -> void:
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
 	if AudioManager:
-		AudioManager.on_enter_combat()
+		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)
 
 
@@ -58,8 +63,9 @@ func go_hunt(hunt_id: String = "beginner_forest", force_new: bool = false) -> vo
 	get_tree().root.set_meta("combat_hunt_id", hunt_id)
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
+	# Fresh town→hunt (or re-entry): restart combat BGM from the beginning.
 	if AudioManager:
-		AudioManager.on_enter_combat()
+		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)
 
 
@@ -83,5 +89,5 @@ func go_dungeon_combat(dungeon_id: String, floor: int) -> void:
 	get_tree().root.set_meta("hunt_id", "")
 	get_tree().root.set_meta("combat_hunt_id", "dungeon_%s_f%d" % [dungeon_id, floor])
 	if AudioManager:
-		AudioManager.on_enter_combat()
+		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)

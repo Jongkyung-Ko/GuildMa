@@ -528,7 +528,7 @@ func get_active_hunt_map() -> Dictionary:
 
 func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
 	## force_new=true ("새 맵"): replace run with a fresh random-seed maze.
-	## force_new=false + existing map: resume — never regenerate mid-run.
+	## force_new=false + existing map: resume layout — spawn at start if session was left.
 	## force_new=false + no map: first expedition — fresh seed.
 	var def := get_hunt_def(hunt_id)
 	if def.is_empty():
@@ -552,10 +552,58 @@ func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
 		state_changed.emit()
 		emit_message("%s 탐험을 시작합니다. (seed %d)" % [str(def.get("name", hunt_id)), seed_v])
 		return map
-	# Resume existing map — keep seed + room layout as saved.
+	# Resume existing map (cleared rooms + layout kept).
+	# Re-entry spawn is reset to start by leave_hunt_session() when leaving to town.
 	emit_message("%s 탐험을 이어갑니다." % str(def.get("name", hunt_id)))
 	state_changed.emit()
 	return prog.get("map", {})
+
+
+func get_hunt_start_room_id(map: Dictionary = {}) -> String:
+	var m := map if not map.is_empty() else get_active_hunt_map()
+	if m.is_empty():
+		return ""
+	var rooms: Dictionary = m.get("rooms", {})
+	for rid in rooms.keys():
+		if str(rooms[rid].get("room_type", "")) == "start":
+			return str(rid)
+	# Fallback: original path head or current.
+	var path: Array = m.get("path", [])
+	if path.size() > 0:
+		return str(path[0])
+	return str(m.get("current_room_id", ""))
+
+
+func _reset_map_to_start_room(map: Dictionary) -> void:
+	if map.is_empty():
+		return
+	var start_id := get_hunt_start_room_id(map)
+	if start_id == "":
+		return
+	map["current_room_id"] = start_id
+	map["path"] = [start_id]
+	var rooms: Dictionary = map.get("rooms", {})
+	if rooms.has(start_id):
+		rooms[start_id]["discovered"] = true
+	MazeGenerator._discover_adjacent(map, start_id)
+
+
+## Call when fully leaving the hunt (town / title). Keeps maze progress; clears session spawn.
+func leave_hunt_session() -> void:
+	var hid := active_hunt_id
+	if hid == "" and hunt_progress.is_empty():
+		return
+	if hid != "":
+		var prog: Dictionary = hunt_progress.get(hid, {})
+		if typeof(prog) == TYPE_DICTIONARY and prog.has("map"):
+			var map: Dictionary = prog.get("map", {})
+			if typeof(map) == TYPE_DICTIONARY and not map.is_empty():
+				_reset_map_to_start_room(map)
+				prog["map"] = map
+				hunt_progress[hid] = prog
+	active_hunt_id = ""
+	save_game()
+	state_changed.emit()
 
 
 func _store_active_map(map: Dictionary) -> void:
