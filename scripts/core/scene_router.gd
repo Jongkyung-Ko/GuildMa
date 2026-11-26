@@ -11,11 +11,15 @@ var current_facility: String = ""
 
 func go_title() -> void:
 	current_facility = ""
+	if AudioManager:
+		AudioManager.on_enter_title()
 	get_tree().change_scene_to_file(TITLE)
 
 
 func go_town() -> void:
 	current_facility = ""
+	if AudioManager:
+		AudioManager.on_enter_town()
 	get_tree().change_scene_to_file(TOWN)
 
 
@@ -28,6 +32,8 @@ func go_settings(from_title: bool = true) -> void:
 func go_facility(facility_id: String) -> void:
 	current_facility = facility_id
 	get_tree().root.set_meta("facility_id", facility_id)
+	if AudioManager:
+		AudioManager.on_enter_facility()
 	get_tree().change_scene_to_file(FACILITY)
 
 
@@ -35,4 +41,6 @@ func go_facility(facility_id: String) -> void:
 func go_combat(_hunt_id: String = "phase_2_1_test") -> void:
 	current_facility = ""
 	get_tree().root.set_meta("combat_hunt_id", _hunt_id)
+	if AudioManager:
+		AudioManager.on_enter_combat()
 	get_tree().change_scene_to_file(COMBAT)

@@ -16,6 +16,11 @@ config/icon="res://assets/sprites/icons/guild.png"
 UIStyle="*res://scripts/ui/ui_style.gd"
 GameState="*res://scripts/core/game_state.gd"
 SceneRouter="*res://scripts/core/scene_router.gd"
+AudioManager="*res://scripts/core/audio_manager.gd"
+
+[audio]
+
+buses/default_bus_layout="res://default_bus_layout.tres"
 
 [display]
 

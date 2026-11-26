@@ -435,11 +435,17 @@ func _apply_heal(ally: CombatCharacter) -> void:
 	var amount := maxf(8.0, heal_power)
 	ally.receive_heal(amount, self)
 	_spawn_heal_vfx(ally)
+	var audio_h := get_node_or_null("/root/AudioManager")
+	if audio_h and audio_h.has_method("play_magic"):
+		audio_h.play_magic()
 	if _manager != null and _manager.has_method("log_combat"):
 		_manager.log_combat("%s ♥ %s  +%d" % [display_name, ally.display_name, int(round(amount))])
 
 
 func _launch_fireball(target: CombatCharacter, dmg: float) -> void:
+	var audio_m := get_node_or_null("/root/AudioManager")
+	if audio_m and audio_m.has_method("play_magic"):
+		audio_m.play_magic()
 	var bolt := CombatProjectile.new()
 	var parent_node: Node = get_parent()
 	if parent_node:
@@ -823,9 +829,12 @@ func take_damage(amount: float, attacker: CombatCharacter = null, opts: Dictiona
 	if amount >= atk * 1.4:
 		kind = "crit"
 
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio and audio.has_method("play_hit"):
+		audio.play_hit()
+
 	var parent_node: Node = get_parent()
 	CombatFx.spawn_number(parent_node if parent_node else self, global_position, int(round(amount)), kind)
-
 	# White flash for readable hit feedback
 	_flash_t = 0.12
 	if _sprite:

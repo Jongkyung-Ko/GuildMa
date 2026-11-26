@@ -231,6 +231,19 @@ static func apply_button(btn: Button) -> void:
 		style_node.apply_font(btn)
 		if style_node.is_mobile_like():
 			btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, 48.0)
+	# UI click SFX once per button (audio wiring only — no layout change).
+	if not btn.has_meta("_gm_click_sfx"):
+		btn.set_meta("_gm_click_sfx", true)
+		btn.pressed.connect(_play_ui_click_sfx)
+
+
+static func _play_ui_click_sfx() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var audio := tree.root.get_node_or_null("/root/AudioManager")
+	if audio and audio.has_method("play_ui_click"):
+		audio.play_ui_click()
 
 
 static func label(text: String, size: int = 16, color: Color = TEXT) -> Label:

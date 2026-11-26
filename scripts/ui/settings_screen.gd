@@ -2,7 +2,8 @@ extends Control
 
 var _from_title: bool = true
 var _window_option: OptionButton
-var _volume: HSlider
+var _bgm_volume: HSlider
+var _sfx_volume: HSlider
 var _info: Label
 
 
@@ -37,20 +38,34 @@ func _build() -> void:
 	_window_option.item_selected.connect(_on_window_mode)
 	box.add_child(_window_option)
 
-	box.add_child(UIStyle.label("마스터 볼륨 (UI 미리보기)", 16, UIStyle.TEXT_DIM))
-	_volume = HSlider.new()
-	_volume.min_value = 0
-	_volume.max_value = 100
-	_volume.value = 80
-	_volume.value_changed.connect(func(v): _info.text = "볼륨: %d%% (사운드 에셋 추가 시 적용)" % int(v))
-	box.add_child(_volume)
+	var bgm_v := 72.0
+	var sfx_v := 85.0
+	if AudioManager:
+		bgm_v = AudioManager.bgm_linear * 100.0
+		sfx_v = AudioManager.sfx_linear * 100.0
+
+	box.add_child(UIStyle.label("BGM 볼륨", 16, UIStyle.TEXT_DIM))
+	_bgm_volume = HSlider.new()
+	_bgm_volume.min_value = 0
+	_bgm_volume.max_value = 100
+	_bgm_volume.value = bgm_v
+	_bgm_volume.value_changed.connect(_on_bgm_volume)
+	box.add_child(_bgm_volume)
+
+	box.add_child(UIStyle.label("SFX 볼륨", 16, UIStyle.TEXT_DIM))
+	_sfx_volume = HSlider.new()
+	_sfx_volume.min_value = 0
+	_sfx_volume.max_value = 100
+	_sfx_volume.value = sfx_v
+	_sfx_volume.value_changed.connect(_on_sfx_volume)
+	box.add_child(_sfx_volume)
 
 	box.add_child(UIStyle.label("조작 안내", 16, UIStyle.TEXT_DIM))
-	var help := UIStyle.label("마우스: 건물/버튼 클릭, 호버로 강조\nEsc / 취소: 일부 화면에서 뒤로 가기\n키보드: UI 포커스 이동 가능", 15, UIStyle.TEXT)
+	var help := UIStyle.label("마우스: 건물/버튼 클릭, 호버로 강조\nEsc / 취소: 일부 화면에서 뒤로 가기\n키보드: UI 포커스 이동 가능\n웹: 첫 클릭 이후 BGM이 시작됩니다.", 15, UIStyle.TEXT)
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(help)
 
-	_info = UIStyle.label("실제로 동작하는 설정만 표시합니다.", 14, UIStyle.OK)
+	_info = UIStyle.label("BGM / SFX 볼륨이 즉시 적용됩니다.", 14, UIStyle.OK)
 	box.add_child(_info)
 
 	var back := Button.new()
@@ -68,6 +83,19 @@ func _on_window_mode(idx: int) -> void:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_size(Vector2i(1280, 720))
 		_info.text = "창 모드로 변경했습니다."
+
+
+func _on_bgm_volume(v: float) -> void:
+	if AudioManager:
+		AudioManager.set_bgm_volume(v / 100.0)
+	_info.text = "BGM 볼륨: %d%%" % int(v)
+
+
+func _on_sfx_volume(v: float) -> void:
+	if AudioManager:
+		AudioManager.set_sfx_volume(v / 100.0)
+		AudioManager.play_ui_click()
+	_info.text = "SFX 볼륨: %d%%" % int(v)
 
 
 func _on_back() -> void:

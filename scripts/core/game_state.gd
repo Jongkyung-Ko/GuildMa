@@ -231,6 +231,9 @@ func equip_item(member_id: String, item_id: String) -> bool:
 		if m.get("id") == member_id:
 			m["equipment"][slot] = item_id
 			emit_message("%s 에게 %s 장착" % [m.get("name"), item.get("name")])
+			var audio := get_node_or_null("/root/AudioManager")
+			if audio and audio.has_method("play_equip"):
+				audio.play_equip()
 			state_changed.emit()
 			save_game()
 			return true

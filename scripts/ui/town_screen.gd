@@ -96,7 +96,11 @@ func _add_building(b: Dictionary) -> void:
 		plate.color = Color(0.05, 0.07, 0.12, 0.0)
 		sprite.modulate = Color(1, 1, 1, 0.15)
 	)
-	btn.pressed.connect(func(): SceneRouter.go_facility(b["id"]))
+	btn.pressed.connect(func():
+		if AudioManager:
+			AudioManager.play_ui_click()
+		SceneRouter.go_facility(b["id"])
+	)
 
 
 func _build_hud() -> void:
