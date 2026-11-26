@@ -126,6 +126,8 @@ func _ensure_buses() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	## Browser autoplay: catch the first gesture early. Do NOT mark the event
+	## handled — Buttons (title menu, etc.) must still receive the same click.
 	if _unlocked:
 		return
 	if event is InputEventMouseButton and event.pressed:
@@ -134,6 +136,7 @@ func _input(event: InputEvent) -> void:
 		unlock_audio()
 	elif event is InputEventScreenTouch and event.pressed:
 		unlock_audio()
+
 
 
 func unlock_audio() -> void:
