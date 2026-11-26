@@ -31,7 +31,7 @@
 | Cleared room: no re-fight | PASS | `cleared revisit via button stays victory (no fight)` |
 | Dungeon blocks pad travel | PASS | `dungeon mode blocks hunt direction travel` |
 | Korean minimap / modal **string metrics** (Noto) | PASS | 미니맵/현재 위치/… widths OK in korean_font.log |
-| Dungeon **on-screen / visual** verification | **NOT DONE in headless** | See below — separate confirmation required |
+| Dungeon **on-screen / visual** verification | **DONE (graphic X11)** | See `pr9-visual-verification-report.md` + PNGs under `pr9-visual-verification/` |
 
 ## Key log excerpts (latest archived logs)
 
@@ -69,18 +69,15 @@ ERROR: 1 resources still in use at exit (run with --verbose for details).
 
 Cause write-up: `pr9-log-noise-analysis.md`. Do not confuse “explained / accepted noise” with “lines deleted from logs.”
 
-## Headless capture skip ≠ visual test complete
+## Headless vs graphic visual
 
-Skipping `_capture` under headless only avoids invalid GPU texture reads. It does **not** mean dungeon hub / combat floors were visually verified.
+Skipping `_capture` under headless only avoids invalid GPU texture reads. **Graphic visual verification was completed separately** with `xvfb-run` (DisplayServer **X11**, OpenGL llvmpipe) — see:
 
-**Still required separately (e.g. xvfb / desktop / Web Pages playtest):**
+- `Guild Hub Layout/internal/pr9-visual-verification-report.md`
+- `Guild Hub Layout/internal/pr9-visual-verification/*.png`
 
-- Dungeon hub layout and floor UI
-- Combat spawn visuals (F1 / mid-boss F5 / final-boss F10)
-- Victory / floor-clear screenshots if evidence is needed for UI
-
-Headless dungeon suite **OK** covers progression & spawn **logic** only.
+Remaining gaps called out there: Pages browser look, mobile layout, full title→dungeon click tour, F10 unique boss art.
 
 ## Merge status
 
-Logic suites green; exit-leak lines remain as documented noise; dungeon **visual** check still outstanding. **Do not merge** until explicit user approval.
+Logic suites green; exit-leak lines remain as documented noise; dungeon graphic stills archived. **Do not merge** until explicit user approval.
