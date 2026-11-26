@@ -211,24 +211,38 @@ func _run() -> void:
 		print("FAIL: playlist diversity low: ", seen)
 		failed += 1
 
-	# Boss mode
+	# Situational: mid / final / normal / elite
 	root.set_meta("dungeon_id", "shadow_crypt")
 	root.set_meta("dungeon_floor", 5)
+	root.set_meta("hunt_id", "")
 	var gs: Node = root.get_node_or_null("/root/GameState")
 	if gs:
 		gs.call("new_game")
+	var inten5: String = str(audio.call("resolve_combat_intensity"))
+	if inten5 != "mid":
+		print("FAIL: F5 intensity expected mid got ", inten5)
+		failed += 1
+	else:
+		_pass("resolve F5 → mid")
 	audio.call("on_enter_combat")
 	await _wait_bgm_ready(audio)
-	if str(audio.call("get_combat_mode")) != "boss":
-		print("FAIL: F5 should start boss mode (got %s / %s)" % [
+	if str(audio.call("get_combat_mode")) != "mid" or str(audio.call("get_current_bgm")) != "combat_heroic":
+		print("FAIL: F5 mid → combat_heroic (got %s / %s)" % [
 			str(audio.call("get_combat_mode")), str(audio.call("get_current_bgm"))
 		])
 		failed += 1
-	elif str(audio.call("get_current_bgm")) != "combat_boss":
-		print("FAIL: boss track expected combat_boss got ", audio.call("get_current_bgm"))
+	else:
+		_pass("Mid boss F5 → combat_heroic loop")
+
+	# Same-state re-enter must not restart / glitch mode
+	var mid_track := str(audio.call("get_current_bgm"))
+	audio.call("on_enter_combat")
+	await process_frame
+	if str(audio.call("get_combat_mode")) != "mid" or str(audio.call("get_current_bgm")) != mid_track:
+		print("FAIL: same-state mid re-enter changed BGM")
 		failed += 1
 	else:
-		_pass("Boss floor F5 → combat_boss")
+		_pass("Same-state mid re-enter does not restart track")
 
 	# Non-boss dungeon floor → playlist
 	root.set_meta("dungeon_floor", 1)
@@ -240,15 +254,93 @@ func _run() -> void:
 	else:
 		_pass("Normal floor F1 → playlist")
 
-	# Final boss F10
+	# Final boss F10 → combat_boss only
 	root.set_meta("dungeon_floor", 10)
-	audio.call("on_enter_combat")
-	await _wait_bgm_ready(audio)
-	if str(audio.call("get_current_bgm")) != "combat_boss":
-		print("FAIL: F10 final boss BGM")
+	if str(audio.call("resolve_combat_intensity")) != "final":
+		print("FAIL: F10 intensity expected final")
 		failed += 1
 	else:
-		_pass("Boss floor F10 → combat_boss")
+		_pass("resolve F10 → final")
+	audio.call("on_enter_combat")
+	await _wait_bgm_ready(audio)
+	if str(audio.call("get_combat_mode")) != "final" or str(audio.call("get_current_bgm")) != "combat_boss":
+		print("FAIL: F10 final → combat_boss (got %s / %s)" % [
+			str(audio.call("get_combat_mode")), str(audio.call("get_current_bgm"))
+		])
+		failed += 1
+	else:
+		_pass("Final boss F10 → combat_boss loop (no shuffle)")
+
+	# Elite: hunt maze room_type=elite only (no false elite on normal rooms)
+	root.set_meta("dungeon_id", "")
+	root.set_meta("dungeon_floor", 0)
+	if gs:
+		gs.call("new_game")
+		gs.call("start_hunt_run", "beginner_forest", true)
+		var map: Dictionary = gs.call("get_active_hunt_map")
+		var rooms: Dictionary = map.get("rooms", {})
+		var elite_id := ""
+		var normal_id := ""
+		for rid in rooms.keys():
+			var rt := str(rooms[rid].get("room_type", ""))
+			if rt == "elite" and elite_id == "":
+				elite_id = str(rid)
+			elif rt == "normal" and normal_id == "":
+				normal_id = str(rid)
+		if elite_id == "":
+			print("FAIL: no elite room in generated hunt map")
+			failed += 1
+		else:
+			map["current_room_id"] = elite_id
+			gs.call("_store_active_map", map)
+			root.set_meta("hunt_id", "beginner_forest")
+			if str(audio.call("resolve_combat_intensity")) != "elite":
+				print("FAIL: elite room intensity expected elite got ", audio.call("resolve_combat_intensity"))
+				failed += 1
+			else:
+				_pass("Hunt elite room → elite intensity")
+			audio.call("on_enter_combat")
+			await _wait_bgm_ready(audio)
+			if str(audio.call("get_current_bgm")) != "combat_metal":
+				print("FAIL: elite should prefer combat_metal got ", audio.call("get_current_bgm"))
+				failed += 1
+			else:
+				_pass("Elite → combat_metal")
+		if normal_id != "":
+			map = gs.call("get_active_hunt_map")
+			map["current_room_id"] = normal_id
+			gs.call("_store_active_map", map)
+			if str(audio.call("resolve_combat_intensity")) != "normal":
+				print("FAIL: normal hunt room falsely elite/boss: ", audio.call("resolve_combat_intensity"))
+				failed += 1
+			else:
+				_pass("Normal hunt room not false-elite")
+		# Hunt goal boss room → final
+		map = gs.call("get_active_hunt_map")
+		rooms = map.get("rooms", {})
+		var goal_id := ""
+		for rid2 in rooms.keys():
+			if bool(rooms[rid2].get("boss_flag", false)):
+				goal_id = str(rid2)
+				break
+		if goal_id == "":
+			print("FAIL: no hunt goal boss room")
+			failed += 1
+		else:
+			map["current_room_id"] = goal_id
+			gs.call("_store_active_map", map)
+			if str(audio.call("resolve_combat_intensity")) != "final":
+				print("FAIL: hunt goal intensity expected final got ", audio.call("resolve_combat_intensity"))
+				failed += 1
+			else:
+				_pass("Hunt goal boss → final intensity")
+			audio.call("on_enter_combat")
+			await _wait_bgm_ready(audio)
+			if str(audio.call("get_current_bgm")) != "combat_boss":
+				print("FAIL: hunt goal should play combat_boss")
+				failed += 1
+			else:
+				_pass("Hunt goal → combat_boss")
 
 	# Pause / resume
 	audio.call("pause_bgm")

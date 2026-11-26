@@ -2,7 +2,8 @@ extends Node
 
 ## Central SFX / BGM. MIDI sources are kept under assets/audio/bgm/*.mid but
 ## playback uses FluidSynth-rendered OGG (Godot 4.3 + web have no GM synth).
-## Combat uses a multi-track playlist with end-of-track fade; bosses use a dedicated loop.
+## Situational combat intensity (final > mid > elite > normal) picks among existing OGGs.
+## Normal fights shuffle a playlist with end-of-track fade; higher tiers use dedicated loops.
 
 const SFX_PATHS := {
 	"ui_click": "res://assets/audio/sfx/01_ui_button_click.wav",
@@ -41,17 +42,19 @@ var _sfx_idx: int = 0
 
 var _unlocked: bool = false
 var _pending_bgm: String = ""
-var _pending_combat_mode: String = "" ## "" | "playlist" | "boss"
+## Pending combat intensity when audio locked: "" | "normal" | "elite" | "mid" | "final"
+var _pending_combat_intensity: String = ""
 var _pending_ambience: bool = false
 var _current_bgm: String = ""
 
-## "none" | "playlist" | "boss" | "single"
+## "none" | "playlist" | "elite" | "mid" | "final"
 var _combat_mode: String = "none"
 var _playlist_queue: Array[String] = []
 var _last_playlist_track: String = ""
 var _fade_tween: Tween
 var _switching: bool = false
 var _finished_connected: bool = false
+var _enemy_catalog: Array = []
 
 var bgm_linear: float = 0.72
 var sfx_linear: float = 0.85
@@ -59,6 +62,7 @@ var sfx_linear: float = 0.85
 
 func _ready() -> void:
 	_ensure_buses()
+	_load_enemy_catalog()
 	_bgm = AudioStreamPlayer.new()
 	_bgm.name = "BgmPlayer"
 	_bgm.bus = "BGM"
@@ -114,12 +118,10 @@ func unlock_audio() -> void:
 		return
 	_unlocked = true
 	set_process_input(false)
-	if _pending_combat_mode == "playlist":
-		_pending_combat_mode = ""
-		start_combat_playlist(true)
-	elif _pending_combat_mode == "boss":
-		_pending_combat_mode = ""
-		start_boss_combat_bgm(true)
+	if _pending_combat_intensity != "":
+		var intensity := _pending_combat_intensity
+		_pending_combat_intensity = ""
+		_apply_combat_intensity(intensity, true)
 	elif _pending_bgm != "":
 		play_bgm(_pending_bgm, true)
 	if _pending_ambience:
@@ -163,11 +165,11 @@ func play_bgm(track: String, force: bool = false) -> void:
 	if not BGM_PATHS.has(track):
 		push_warning("AudioManager: unknown BGM '%s'" % track)
 		return
-	# Explicit single-track play leaves playlist/boss rotation (town, legacy "combat", etc.).
+	# Explicit single-track play leaves situational combat rotation (town, legacy "combat", etc.).
 	_leave_combat_music_mode()
 	if not _unlocked:
 		_pending_bgm = track
-		_pending_combat_mode = ""
+		_pending_combat_intensity = ""
 		return
 	if not force and _current_bgm == track and _bgm.playing and not _bgm.stream_paused:
 		return
@@ -178,7 +180,7 @@ func stop_bgm() -> void:
 	_kill_fade()
 	_leave_combat_music_mode()
 	_pending_bgm = ""
-	_pending_combat_mode = ""
+	_pending_combat_intensity = ""
 	_current_bgm = ""
 	_switching = false
 	if _bgm:
@@ -280,17 +282,72 @@ func on_enter_facility() -> void:
 
 
 func on_enter_combat() -> void:
-	if _detect_boss_combat():
-		start_boss_combat_bgm()
-	else:
-		start_combat_playlist()
+	var intensity := resolve_combat_intensity()
+	_apply_combat_intensity(intensity, false)
 	start_combat_ambience()
+
+
+## final > mid > elite > normal — uses only existing BGM_PATHS tracks.
+func resolve_combat_intensity() -> String:
+	var tree := get_tree()
+	if tree == null:
+		return "normal"
+	var dungeon_id := str(tree.root.get_meta("dungeon_id", ""))
+	var floor := int(tree.root.get_meta("dungeon_floor", 0))
+	# --- Dungeon vertical floors ---
+	if dungeon_id != "" and floor > 0 and GameState != null:
+		var fdef: Dictionary = GameState.get_dungeon_floor_def(dungeon_id, floor)
+		if not fdef.is_empty():
+			var boss := str(fdef.get("boss", ""))
+			if boss == "final":
+				return "final"
+			if boss == "mid":
+				return "mid"
+			var tier := _highest_enemy_tier(fdef.get("enemies", []))
+			if tier == "boss_final":
+				return "final"
+			if tier == "boss_mid":
+				return "mid"
+			if tier == "elite":
+				return "elite"
+			return "normal"
+	# --- Hunting maze current room (real room_type / boss_flag only) ---
+	if GameState != null:
+		var room: Dictionary = GameState.get_current_hunt_room()
+		if not room.is_empty():
+			var rtype := str(room.get("room_type", ""))
+			var kind := str(room.get("boss_kind", ""))
+			if bool(room.get("boss_flag", false)) or rtype == "boss" or kind == "hunt_goal":
+				# Hunt goal boss = expedition finale → final intensity track.
+				return "final"
+			if rtype == "elite":
+				return "elite"
+			var hunt_tier := _highest_enemy_tier(room.get("monsters", []))
+			if hunt_tier == "boss_final":
+				return "final"
+			if hunt_tier == "boss_mid":
+				return "mid"
+			if hunt_tier == "elite":
+				return "elite"
+	return "normal"
+
+
+func _apply_combat_intensity(intensity: String, force: bool) -> void:
+	match intensity:
+		"final":
+			start_final_boss_bgm(force)
+		"mid":
+			start_mid_boss_bgm(force)
+		"elite":
+			start_elite_combat_bgm(force)
+		_:
+			start_combat_playlist(force)
 
 
 ## Normal combat: rotate playlist; each track plays to natural end, then fades to next.
 func start_combat_playlist(force: bool = false) -> void:
 	if not _unlocked:
-		_pending_combat_mode = "playlist"
+		_pending_combat_intensity = "normal"
 		_pending_bgm = ""
 		return
 	if not force and _combat_mode == "playlist" and _bgm.playing:
@@ -304,18 +361,51 @@ func start_combat_playlist(force: bool = false) -> void:
 	_switch_to_track(next, false, true)
 
 
-func start_boss_combat_bgm(force: bool = false) -> void:
+## Elite encounter: prefer Metal Drive (loop for the fight).
+func start_elite_combat_bgm(force: bool = false) -> void:
 	if not _unlocked:
-		_pending_combat_mode = "boss"
+		_pending_combat_intensity = "elite"
 		_pending_bgm = ""
 		return
-	if not force and _combat_mode == "boss" and _current_bgm == "combat_boss" and _bgm.playing:
+	if not force and _combat_mode == "elite" and _current_bgm == "combat_metal" and _bgm.playing:
 		return
 	_kill_fade()
-	_combat_mode = "boss"
+	_combat_mode = "elite"
 	_playlist_queue.clear()
-	# Boss loops until combat ends / scene leaves.
+	_switch_to_track("combat_metal", true, true)
+
+
+## Mid boss: Heroic Anthem loop (distinct from final boss intensity).
+func start_mid_boss_bgm(force: bool = false) -> void:
+	if not _unlocked:
+		_pending_combat_intensity = "mid"
+		_pending_bgm = ""
+		return
+	if not force and _combat_mode == "mid" and _current_bgm == "combat_heroic" and _bgm.playing:
+		return
+	_kill_fade()
+	_combat_mode = "mid"
+	_playlist_queue.clear()
+	_switch_to_track("combat_heroic", true, true)
+
+
+## Final boss: Boss Intensity only — no normal shuffle during the fight.
+func start_final_boss_bgm(force: bool = false) -> void:
+	if not _unlocked:
+		_pending_combat_intensity = "final"
+		_pending_bgm = ""
+		return
+	if not force and _combat_mode == "final" and _current_bgm == "combat_boss" and _bgm.playing:
+		return
+	_kill_fade()
+	_combat_mode = "final"
+	_playlist_queue.clear()
 	_switch_to_track("combat_boss", true, true)
+
+
+## Backward-compatible alias → final boss track.
+func start_boss_combat_bgm(force: bool = false) -> void:
+	start_final_boss_bgm(force)
 
 
 func get_combat_mode() -> String:
@@ -338,28 +428,39 @@ func _leave_combat_music_mode() -> void:
 	_last_playlist_track = ""
 
 
-func _detect_boss_combat() -> bool:
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var dungeon_id := str(tree.root.get_meta("dungeon_id", ""))
-	var floor := int(tree.root.get_meta("dungeon_floor", 0))
-	if dungeon_id == "" or floor <= 0:
-		return false
-	if GameState == null:
-		return false
-	var fdef: Dictionary = GameState.get_dungeon_floor_def(dungeon_id, floor)
-	if fdef.is_empty():
-		return false
-	var boss := str(fdef.get("boss", ""))
-	if boss == "mid" or boss == "final":
-		return true
-	# Fallback: enemy ids / catalog tiers when floor omits boss flag.
-	for eid in fdef.get("enemies", []):
-		var id := str(eid)
-		if id.begins_with("boss_"):
-			return true
-	return false
+## Highest explicit catalog tier among enemy ids. Never invents elite without tier=="elite".
+func _highest_enemy_tier(enemy_ids: Array) -> String:
+	var best := "normal"
+	var rank := {"normal": 0, "elite": 1, "boss_mid": 2, "boss_final": 3}
+	for eid in enemy_ids:
+		var def := _enemy_def_by_id(str(eid))
+		if def.is_empty():
+			continue
+		var t := str(def.get("tier", "normal"))
+		if int(rank.get(t, 0)) > int(rank.get(best, 0)):
+			best = t
+	return best
+
+
+func _load_enemy_catalog() -> void:
+	var f := FileAccess.open("res://data/combat/enemies.json", FileAccess.READ)
+	if f == null:
+		_enemy_catalog = []
+		return
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		_enemy_catalog = []
+		return
+	_enemy_catalog = data.get("enemies", [])
+
+
+func _enemy_def_by_id(enemy_id: String) -> Dictionary:
+	if _enemy_catalog.is_empty():
+		_load_enemy_catalog()
+	for e in _enemy_catalog:
+		if str(e.get("id", "")) == enemy_id:
+			return e
+	return {}
 
 
 func _rebuild_playlist_queue(fresh_start: bool) -> void:
