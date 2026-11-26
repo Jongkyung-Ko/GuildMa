@@ -1,19 +1,19 @@
 Godot Engine v4.3.stable.official.77dcf97d8 - https://godotengine.org
 
 === COMBAT AI VALIDATION ===
-ALLY 아렌 job=lord started=1 landed=1 fired=0 hits=1 heals=0 state=WALK
+ALLY 아렌 job=lord started=3 landed=3 fired=0 hits=3 heals=0 state=WALK
 ALLY 가렌 job=tank started=3 landed=3 fired=0 hits=3 heals=0 state=ATTACK_RECOVERY
-ALLY 리사 job=dps started=6 landed=6 fired=0 hits=6 heals=0 state=IDLE
-ALLY 세이라 job=healer started=3 landed=3 fired=0 hits=3 heals=0 state=WALK
+ALLY 리사 job=dps started=7 landed=6 fired=0 hits=6 heals=0 state=ATTACK_WINDUP
+ALLY 세이라 job=healer started=3 landed=3 fired=0 hits=3 heals=0 state=IDLE
 ALLY 카이 job=mage started=3 landed=3 fired=3 hits=3 heals=0 state=IDLE
-ENEMY 늑대 started=3 landed=3 hits=3 state=IDLE hp=367 dead=false
+ENEMY 늑대 started=3 landed=3 hits=3 state=WALK hp=399 dead=false
 ENEMY 슬라임 started=0 landed=0 hits=0 state=WALK hp=500 dead=false
-ENEMY 고블린 started=4 landed=4 hits=4 state=ATTACK_RECOVERY hp=330 dead=false
+ENEMY 고블린 started=4 landed=4 hits=4 state=ATTACK_RECOVERY hp=259 dead=false
 SUMMARY mage started=3 fired=3 hits=3 | enemy started=4 hits=4 | dps hits=6
 PASS: mage started=3 fired=3 damage_hits=3
 PASS: dps damage_hits=6 (landed=6)
 PASS: enemies started=4 damage_hits=4
-PASS: retarget after kill: party hits 16→24
+PASS: retarget after kill: party hits 18→24
 PASS: pause works
 PASS: resume continues attacks (5→6)
 PASS: healer landed heals=1

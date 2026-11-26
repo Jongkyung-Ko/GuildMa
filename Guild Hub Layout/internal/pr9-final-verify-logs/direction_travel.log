@@ -6,15 +6,16 @@ PASS: dir pad hidden during fight
 PASS: dir pad visible after victory
 PASS: button N pressed connected (2)
 PASS: button E pressed connected (2)
-PASS: connected dirs shown=2
+PASS: button W pressed connected (2)
+PASS: connected dirs shown=3
 PASS: disconnected room blocked
 PASS: null dir S hidden (blocked)
-PASS: hunt_can_move_to true for r_1_3
-PASS: button click travelled N → r_1_3
+PASS: hunt_can_move_to true for r_2_3
+PASS: button click travelled N → r_2_3
 PASS: uncleared room starts fighting after click travel
 PASS: cleared revisit via button stays victory (no fight)
 PASS: dungeon mode blocks hunt direction travel
-=== DIRECTION TRAVEL RESULT: PASS (13 pass / 0 fail) ===
+=== DIRECTION TRAVEL RESULT: PASS (14 pass / 0 fail) ===
 WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
      at: cleanup (core/object/object.cpp:2284)
 ERROR: 1 resources still in use at exit (run with --verbose for details).

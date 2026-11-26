@@ -54,6 +54,13 @@ PASS: dungeon mode blocks hunt direction travel
 === DIRECTION TRAVEL RESULT: PASS (13 pass / 0 fail) ===
 ```
 
+## Log noise follow-up
+
+See `pr9-log-noise-analysis.md`.
+
+- `Parameter "t" is null`: headless dummy renderer + `_capture` — **not a gameplay bug**. Harness now skips capture under headless (`SKIP capture…`); count of Parameter-t errors in refreshed `dungeon.log` = **0**.
+- ObjectDB / resources-at-exit: Autoload `AudioManager` SFX streams still held when `-s` validators `quit()` — **expected noise**, no product fix.
+
 ## Merge status
 
-Verification **green**. No functional code changes in this run. **Do not merge** until explicit user approval.
+Verification **green**. Harness-only skip for headless screenshots. **Do not merge** until explicit user approval.

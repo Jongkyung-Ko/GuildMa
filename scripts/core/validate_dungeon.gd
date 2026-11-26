@@ -48,7 +48,17 @@ func _flush() -> void:
 func _capture(tag: String) -> void:
 	await process_frame
 	await process_frame
-	var img: Image = root.get_viewport().get_texture().get_image()
+	# Headless uses the dummy renderer — ViewportTexture has no RID, so
+	# get_image() → texture_2d_get(null) prints ERROR: Parameter "t" is null.
+	# Skip capture here; screenshots need xvfb / non-headless Godot.
+	if str(DisplayServer.get_name()) == "headless":
+		_log("SKIP capture under headless (no GPU texture): " + tag)
+		return
+	var tex: ViewportTexture = root.get_viewport().get_texture()
+	if tex == null:
+		_log("WARN: no viewport texture for " + tag)
+		return
+	var img: Image = tex.get_image()
 	if img == null:
 		_log("WARN: no viewport image for " + tag)
 		return
