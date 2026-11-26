@@ -106,30 +106,30 @@ func _apply_role_offsets() -> void:
 	# Tank front, DPS flanks, Mage/Healer rear.
 	match job:
 		"tank":
-			attack_range = 56.0
+			attack_range = 64.0
 			move_speed *= 0.95
-			preferred_radius = 56.0
+			preferred_radius = 58.0
 			preferred_angle = PI + 0.08
 		"lord":
-			attack_range = 70.0
-			preferred_radius = 78.0
+			attack_range = 78.0
+			preferred_radius = 70.0
 			preferred_angle = PI - 0.7
 		"dps":
-			attack_range = 68.0
+			attack_range = 76.0
 			atk *= 1.08
-			preferred_radius = 76.0
+			preferred_radius = 68.0
 			preferred_angle = PI + 0.85
 		"healer":
-			attack_range = 130.0
+			attack_range = 140.0
 			atk *= 0.7
 			move_speed *= 0.95
-			preferred_radius = 125.0
+			preferred_radius = 120.0
 			preferred_angle = PI - 1.15
 		"mage":
-			attack_range = 140.0
+			attack_range = 150.0
 			atk *= 1.05
 			move_speed *= 0.92
-			preferred_radius = 135.0
+			preferred_radius = 130.0
 			preferred_angle = PI + 1.2
 		"enemy":
 			preferred_radius = 56.0 + float(formation_slot) * 12.0
@@ -300,10 +300,10 @@ func _physics_process(delta: float) -> void:
 		# Hold the role slot while attacking so the party does not collapse inward.
 		global_position = global_position.lerp(desired, clampf(6.0 * delta, 0.0, 0.35))
 		# Keep a small body gap so attacker/target sprites do not merge.
-		if dist_to_target < 34.0:
+		if dist_to_target < 48.0:
 			var away := (global_position - target.global_position)
 			if away.length() > 0.1:
-				global_position += away.normalized() * minf(3.0, 34.0 - dist_to_target)
+				global_position += away.normalized() * minf(5.0, 48.0 - dist_to_target)
 		velocity = Vector2.ZERO
 		_apply_separation(delta)
 		_clamp_to_field()
