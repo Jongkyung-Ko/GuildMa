@@ -23,10 +23,13 @@ var _shake_t: float = 0.0
 var _shake_amp: float = 0.0
 var _hit_stop_t: float = 0.0
 var _cam_home: Vector2 = Vector2(640, 360)
-## Dungeon vertical mode (empty = hunt / phase test combat). Separate from hunt N/S/E/W.
+## Dungeon vertical mode (empty = hunt / phase test combat). Separate from hunt maze.
 var dungeon_id: String = ""
 var dungeon_floor: int = 0
 var _floor_cleared_reported: bool = false
+## Hunting-ground maze run id (empty = legacy phase test or dungeon).
+var hunt_id: String = ""
+var _hunt_clear_reported: bool = false
 
 @onready var _battlefield: Node2D = $Battlefield
 @onready var _ally_root: Node2D = $Battlefield/Allies
@@ -39,7 +42,11 @@ func _ready() -> void:
 	enemy_catalog = _read_json(ENEMIES_PATH)
 	dungeon_id = str(get_tree().root.get_meta("dungeon_id", ""))
 	dungeon_floor = int(get_tree().root.get_meta("dungeon_floor", 0))
+	hunt_id = str(get_tree().root.get_meta("hunt_id", ""))
 	_ensure_game_state()
+	if hunt_id != "" and dungeon_id == "":
+		GameState.start_hunt_run(hunt_id, bool(get_tree().root.get_meta("hunt_force_new", false)))
+		get_tree().root.set_meta("hunt_force_new", false)
 	_build_ground()
 	_setup_camera()
 	_spawn_party()
@@ -54,6 +61,17 @@ func _ready() -> void:
 			dungeon_floor,
 			tag,
 		])
+	elif is_hunt_combat():
+		var room := GameState.get_current_hunt_room()
+		log_combat("사냥 시작 — %s / %s" % [
+			str(GameState.get_active_hunt_map().get("hunt_name", hunt_id)),
+			str(room.get("name", "")),
+		])
+		if bool(room.get("cleared", false)):
+			# Revisit cleared room: no fight, allow map travel.
+			phase = Phase.VICTORY
+			_clear_living_enemies_quiet()
+			log_combat("이미 클리어한 방 — 지도를 열어 이동하세요")
 	else:
 		log_combat("전투 시작 — 자동전투 (Phase 2-2)")
 	set_process(true)
@@ -184,6 +202,61 @@ func is_dungeon_combat() -> bool:
 	return dungeon_id != "" and dungeon_floor > 0
 
 
+func is_hunt_combat() -> bool:
+	return hunt_id != "" and dungeon_id == "" and not GameState.get_active_hunt_map().is_empty()
+
+
+func travel_hunt_room(room_id: String) -> void:
+	if not is_hunt_combat():
+		return
+	if phase == Phase.FIGHTING:
+		log_combat("전투 중에는 이동할 수 없습니다")
+		GameState.emit_message("전투 종료 후 이동 가능합니다.", true)
+		return
+	if not GameState.hunt_move_to(room_id):
+		return
+	_hunt_clear_reported = false
+	_reload_room_encounter()
+
+
+func _reload_room_encounter() -> void:
+	_clear_living_enemies_quiet()
+	var room := GameState.get_current_hunt_room()
+	log_combat("이동 — %s" % str(room.get("name", room_id_safe())))
+	if bool(room.get("cleared", false)):
+		phase = Phase.VICTORY
+		log_combat("클리어된 방 — 지도에서 다른 방으로 이동 가능")
+		_ui.refresh()
+		return
+	# Revive allies lightly for next fight
+	for a in _allies:
+		if a == null or not is_instance_valid(a):
+			continue
+		if bool(a.is_dead):
+			a.is_dead = false
+			a.hp = maxf(1.0, float(a.hp_max) * 0.35)
+			a.visible = true
+			a.modulate = Color(1, 1, 1, 1)
+		else:
+			a.hp = minf(float(a.hp_max), float(a.hp) + float(a.hp_max) * 0.15)
+		if a.has_signal("hp_changed"):
+			a.hp_changed.emit(a.hp, a.hp_max)
+	_spawn_enemies()
+	phase = Phase.FIGHTING
+	_ui.refresh()
+
+
+func room_id_safe() -> String:
+	return str(GameState.get_active_hunt_map().get("current_room_id", ""))
+
+
+func _clear_living_enemies_quiet() -> void:
+	for e in _enemies:
+		if e and is_instance_valid(e):
+			e.queue_free()
+	_enemies.clear()
+
+
 func _ensure_game_state() -> void:
 	if GameState.members.is_empty():
 		GameState.new_game()
@@ -285,7 +358,21 @@ func _resolve_enemy_roster() -> Array:
 		if out.is_empty() and not list.is_empty():
 			out.append(list[0])
 		return out
-	# Hunt / phase test: mixed encounter of up to 3 distinct monsters.
+	# Hunting maze room encounter from active map room.monsters.
+	if is_hunt_combat():
+		var room := GameState.get_current_hunt_room()
+		if bool(room.get("cleared", false)):
+			return []
+		var ids: Array = room.get("monsters", [])
+		var hout: Array = []
+		for eid in ids:
+			var data := _enemy_def_by_id(str(eid))
+			if not data.is_empty():
+				hout.append(data)
+		if hout.is_empty() and not list.is_empty():
+			hout.append(list[0])
+		return hout
+	# Legacy phase test: mixed encounter of up to 3 distinct monsters.
 	var roster: Array = []
 	for id_wanted in ["wolf", "slime", "goblin"]:
 		var data := _enemy_def_by_id(id_wanted)
@@ -327,6 +414,7 @@ func _check_end_conditions() -> void:
 		_hit_stop_t = 0.0
 		log_combat("승리 — 적 전멸 (보상은 후속 Phase)")
 		_on_dungeon_victory()
+		_on_hunt_victory()
 		return
 	var allies_alive := false
 	for a in _allies:
@@ -352,6 +440,16 @@ func _on_dungeon_victory() -> void:
 		str(GameState.get_dungeon_def(dungeon_id).get("name", dungeon_id)),
 		dungeon_floor,
 	])
+
+
+func _on_hunt_victory() -> void:
+	if _hunt_clear_reported:
+		return
+	if not is_hunt_combat():
+		return
+	_hunt_clear_reported = true
+	GameState.mark_hunt_room_cleared()
+	log_combat("방 클리어 — 미니맵에서 연결된 방으로 이동하세요")
 
 
 func _read_json(path: String) -> Dictionary:

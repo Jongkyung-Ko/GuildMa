@@ -1,9 +1,15 @@
 extends CanvasLayer
 
-## Phase 2-1 combat HUD: status, party/enemy HP, log, pause / return.
-## No tactics buttons, no WASD pad.
+## Combat HUD: status, party/enemy HP, log, pause / return.
+## Hunting: small maze minimap (top-left) + expanded modal.
+## Dungeon: compact vertical floor minimap (top-left) — no maze travel.
+
+const HUNT_MINIMAP := preload("res://scripts/exploration/hunt_minimap.gd")
+const HUNT_MODAL := preload("res://scripts/exploration/hunt_map_modal.gd")
+const DUNGEON_MINIMAP := preload("res://scripts/dungeon/dungeon_minimap.gd")
 
 var _manager: Node = null
+var _root: Control
 var _status: Label
 var _party_box: VBoxContainer
 var _enemy_box: VBoxContainer
@@ -11,6 +17,9 @@ var _log: RichTextLabel
 var _pause_btn: Button
 var _town_btn: Button
 var _auto_label: Label
+var _hunt_mini: Control = null
+var _dungeon_mini: Control = null
+var _modal: CanvasLayer = null
 
 
 func setup(manager: Node) -> void:
@@ -20,10 +29,10 @@ func setup(manager: Node) -> void:
 
 
 func _build() -> void:
-	var root := Control.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(root)
+	_root = Control.new()
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_root)
 
 	var top := PanelContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -34,7 +43,7 @@ func _build() -> void:
 	top.offset_top = 8
 	top.offset_bottom = 64
 	top.add_theme_stylebox_override("panel", UIStyle.panel_style())
-	root.add_child(top)
+	_root.add_child(top)
 
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation", 12)
@@ -60,7 +69,7 @@ func _build() -> void:
 	_town_btn.pressed.connect(_on_town)
 	top_row.add_child(_town_btn)
 
-	# Right status panel — fixed width, stays on-screen at 1280x720
+	# Right status panel
 	var right := PanelContainer.new()
 	right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	right.anchor_left = 1.0
@@ -72,7 +81,7 @@ func _build() -> void:
 	right.offset_top = 72
 	right.offset_bottom = -118
 	right.add_theme_stylebox_override("panel", UIStyle.panel_style())
-	root.add_child(right)
+	_root.add_child(right)
 
 	var right_scroll := ScrollContainer.new()
 	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -94,7 +103,7 @@ func _build() -> void:
 	_enemy_box.custom_minimum_size.x = 220
 	right_col.add_child(_enemy_box)
 
-	# Bottom log — keep fully above window bottom
+	# Bottom log
 	var bottom := PanelContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.anchor_left = 0.0
@@ -106,7 +115,7 @@ func _build() -> void:
 	bottom.offset_top = -110
 	bottom.offset_bottom = -10
 	bottom.add_theme_stylebox_override("panel", UIStyle.panel_style())
-	root.add_child(bottom)
+	_root.add_child(bottom)
 
 	_log = RichTextLabel.new()
 	_log.fit_content = false
@@ -121,6 +130,55 @@ func _build() -> void:
 	UIStyle.apply_font(_log, 13)
 	bottom.add_child(_log)
 
+	_attach_minimap()
+
+
+func _attach_minimap() -> void:
+	var mobile := UIStyle.is_mobile_like() if UIStyle else false
+	var mini_size := Vector2(112, 112) if mobile else Vector2(132, 132)
+	if _manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
+		_dungeon_mini = DUNGEON_MINIMAP.new()
+		_dungeon_mini.position = Vector2(14, 72)
+		_dungeon_mini.size = Vector2(120 if mobile else 132, 200 if mobile else 220)
+		_dungeon_mini.custom_minimum_size = _dungeon_mini.size
+		_dungeon_mini.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(_dungeon_mini)
+		_dungeon_mini.setup(str(_manager.dungeon_id))
+	elif _manager and _manager.has_method("is_hunt_combat") and _manager.is_hunt_combat():
+		_hunt_mini = HUNT_MINIMAP.new()
+		_hunt_mini.position = Vector2(14, 72)
+		_hunt_mini.size = mini_size
+		_hunt_mini.custom_minimum_size = mini_size
+		_root.add_child(_hunt_mini)
+		_hunt_mini.open_requested.connect(_open_hunt_modal)
+		# Shift bottom log right edge slightly? Keep as-is; minimap is top-left away from log.
+		_hunt_mini.refresh()
+
+
+func _open_hunt_modal() -> void:
+	if _modal != null and is_instance_valid(_modal):
+		return
+	_modal = HUNT_MODAL.new()
+	add_child(_modal)
+	var fighting := _manager != null and str(_manager.get_phase_name()) == "fighting"
+	_modal.setup(fighting)
+	_modal.closed.connect(func():
+		_modal = null
+		if _hunt_mini:
+			_hunt_mini.refresh()
+		refresh()
+	)
+	_modal.travel_requested.connect(func(rid: String):
+		if _manager and _manager.has_method("travel_hunt_room"):
+			_manager.travel_hunt_room(rid)
+		if _modal and is_instance_valid(_modal):
+			_modal.queue_free()
+			_modal = null
+		if _hunt_mini:
+			_hunt_mini.refresh()
+		refresh()
+	)
+
 
 func refresh() -> void:
 	if _manager == null:
@@ -128,8 +186,11 @@ func refresh() -> void:
 	var pname: String = _manager.get_phase_name()
 	match pname:
 		"fighting":
-			if _manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
+			if _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
 				_status.text = "던전 전투 — %d층" % int(_manager.dungeon_floor)
+			elif _manager.has_method("is_hunt_combat") and _manager.is_hunt_combat():
+				var room: Dictionary = GameState.get_current_hunt_room()
+				_status.text = "사냥 — %s" % str(room.get("name", "탐험"))
 			else:
 				_status.text = "전투 중 — Phase 2-2"
 			_status.add_theme_color_override("font_color", UIStyle.GOLD_BRIGHT)
@@ -141,8 +202,10 @@ func refresh() -> void:
 			_pause_btn.disabled = false
 			_pause_btn.text = "재개 (Esc)"
 		"victory":
-			if _manager and _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
+			if _manager.has_method("is_dungeon_combat") and _manager.is_dungeon_combat():
 				_status.text = "승리! — 층 클리어"
+			elif _manager.has_method("is_hunt_combat") and _manager.is_hunt_combat():
+				_status.text = "승리! — 방 클리어 (맵에서 이동)"
 			else:
 				_status.text = "승리! (보상은 후속 Phase)"
 			_status.add_theme_color_override("font_color", UIStyle.OK)
@@ -156,6 +219,12 @@ func refresh() -> void:
 	_fill_list(_enemy_box, _manager.get_enemies(), false)
 	if _log:
 		_log.text = _manager.get_log_text()
+	if _hunt_mini and _hunt_mini.has_method("refresh"):
+		_hunt_mini.refresh()
+	if _dungeon_mini and _dungeon_mini.has_method("refresh"):
+		_dungeon_mini.refresh()
+	if _modal != null and is_instance_valid(_modal) and _modal.has_method("set_combat_active"):
+		_modal.set_combat_active(pname == "fighting")
 
 
 func _fill_list(box: VBoxContainer, units: Array, is_ally: bool) -> void:

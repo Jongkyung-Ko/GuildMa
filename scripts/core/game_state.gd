@@ -10,6 +10,7 @@ var catalog_items: Array = []
 var adventurer_pool: Array = []
 var quest_catalog: Array = []
 var dungeon_catalog: Dictionary = {}
+var hunt_catalog: Dictionary = {}
 
 var gold: int = 0
 var reputation: int = 0
@@ -25,6 +26,10 @@ var active_quests: Array = []
 var recruited_ids: Array = []
 ## Separate from hunting-ground exploration. Keyed by dungeon id.
 var dungeon_progress: Dictionary = {}
+## Hunting-ground maze runs. Keyed by hunt id. Separate from dungeon floors.
+var hunt_progress: Dictionary = {}
+## Active run map snapshot (also mirrored under hunt_progress[hunt_id].map).
+var active_hunt_id: String = ""
 var has_save: bool = false
 var is_playing: bool = false
 var message_log: Array = []
@@ -62,6 +67,7 @@ func _load_static_data() -> void:
 	adventurer_pool = _read_json("res://data/adventurers.json").get("pool", [])
 	quest_catalog = _read_json("res://data/quests.json").get("quests", [])
 	dungeon_catalog = _read_json("res://data/combat/dungeons.json")
+	hunt_catalog = _read_json("res://data/combat/hunts.json")
 
 
 func _read_json(path: String) -> Dictionary:
@@ -88,6 +94,8 @@ func new_game() -> void:
 	active_quests = []
 	recruited_ids = []
 	dungeon_progress = {}
+	hunt_progress = {}
+	active_hunt_id = ""
 	message_log = []
 	members = _create_starting_party()
 	is_playing = true
@@ -337,6 +345,8 @@ func save_game() -> void:
 		"active_quests": active_quests,
 		"recruited_ids": recruited_ids,
 		"dungeon_progress": dungeon_progress,
+		"hunt_progress": hunt_progress,
+		"active_hunt_id": active_hunt_id,
 		"message_log": message_log,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -371,6 +381,10 @@ func load_game() -> bool:
 	dungeon_progress = data.get("dungeon_progress", {})
 	if typeof(dungeon_progress) != TYPE_DICTIONARY:
 		dungeon_progress = {}
+	hunt_progress = data.get("hunt_progress", {})
+	if typeof(hunt_progress) != TYPE_DICTIONARY:
+		hunt_progress = {}
+	active_hunt_id = str(data.get("active_hunt_id", ""))
 	message_log = data.get("message_log", [])
 	is_playing = true
 	emit_message("게임을 불러왔습니다.")
@@ -487,6 +501,164 @@ func mark_dungeon_floor_cleared(dungeon_id: String, floor: int, kills: int = 0) 
 	save_game()
 	state_changed.emit()
 	emit_message("%s %d층 클리어" % [str(get_dungeon_def(dungeon_id).get("name", dungeon_id)), floor])
+
+
+# --- Hunting-ground maze exploration (separate from dungeon vertical floors) ---
+
+func get_hunt_def(hunt_id: String) -> Dictionary:
+	for h in hunt_catalog.get("hunts", []):
+		if str(h.get("id", "")) == hunt_id:
+			return h
+	return {}
+
+
+func list_hunts() -> Array:
+	return hunt_catalog.get("hunts", [])
+
+
+func get_active_hunt_map() -> Dictionary:
+	if active_hunt_id == "":
+		return {}
+	var prog = hunt_progress.get(active_hunt_id, {})
+	if typeof(prog) != TYPE_DICTIONARY:
+		return {}
+	var m = prog.get("map", {})
+	return m if typeof(m) == TYPE_DICTIONARY else {}
+
+
+func start_hunt_run(hunt_id: String, force_new: bool = false) -> Dictionary:
+	## force_new=true ("새 맵"): replace run with a fresh random-seed maze.
+	## force_new=false + existing map: resume — never regenerate mid-run.
+	## force_new=false + no map: first expedition — fresh seed.
+	var def := get_hunt_def(hunt_id)
+	if def.is_empty():
+		emit_message("사냥터 정보를 찾을 수 없습니다.", true)
+		return {}
+	active_hunt_id = hunt_id
+	var prog: Dictionary = hunt_progress.get(hunt_id, {}) if typeof(hunt_progress.get(hunt_id, null)) == TYPE_DICTIONARY else {}
+	var has_map := prog.has("map") and typeof(prog.get("map")) == TYPE_DICTIONARY and not (prog.get("map") as Dictionary).is_empty()
+	if force_new or not has_map:
+		var seed_v: int = MazeGenerator.fresh_seed()
+		var map: Dictionary = MazeGenerator.generate(def, seed_v)
+		prog = {
+			"map": map,
+			"seed": seed_v,
+			"runs": int(prog.get("runs", 0)) + 1,
+			## Hunt maze goal boss only — never touches dungeon mid/final flags.
+			"goal_boss_cleared": false,
+		}
+		hunt_progress[hunt_id] = prog
+		save_game()
+		state_changed.emit()
+		emit_message("%s 탐험을 시작합니다. (seed %d)" % [str(def.get("name", hunt_id)), seed_v])
+		return map
+	# Resume existing map — keep seed + room layout as saved.
+	emit_message("%s 탐험을 이어갑니다." % str(def.get("name", hunt_id)))
+	state_changed.emit()
+	return prog.get("map", {})
+
+
+func _store_active_map(map: Dictionary) -> void:
+	if active_hunt_id == "":
+		return
+	var prog: Dictionary = hunt_progress.get(active_hunt_id, {})
+	if typeof(prog) != TYPE_DICTIONARY:
+		prog = {}
+	prog["map"] = map
+	hunt_progress[active_hunt_id] = prog
+	save_game()
+	state_changed.emit()
+
+
+func get_current_hunt_room() -> Dictionary:
+	var map := get_active_hunt_map()
+	if map.is_empty():
+		return {}
+	var rid := str(map.get("current_room_id", ""))
+	var rooms: Dictionary = map.get("rooms", {})
+	return rooms.get(rid, {})
+
+
+func mark_hunt_room_cleared(room_id: String = "") -> void:
+	var map := get_active_hunt_map()
+	if map.is_empty():
+		return
+	var rid := room_id if room_id != "" else str(map.get("current_room_id", ""))
+	var rooms: Dictionary = map.get("rooms", {})
+	if not rooms.has(rid):
+		return
+	rooms[rid]["cleared"] = true
+	rooms[rid]["discovered"] = true
+	MazeGenerator._discover_adjacent(map, rid)
+	# Maze goal boss clear stays on hunt_progress only (not dungeon_progress).
+	var kind := str(rooms[rid].get("boss_kind", ""))
+	if bool(rooms[rid].get("boss_flag", false)) or kind == MazeGenerator.BOSS_KIND_HUNT_GOAL:
+		var prog: Dictionary = hunt_progress.get(active_hunt_id, {})
+		if typeof(prog) != TYPE_DICTIONARY:
+			prog = {}
+		prog["goal_boss_cleared"] = true
+		prog["map"] = map
+		hunt_progress[active_hunt_id] = prog
+		emit_message("%s 클리어 (미로 목표 보스)" % str(rooms[rid].get("name", rid)))
+	else:
+		emit_message("%s 클리어" % str(rooms[rid].get("name", rid)))
+	_store_active_map(map)
+
+
+func hunt_connected_room_ids(room_id: String = "") -> Array:
+	var map := get_active_hunt_map()
+	if map.is_empty():
+		return []
+	var rid := room_id if room_id != "" else str(map.get("current_room_id", ""))
+	var rooms: Dictionary = map.get("rooms", {})
+	if not rooms.has(rid):
+		return []
+	var out: Array = []
+	var cons: Dictionary = rooms[rid].get("connected_rooms", {})
+	for d in MazeGenerator.DIRS:
+		var o = cons.get(d, null)
+		if o != null and str(o) != "":
+			out.append(str(o))
+	return out
+
+
+func hunt_can_move_to(target_id: String) -> bool:
+	var map := get_active_hunt_map()
+	if map.is_empty():
+		return false
+	var cur := str(map.get("current_room_id", ""))
+	if target_id == cur:
+		return false
+	var rooms: Dictionary = map.get("rooms", {})
+	if not rooms.has(target_id) or not rooms.has(cur):
+		return false
+	# Must clear current room before leaving (revisit already-cleared is OK).
+	if not bool(rooms[cur].get("cleared", false)):
+		return false
+	# Must be directly connected to current
+	if not hunt_connected_room_ids(cur).has(target_id):
+		return false
+	# Destination must be discovered (adjacent after clear, or already visited)
+	return bool(rooms[target_id].get("discovered", false))
+
+
+func hunt_move_to(target_id: String) -> bool:
+	if not hunt_can_move_to(target_id):
+		emit_message("그 방으로는 이동할 수 없습니다.", true)
+		return false
+	var map := get_active_hunt_map()
+	var rooms: Dictionary = map.get("rooms", {})
+	map["current_room_id"] = target_id
+	rooms[target_id]["discovered"] = true
+	var path: Array = map.get("path", [])
+	path.append(target_id)
+	if path.size() > 64:
+		path = path.slice(path.size() - 64)
+	map["path"] = path
+	MazeGenerator._discover_adjacent(map, target_id)
+	_store_active_map(map)
+	emit_message("%s 로 이동" % str(rooms[target_id].get("name", target_id)))
+	return true
 
 
 func _next_season(s: String) -> String:
