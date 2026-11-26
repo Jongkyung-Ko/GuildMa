@@ -4,6 +4,7 @@ const TITLE := "res://scenes/title/title.tscn"
 const TOWN := "res://scenes/town/town.tscn"
 const SETTINGS := "res://scenes/title/settings.tscn"
 const FACILITY := "res://scenes/facilities/facility.tscn"
+const GUILD_HALL := "res://scenes/facilities/guild_hall.tscn"
 const COMBAT := "res://scenes/combat/combat.tscn"
 const DUNGEON_HUB := "res://scenes/dungeon/dungeon_hub.tscn"
 
@@ -40,7 +41,11 @@ func go_facility(facility_id: String) -> void:
 	get_tree().root.set_meta("facility_id", facility_id)
 	if AudioManager:
 		AudioManager.on_enter_facility()
-	get_tree().change_scene_to_file(FACILITY)
+	# Guild HQ uses dedicated Guild Hall scene; other facilities keep shared shell.
+	if facility_id == "guild":
+		get_tree().change_scene_to_file(GUILD_HALL)
+	else:
+		get_tree().change_scene_to_file(FACILITY)
 
 
 ## Legacy / test combat (no maze). Hunting maze uses go_hunt().

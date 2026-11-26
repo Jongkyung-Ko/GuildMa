@@ -73,11 +73,16 @@ func _menu_btn(text: String, cb: Callable) -> Button:
 
 
 func _on_new_game() -> void:
+	# Ensure BGM unlock even if the first click was only handled as a GUI press.
+	if AudioManager:
+		AudioManager.unlock_audio()
 	GameState.new_game()
 	SceneRouter.go_town()
 
 
 func _on_continue() -> void:
+	if AudioManager:
+		AudioManager.unlock_audio()
 	if GameState.load_game():
 		SceneRouter.go_town()
 	else:
