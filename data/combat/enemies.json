@@ -2,6 +2,7 @@
   "enemies": [
     {
       "id": "wolf",
+      "sprite": "wolf",
       "name": "늑대",
       "tier": "normal",
       "hp": 60,
@@ -14,8 +15,41 @@
       "behavior": "chase_melee",
       "exp": 12,
       "gold_min": 3,
-      "gold_max": 8,
-      "color": [0.55, 0.42, 0.32, 1.0]
+      "gold_max": 8
+    },
+    {
+      "id": "slime",
+      "sprite": "slime",
+      "name": "슬라임",
+      "tier": "normal",
+      "hp": 45,
+      "atk": 6,
+      "def": 1,
+      "move": 70,
+      "aspd": 0.75,
+      "aggro_range": 700,
+      "attack_range": 24,
+      "behavior": "chase_melee",
+      "exp": 8,
+      "gold_min": 2,
+      "gold_max": 5
+    },
+    {
+      "id": "goblin",
+      "sprite": "goblin",
+      "name": "고블린",
+      "tier": "normal",
+      "hp": 55,
+      "atk": 9,
+      "def": 2,
+      "move": 95,
+      "aspd": 1.0,
+      "aggro_range": 850,
+      "attack_range": 30,
+      "behavior": "chase_melee",
+      "exp": 14,
+      "gold_min": 4,
+      "gold_max": 10
     }
   ]
 }
