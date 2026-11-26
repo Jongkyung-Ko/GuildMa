@@ -59,3 +59,29 @@ godot --headless --path . -s res://scripts/core/validate_audio.gd
 - F5 → `combat_heroic`  
 - F10 → `combat_boss`  
 - `combat` → `tobitate_aoi_sora.mp3`
+
+---
+
+## Web Export / Pages 배포 준비 (2026-11-27 Asia/Seoul)
+
+| 항목 | 결과 |
+|------|------|
+| 브랜치 | `cursor/audio-continuity-bcf8` |
+| 로컬 Web Export | **SUCCESS** (`build/web/` — html/wasm/pck/js OK, MP3 markers in pck) |
+| `validate_audio.gd` | **PASS** |
+| Actions `workflow_dispatch` on PR branch | Run [45864396297](https://github.com/Jongkyung-Ko/GuildMa/actions/runs/45864396297) |
+| Actions Export job | **SUCCESS** |
+| Actions Deploy to GitHub Pages | **FAIL** — `Branch "cursor/audio-continuity-bcf8" is not allowed to deploy to github-pages due to environment protection rules` |
+| Live Pages URL updated with PR12 | **No** (deploy blocked; site still prior `main`) |
+
+### Workflow notes
+
+- `.github/workflows/web-preview.yml` runs on `push` to **`main`** only (+ `workflow_dispatch`).
+- Export writes `build/web/` (does not touch committed `web/`).
+- No workflow change was required for PR12 content; protection rules block non-`main` deploys.
+
+### Next steps for browser testing on GitHub Pages
+
+1. Review/approve and **merge PR #12 into `main`** (do not force-push).  
+2. `main` push auto-runs `web-preview` → Export + Deploy.  
+3. Confirm the new Actions run on `main` is green, then open the Pages URL and test hunt BGM continuity / SFX (first click unlocks audio).
