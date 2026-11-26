@@ -69,7 +69,13 @@ var _shake_base: Vector2 = Vector2.ZERO
 var _attack_elapsed: float = 0.0
 var _attack_timeout: float = 1.6
 ## Instrumentation for automated combat AI tests.
+## attacks_started: attack anim began
+## attacks_landed: melee swing connected OR (legacy) release tick
+## projectiles_fired: mage fireball spawned
+## damage_hits: actual HP damage applied to a living target (melee or bolt impact)
 var attacks_landed: int = 0
+var projectiles_fired: int = 0
+var damage_hits: int = 0
 var heals_landed: int = 0
 
 
@@ -196,6 +202,7 @@ func _apply_role_offsets() -> void:
 
 func _build_visuals() -> void:
 	var shape := CollisionShape2D.new()
+	shape.name = "CollisionShape2D"
 	var circle := CircleShape2D.new()
 	circle.radius = 12.0
 	shape.shape = circle
@@ -432,7 +439,9 @@ func _apply_pending_damage() -> void:
 
 	if job == "mage" and team == Team.ALLY:
 		_launch_fireball(target, _pending_damage)
+		# attacks_landed = release/spawn tick; damage_hits increments on bolt impact.
 		attacks_landed += 1
+		projectiles_fired += 1
 		return
 
 	# Melee / monster hit
@@ -443,6 +452,7 @@ func _apply_pending_damage() -> void:
 	var heavy := job in ["tank", "lord"]
 	target.take_damage(_pending_damage, self, {"heavy": heavy})
 	attacks_landed += 1
+	damage_hits += 1
 	if heavy and _manager != null and _manager.has_method("shake_camera"):
 		_manager.shake_camera(2.8 if job == "tank" else 1.8, 0.1)
 		CombatFx.hit_stop(_manager, 0.045 if job == "tank" else 0.03)
@@ -773,11 +783,21 @@ func reset_for_next_encounter() -> void:
 		_play_anim("idle", true)
 	if _name_label:
 		_name_label.modulate = Color(1, 1, 1, 1)
-	var cs := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var cs := _collision_shape()
 	if cs:
 		cs.disabled = false
 	set_physics_process(true)
 	visible = true
+
+
+func _collision_shape() -> CollisionShape2D:
+	var named := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if named:
+		return named
+	for c in get_children():
+		if c is CollisionShape2D:
+			return c as CollisionShape2D
+	return null
 
 
 func _spawn_melee_vfx(target: CombatCharacter) -> void:
@@ -958,7 +978,7 @@ func _die() -> void:
 	died.emit(self)
 	if _manager != null and _manager.has_method("log_combat"):
 		_manager.log_combat("%s 전투불능" % display_name)
-	var cs := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var cs := _collision_shape()
 	if cs:
 		cs.disabled = true
 	set_physics_process(false)

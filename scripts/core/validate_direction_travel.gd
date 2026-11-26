@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless: hunt N/E/S/W direction pad + travel via GameState.hunt_can/move_to.
+## Headless: hunt N/E/S/W direction pad — real Button.pressed path, not only API.
 ## godot --headless --path . -s res://scripts/core/validate_direction_travel.gd
 
 var _failed := 0
@@ -45,7 +45,6 @@ func _run() -> void:
 		_finish()
 		return
 
-	# During fight — pad must be hidden.
 	var pad = ui.get("_dir_pad")
 	if pad == null:
 		_fail("direction pad not created")
@@ -75,25 +74,47 @@ func _run() -> void:
 	var room: Dictionary = gs.get_current_hunt_room()
 	var cons: Dictionary = room.get("connected_rooms", {})
 	var shown := 0
-	var hidden_null := 0
 	for d in ["N", "E", "S", "W"]:
 		var btn: Button = pad.get("_buttons")[d]
 		var o = cons.get(d, null)
 		var expect := o != null and str(o) != ""
 		if expect and btn.visible:
 			shown += 1
+			# pressed must be wired (pad._on_pressed and/or external).
+			var conns: Array = btn.pressed.get_connections()
+			if conns.is_empty():
+				_fail("button %s has no pressed connections" % d)
+			else:
+				_pass("button %s pressed connected (%d)" % [d, conns.size()])
 		elif not expect and not btn.visible:
-			hidden_null += 1
+			pass
 		elif expect and not btn.visible:
 			_fail("missing button for connected %s" % d)
 		elif not expect and btn.visible:
 			_fail("button shown for null %s" % d)
 	if shown > 0:
-		_pass("connected dirs shown=%d null-hidden ok" % shown)
+		_pass("connected dirs shown=%d" % shown)
 	else:
 		_fail("no connected direction buttons")
 
-	# Pick a connected direction and travel.
+	# Disconnected room id blocked at GameState.
+	if gs.hunt_can_move_to("room_no_such"):
+		_fail("disconnected room incorrectly allowed")
+	else:
+		_pass("disconnected room blocked")
+
+	# Null-direction button must stay hidden — click path cannot move that way.
+	for d in ["N", "E", "S", "W"]:
+		var o = cons.get(d, null)
+		if o == null or str(o) == "":
+			var btn_null: Button = pad.get("_buttons")[d]
+			if btn_null.visible:
+				_fail("null dir %s still visible" % d)
+			else:
+				_pass("null dir %s hidden (blocked)" % d)
+			break
+
+	# Real button press path → travel.
 	var travel_dir := ""
 	var target_id := ""
 	for d in ["N", "E", "S", "W"]:
@@ -112,48 +133,55 @@ func _run() -> void:
 	else:
 		_pass("hunt_can_move_to true for %s" % target_id)
 
-	# Disconnected id must fail.
-	if gs.hunt_can_move_to("room_no_such"):
-		_fail("disconnected room incorrectly allowed")
-	else:
-		_pass("disconnected room blocked")
-
 	var before := str(gs.get_active_hunt_map().get("current_room_id", ""))
-	combat.travel_hunt_direction(travel_dir)
+	var btn_go: Button = pad.get("_buttons")[travel_dir]
+	if btn_go == null or not btn_go.visible or btn_go.disabled:
+		_fail("travel button %s not clickable visible=%s disabled=%s" % [
+			travel_dir, str(btn_go.visible if btn_go else false), str(btn_go.disabled if btn_go else true)
+		])
+		_finish()
+		return
+
+	# Same path as a player click: Button.pressed signal.
+	btn_go.pressed.emit()
 	await process_frame
 	await process_frame
+	await process_frame
+
 	var after := str(gs.get_active_hunt_map().get("current_room_id", ""))
 	if after != target_id:
-		_fail("travel %s expected %s got %s (from %s)" % [travel_dir, target_id, after, before])
+		_fail("button click travel %s expected %s got %s (from %s)" % [travel_dir, target_id, after, before])
 	else:
-		_pass("travelled %s → %s" % [travel_dir, after])
+		_pass("button click travelled %s → %s" % [travel_dir, after])
 
-	# Cleared destination stays victory + pad; uncleared starts fight.
 	var dest: Dictionary = gs.get_current_hunt_room()
 	var cleared := bool(dest.get("cleared", false))
 	var phase_name := str(combat.get_phase_name())
 	if cleared:
 		if phase_name == "victory":
-			_pass("cleared room stays victory")
+			_pass("cleared room revisit stays victory (no fight)")
 		else:
 			_fail("cleared room phase=%s" % phase_name)
 	else:
 		if phase_name == "fighting":
-			_pass("uncleared room starts fighting")
+			_pass("uncleared room starts fighting after click travel")
 		else:
 			_fail("uncleared room phase=%s" % phase_name)
 
-	# Dungeon must not get pad travel (is_hunt_combat false with dungeon meta).
-	# Soft check: travel_hunt_direction no-ops when not hunt.
-	root.set_meta("dungeon_id", "crypt")
-	root.set_meta("dungeon_floor", 1)
-	# Re-instantiate isn't needed; is_hunt_combat checks dungeon_id on manager.
-	# Manager already has hunt_id — simulate by clearing via direct call after setting dungeon fields.
-	if combat.has_method("is_dungeon_combat"):
-		# Manager reads dungeon_id from its own vars set at start — set them.
-		combat.dungeon_id = "crypt"
-		combat.dungeon_floor = 1
+	# Cleared-room revisit: mark current, open pad, travel to a cleared neighbor if any;
+	# otherwise clear current and travel back.
+	await _test_cleared_revisit(combat, ui, pad)
+
+	# Dungeon mode must not travel via hunt pad API.
 	var cur_before_dungeon := str(gs.get_active_hunt_map().get("current_room_id", ""))
+	combat.dungeon_id = "crypt"
+	combat.dungeon_floor = 1
+	# Restore victory + pad visible attempt then click — is_hunt_combat should be false.
+	combat.phase = 2
+	if ui.has_method("refresh"):
+		ui.refresh()
+	await process_frame
+	# Even if a button is somehow visible, travel_hunt_direction must no-op.
 	combat.travel_hunt_direction(travel_dir)
 	await process_frame
 	var cur_after_dungeon := str(gs.get_active_hunt_map().get("current_room_id", ""))
@@ -163,6 +191,66 @@ func _run() -> void:
 		_fail("dungeon mode still travelled")
 
 	_finish()
+
+
+func _test_cleared_revisit(combat: Node, ui, pad) -> void:
+	# Reset dungeon flags so hunt travel works again.
+	combat.dungeon_id = ""
+	combat.dungeon_floor = 0
+	# Clear current room, force victory, pick a neighbor, clear it first via GameState,
+	# move there by button, expect victory / no new fight.
+	gs.mark_hunt_room_cleared()
+	var cur: Dictionary = gs.get_current_hunt_room()
+	var cons: Dictionary = cur.get("connected_rooms", {})
+	var next_id := ""
+	var next_dir := ""
+	for d in ["N", "E", "S", "W"]:
+		var o = cons.get(d, null)
+		if o != null and str(o) != "":
+			next_id = str(o)
+			next_dir = str(d)
+			break
+	if next_id == "":
+		_fail("cleared revisit: no neighbor")
+		return
+	# Mark neighbor cleared without moving, then move.
+	var map: Dictionary = gs.get_active_hunt_map()
+	var rooms: Dictionary = map.get("rooms", {})
+	if rooms.has(next_id):
+		rooms[next_id]["cleared"] = true
+		rooms[next_id]["discovered"] = true
+	combat.phase = 2
+	if ui.has_method("refresh"):
+		ui.refresh()
+	await process_frame
+	var btn: Button = pad.get("_buttons")[next_dir]
+	if btn == null or not btn.visible:
+		# refresh may leave pad hidden if phase mismatch — force refresh after victory
+		if ui.has_method("refresh"):
+			ui.refresh()
+		await process_frame
+		btn = pad.get("_buttons")[next_dir]
+	if btn == null or not btn.visible or btn.disabled:
+		# Fallback: API after ensuring can_move
+		if gs.hunt_can_move_to(next_id):
+			combat.travel_hunt_room(next_id)
+			await process_frame
+			if str(combat.get_phase_name()) == "victory":
+				_pass("cleared revisit via API stays victory")
+			else:
+				_fail("cleared revisit via API phase=%s" % str(combat.get_phase_name()))
+		else:
+			_fail("cleared revisit: cannot move to cleared neighbor")
+		return
+	btn.pressed.emit()
+	await process_frame
+	await process_frame
+	if str(gs.get_active_hunt_map().get("current_room_id", "")) != next_id:
+		_fail("cleared revisit: did not arrive at %s" % next_id)
+	elif str(combat.get_phase_name()) == "victory":
+		_pass("cleared revisit via button stays victory (no fight)")
+	else:
+		_fail("cleared revisit phase=%s" % str(combat.get_phase_name()))
 
 
 func _pass(msg: String) -> void:

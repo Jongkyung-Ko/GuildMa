@@ -242,15 +242,18 @@ func _reload_room_encounter() -> void:
 		_ui.refresh()
 		return
 	# Revive allies lightly for next fight and clear attack soft-locks.
+	# Capture death BEFORE reset_for_next_encounter() clears is_dead.
 	for a in _allies:
 		if a == null or not is_instance_valid(a):
 			continue
+		var was_dead: bool = bool(a.get("is_dead")) or float(a.hp) <= 0.0
+		var hp_before: float = float(a.hp)
 		if a.has_method("reset_for_next_encounter"):
 			a.reset_for_next_encounter()
-		if bool(a.get("is_dead")) or float(a.hp) <= 0.0:
+		if was_dead:
 			a.hp = maxf(1.0, float(a.hp_max) * 0.35)
 		else:
-			a.hp = minf(float(a.hp_max), float(a.hp) + float(a.hp_max) * 0.15)
+			a.hp = minf(float(a.hp_max), hp_before + float(a.hp_max) * 0.15)
 		if a.has_signal("hp_changed"):
 			a.hp_changed.emit(a.hp, a.hp_max)
 	_spawn_enemies()
