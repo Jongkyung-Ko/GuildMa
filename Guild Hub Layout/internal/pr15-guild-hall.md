@@ -60,7 +60,12 @@
 | `validate_phase2_1.gd` | **PASS** |
 | `validate_hunt_maze.gd` | **PASS** |
 | 길드 홀 씬 인스턴스 | **PASS** |
+| 길드 홀 메인 UI 캡처 | **PASS** |
+| 멤버 선택 패널 갱신 | **PASS** |
+| 사냥 파티 편성 오버레이 | **PASS** |
+| 상세 능력치 창 | **PASS** |
 | 브라우저 Pages 실플레이 | **NOT VERIFIED** (미병합) |
+| 타이틀 실클릭(자동화 에이전트) | **NOT VERIFIED** (환경 이슈; 캡처 스크립트로 홀 검증) |
 
 ## 8. 향후
 
