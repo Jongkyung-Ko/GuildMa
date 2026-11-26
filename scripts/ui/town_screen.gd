@@ -1,15 +1,18 @@
 extends Control
 
+## Town hub: premium environment art + facility hotspots.
+## Building sprites are used as hover markers; the painted town_bg carries the world detail.
+
 const BUILDINGS := [
-	{"id": "blacksmith", "tex": "res://assets/sprites/buildings/blacksmith.png", "pos": Vector2(180, 280), "label_off": Vector2(0, -28)},
-	{"id": "shop", "tex": "res://assets/sprites/buildings/shop.png", "pos": Vector2(160, 420), "label_off": Vector2(0, -28)},
-	{"id": "inn", "tex": "res://assets/sprites/buildings/inn.png", "pos": Vector2(220, 540), "label_off": Vector2(0, -28)},
-	{"id": "guild", "tex": "res://assets/sprites/buildings/guild_hq.png", "pos": Vector2(560, 250), "label_off": Vector2(0, -32)},
-	{"id": "training", "tex": "res://assets/sprites/buildings/training.png", "pos": Vector2(920, 280), "label_off": Vector2(0, -28)},
-	{"id": "warehouse", "tex": "res://assets/sprites/buildings/warehouse.png", "pos": Vector2(960, 420), "label_off": Vector2(0, -28)},
-	{"id": "quest", "tex": "res://assets/sprites/buildings/quest_board.png", "pos": Vector2(780, 470), "label_off": Vector2(0, -28)},
-	{"id": "infirmary", "tex": "res://assets/sprites/buildings/infirmary.png", "pos": Vector2(720, 330), "label_off": Vector2(0, -28)},
-	{"id": "gate", "tex": "res://assets/sprites/buildings/gate.png", "pos": Vector2(1040, 560), "label_off": Vector2(0, -28)},
+	{"id": "blacksmith", "tex": "res://assets/sprites/buildings/blacksmith.png", "pos": Vector2(150, 210), "hit": Vector2(120, 130)},
+	{"id": "shop", "tex": "res://assets/sprites/buildings/shop.png", "pos": Vector2(110, 400), "hit": Vector2(120, 120)},
+	{"id": "inn", "tex": "res://assets/sprites/buildings/inn.png", "pos": Vector2(200, 520), "hit": Vector2(120, 120)},
+	{"id": "guild", "tex": "res://assets/sprites/buildings/guild_hq.png", "pos": Vector2(520, 150), "hit": Vector2(170, 170)},
+	{"id": "training", "tex": "res://assets/sprites/buildings/training.png", "pos": Vector2(900, 170), "hit": Vector2(140, 130)},
+	{"id": "warehouse", "tex": "res://assets/sprites/buildings/warehouse.png", "pos": Vector2(980, 380), "hit": Vector2(130, 130)},
+	{"id": "quest", "tex": "res://assets/sprites/buildings/quest_board.png", "pos": Vector2(700, 430), "hit": Vector2(110, 110)},
+	{"id": "infirmary", "tex": "res://assets/sprites/buildings/infirmary.png", "pos": Vector2(740, 280), "hit": Vector2(120, 120)},
+	{"id": "gate", "tex": "res://assets/sprites/buildings/gate.png", "pos": Vector2(1020, 520), "hit": Vector2(150, 140)},
 ]
 
 var _toast: Label
@@ -42,37 +45,42 @@ func _build_world() -> void:
 
 
 func _add_building(b: Dictionary) -> void:
+	var hit: Vector2 = b.get("hit", Vector2(120, 120))
 	var root := Control.new()
 	root.position = b["pos"]
+	root.custom_minimum_size = hit
+	root.size = hit
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(root)
+
+	# Soft ground plate so clickable facilities remain readable on busy art.
+	var plate := ColorRect.new()
+	plate.color = Color(0.05, 0.07, 0.12, 0.0)
+	plate.size = hit
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(plate)
 
 	var tex: Texture2D = load(b["tex"])
 	var sprite := TextureRect.new()
 	sprite.texture = tex
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	sprite.custom_minimum_size = tex.get_size()
-	sprite.size = tex.get_size()
+	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	sprite.size = hit
+	# Start mostly transparent — town_bg already paints architecture; sprite appears on hover.
+	sprite.modulate = Color(1, 1, 1, 0.15)
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(sprite)
-	root.custom_minimum_size = tex.get_size()
-	root.size = tex.get_size()
 
 	var label := UIStyle.label(UIStyle.facility_name(b["id"]), 14, UIStyle.GOLD_BRIGHT)
-	label.position = b["label_off"] + Vector2(tex.get_width() * 0.5 - 40, 0)
+	label.position = Vector2(8, -22)
 	label.visible = false
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(label)
 
-	var hover := ColorRect.new()
-	hover.color = Color(1, 0.9, 0.4, 0.0)
-	hover.size = tex.get_size()
-	hover.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(hover)
-
 	var btn := Button.new()
 	btn.flat = true
-	btn.size = tex.get_size()
+	btn.size = hit
 	btn.modulate = Color(1, 1, 1, 0)
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.tooltip_text = UIStyle.facility_name(b["id"])
@@ -80,13 +88,13 @@ func _add_building(b: Dictionary) -> void:
 
 	btn.mouse_entered.connect(func():
 		label.visible = true
-		hover.color = Color(1, 0.85, 0.3, 0.18)
-		sprite.modulate = Color(1.15, 1.1, 0.95)
+		plate.color = Color(0.95, 0.82, 0.35, 0.18)
+		sprite.modulate = Color(1.1, 1.05, 0.95, 0.92)
 	)
 	btn.mouse_exited.connect(func():
 		label.visible = false
-		hover.color = Color(1, 0.9, 0.4, 0.0)
-		sprite.modulate = Color(1, 1, 1)
+		plate.color = Color(0.05, 0.07, 0.12, 0.0)
+		sprite.modulate = Color(1, 1, 1, 0.15)
 	)
 	btn.pressed.connect(func(): SceneRouter.go_facility(b["id"]))
 
@@ -148,8 +156,8 @@ func _build_hud() -> void:
 	_toast.set_anchors_preset(PRESET_BOTTOM_WIDE)
 	_toast.offset_left = 20
 	_toast.offset_right = -20
-	_toast.offset_top = -48
-	_toast.offset_bottom = -16
+	_toast.offset_top = -40
+	_toast.offset_bottom = -12
 	add_child(_toast)
 
 

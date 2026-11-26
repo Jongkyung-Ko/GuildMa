@@ -166,6 +166,7 @@ func _apply_display_adapt() -> void:
 
 
 static func panel_style(active: bool = false) -> StyleBoxFlat:
+	# Painted collage crops are unreliable as 9-slice sources; keep coherent flat panels.
 	var s := StyleBoxFlat.new()
 	s.bg_color = PANEL_BG if not active else Color(0.18, 0.16, 0.1, 0.95)
 	s.border_color = GOLD_BRIGHT if active else GOLD
@@ -175,9 +176,10 @@ static func panel_style(active: bool = false) -> StyleBoxFlat:
 	s.content_margin_right = 12
 	s.content_margin_top = 10
 	s.content_margin_bottom = 10
-	s.shadow_color = Color(0, 0, 0, 0.35)
-	s.shadow_size = 4
+	s.shadow_color = Color(0, 0, 0, 0.45)
+	s.shadow_size = 6
 	return s
+
 
 
 static func button_normal() -> StyleBoxFlat:

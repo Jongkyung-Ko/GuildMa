@@ -1,7 +1,7 @@
 === Phase 2-1 validation start ===
 Godot: 4.3-stable (official)
 Display driver note: running as -s SceneTree script
-Time UTC: 2026-11-24T22:44:55
+Time UTC: 2026-11-26T06:31:57
 PASS: Autoloads GameState/SceneRouter/UIStyle present
 Party members after new_game: 5
   - 아렌 job=lord lv=1
@@ -20,27 +20,27 @@ PASS: town.tscn instantiated
 SHOT: /agent/repos/GuildMa/docs/reviews/phase2_1_artifacts/03_facility_gate.png
 PASS: facility.tscn (gate) instantiated
 --- Load combat ---
-Spawned allies=5 enemies=2
+Spawned allies=5 enemies=3
 PASS: 5 allies spawned
-PASS: Enemies spawned: 2 (species from enemies.json)
-  ally 아렌 hp=192.0/192.0 pos=(232.2648, 279.786)
-  ally 가렌 hp=208.0/208.0 pos=(190.7215, 358.7455)
-  ally 리사 hp=148.0/148.0 pos=(273.0387, 417.2123)
-  ally 세이라 hp=160.0/160.0 pos=(171.3813, 220.6523)
-  ally 카이 hp=136.0/136.0 pos=(310.7373, 338.8384)
-  enemy 늑대 hp=60.0/60.0 pos=(968.4023, 267.6819)
-  enemy 늑대 hp=60.0/60.0 pos=(1031.782, 361.3996)
+PASS: Enemies spawned: 3 (species from enemies.json)
+  ally 아렌 hp=192.0/192.0 pos=(238.1815, 282.8271)
+  ally 가렌 hp=208.0/208.0 pos=(196.1808, 360.6034)
+  ally 리사 hp=148.0/148.0 pos=(279.9745, 418.991)
+  ally 세이라 hp=160.0/160.0 pos=(176.6897, 223.7235)
+  ally 카이 hp=136.0/136.0 pos=(316.1517, 341.251)
+  enemy 늑대 hp=60.0/60.0 pos=(943.9144, 276.2965)
+  enemy 슬라임 hp=45.0/45.0 pos=(1046.559, 372.7922)
+  enemy 고블린 hp=55.0/55.0 pos=(899.2881, 386.4153)
 SHOT: /agent/repos/GuildMa/docs/reviews/phase2_1_artifacts/04_combat_start.png
 PASS: Ally auto-move observed (아렌 moved)
-PASS: Enemy HP decreased (120.0 -> 110.5)
+PASS: Enemy HP decreased (160.0 -> 150.5)
 SHOT: /agent/repos/GuildMa/docs/reviews/phase2_1_artifacts/05_combat_mid_90f.png
-... tick 120 ehp=50.5 phase=fighting
-Combat ended phase=victory frames=191
-Dead enemies at end: 2 / 2
+Combat ended phase=victory frames=92
+Dead enemies at end: 3 / 3
 PASS: Enemy death handled (is_dead)
 PASS: Combat ended in victory
 SHOT: /agent/repos/GuildMa/docs/reviews/phase2_1_artifacts/06_combat_end.png
 NOTE: pause toggle skipped (combat already finished)
 PASS: SceneRouter.go_combat and go_town exist
-Ally HP total start=844.0 end=844.0
+Ally HP total start=844.0 end=833.5
 === RESULT: PASS ===

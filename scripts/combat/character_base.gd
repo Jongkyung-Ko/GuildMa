@@ -2,24 +2,17 @@ class_name CombatCharacter
 extends CharacterBody2D
 
 ## Phase 2-1: shared ally/enemy combatant with auto-move and basic attack.
-## No player WASD control.
+## Visuals: premium pixel sprites via AnimatedSprite2D (no ColorRect bodies).
 
 signal hp_changed(current: float, maximum: float)
 signal died(who: CombatCharacter)
 
 enum Team { ALLY, ENEMY }
 
-const JOB_COLORS := {
-	"lord": Color(0.95, 0.82, 0.35),
-	"tank": Color(0.35, 0.55, 0.9),
-	"dps": Color(0.9, 0.35, 0.35),
-	"healer": Color(0.4, 0.85, 0.5),
-	"mage": Color(0.65, 0.4, 0.9),
-}
-
 var team: Team = Team.ALLY
 var display_name: String = ""
 var job: String = ""
+var enemy_kind: String = "wolf"
 var member_id: String = ""
 var hp: float = 1.0
 var hp_max: float = 1.0
@@ -33,10 +26,12 @@ var is_dead: bool = false
 
 var _atk_timer: float = 0.0
 var _manager: Node = null
-var _body: ColorRect
+var _sprite: AnimatedSprite2D
 var _name_label: Label
 var _hp_bar: ProgressBar
 var _flash_t: float = 0.0
+var _attacking: bool = false
+var _face_right: bool = true
 
 
 func _ready() -> void:
@@ -78,6 +73,7 @@ func setup_from_enemy(data: Dictionary) -> void:
 	member_id = str(data.get("id", "enemy"))
 	display_name = str(data.get("name", "적"))
 	job = "enemy"
+	enemy_kind = str(data.get("sprite", data.get("id", "wolf")))
 	hp_max = float(data.get("hp", 60))
 	hp = hp_max
 	atk = float(data.get("atk", 8))
@@ -89,13 +85,9 @@ func setup_from_enemy(data: Dictionary) -> void:
 	aggro_range = float(data.get("aggro_range", 900))
 	if is_inside_tree():
 		_refresh_visuals()
-		var col: Array = data.get("color", [0.55, 0.42, 0.32, 1.0])
-		if col.size() >= 3 and _body:
-			_body.color = Color(float(col[0]), float(col[1]), float(col[2]), float(col[3]) if col.size() > 3 else 1.0)
 
 
 func _apply_role_offsets() -> void:
-	# Light role differentiation for Phase 2-1 (full tactics later).
 	match job:
 		"tank":
 			attack_range = 32.0
@@ -122,26 +114,27 @@ func _build_visuals() -> void:
 	shape.shape = circle
 	add_child(shape)
 
-	_body = ColorRect.new()
-	_body.size = Vector2(28, 28)
-	_body.position = Vector2(-14, -14)
-	_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_body)
+	_sprite = AnimatedSprite2D.new()
+	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sprite.centered = true
+	_sprite.position = Vector2(0, -8)
+	_sprite.animation_finished.connect(_on_anim_finished)
+	add_child(_sprite)
 
 	_hp_bar = ProgressBar.new()
 	_hp_bar.min_value = 0
 	_hp_bar.max_value = 100
 	_hp_bar.value = 100
 	_hp_bar.show_percentage = false
-	_hp_bar.size = Vector2(36, 6)
-	_hp_bar.position = Vector2(-18, -28)
+	_hp_bar.size = Vector2(40, 6)
+	_hp_bar.position = Vector2(-20, -40)
 	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_hp_bar)
 
 	_name_label = Label.new()
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name_label.position = Vector2(-40, -46)
-	_name_label.size = Vector2(80, 16)
+	_name_label.position = Vector2(-48, -56)
+	_name_label.size = Vector2(96, 16)
 	_name_label.add_theme_font_size_override("font_size", 11)
 	_name_label.add_theme_color_override("font_color", Color(0.95, 0.93, 0.88))
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -154,13 +147,38 @@ func _build_visuals() -> void:
 func _refresh_visuals() -> void:
 	if _name_label:
 		_name_label.text = display_name
-	if _body:
-		if team == Team.ALLY:
-			_body.color = JOB_COLORS.get(job, Color(0.7, 0.7, 0.7))
-		# enemy color set in setup_from_enemy
 	if _hp_bar:
 		_hp_bar.max_value = hp_max
 		_hp_bar.value = hp
+	if _sprite == null:
+		return
+	if team == Team.ALLY:
+		_sprite.sprite_frames = SpriteFactory.ally_frames(job if job != "" else "dps")
+		_face_right = true
+	else:
+		_sprite.sprite_frames = SpriteFactory.enemy_frames(enemy_kind)
+		_face_right = false
+	# Source sheets face right; flip_h faces left.
+	_sprite.flip_h = not _face_right
+	_play_safe("idle")
+
+
+func _play_safe(anim: String) -> void:
+	if _sprite == null or _sprite.sprite_frames == null:
+		return
+	if not _sprite.sprite_frames.has_animation(anim):
+		return
+	if _sprite.animation == anim and _sprite.is_playing():
+		return
+	_sprite.play(anim)
+
+
+func _on_anim_finished() -> void:
+	if is_dead:
+		return
+	if _attacking:
+		_attacking = false
+		_play_safe("idle")
 
 
 func _physics_process(delta: float) -> void:
@@ -168,30 +186,41 @@ func _physics_process(delta: float) -> void:
 		return
 	if _manager != null and _manager.has_method("is_combat_active") and not _manager.is_combat_active():
 		velocity = Vector2.ZERO
+		if not _attacking:
+			_play_safe("idle")
 		return
 
 	if _flash_t > 0.0:
 		_flash_t -= delta
-		if _body and _flash_t <= 0.0:
-			_refresh_visuals()
+		if _sprite and _flash_t <= 0.0:
+			_sprite.modulate = Color(1, 1, 1, 1)
 
 	_atk_timer = maxf(0.0, _atk_timer - delta)
 	var target := _find_target()
 	if target == null:
 		velocity = Vector2.ZERO
+		if not _attacking:
+			_play_safe("idle")
 		return
 
 	var dist := global_position.distance_to(target.global_position)
+	var dir := (target.global_position - global_position).normalized()
+	if absf(dir.x) > 0.05:
+		_face_right = dir.x > 0.0
+		_sprite.flip_h = not _face_right
+
 	if dist > attack_range:
-		var dir := (target.global_position - global_position).normalized()
-		# Mage/healer keep a soft preferred distance when close enough to shoot.
 		if team == Team.ALLY and job in ["mage", "healer"] and dist < attack_range * 0.55:
 			dir = -dir
 		velocity = dir * move_speed
 		move_and_slide()
 		_clamp_to_field()
+		if not _attacking:
+			_play_safe("walk")
 	else:
 		velocity = Vector2.ZERO
+		if not _attacking:
+			_play_safe("idle")
 		if _atk_timer <= 0.0:
 			_perform_attack(target)
 
@@ -224,6 +253,9 @@ func _perform_attack(target: CombatCharacter) -> void:
 	_atk_timer = attack_interval
 	if target == null or target.is_dead:
 		return
+	_attacking = true
+	_play_safe("attack")
+	_spawn_attack_vfx(target)
 	var mit: float = 0.5
 	if _manager != null and _manager.has_method("get_def_mitigation"):
 		mit = float(_manager.get_def_mitigation())
@@ -234,6 +266,35 @@ func _perform_attack(target: CombatCharacter) -> void:
 		_manager.log_combat("%s → %s  %d" % [display_name, target.display_name, int(round(dmg))])
 
 
+func _spawn_attack_vfx(target: CombatCharacter) -> void:
+	var kind := "slash"
+	if team == Team.ALLY:
+		match job:
+			"mage":
+				kind = "magic"
+			"healer":
+				kind = "heal"
+			_:
+				kind = "slash"
+	else:
+		kind = "hit"
+	var vfx := AnimatedSprite2D.new()
+	vfx.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	vfx.sprite_frames = SpriteFactory.vfx_frames(kind)
+	vfx.z_index = 20
+	var parent_node: Node = get_parent()
+	if parent_node:
+		parent_node.add_child(vfx)
+	else:
+		add_child(vfx)
+	vfx.global_position = target.global_position + Vector2(0, -12)
+	vfx.play("play")
+	vfx.animation_finished.connect(func():
+		if is_instance_valid(vfx):
+			vfx.queue_free()
+	)
+
+
 func take_damage(amount: float, _attacker: CombatCharacter = null) -> void:
 	if is_dead:
 		return
@@ -242,8 +303,10 @@ func take_damage(amount: float, _attacker: CombatCharacter = null) -> void:
 		_hp_bar.value = hp
 	hp_changed.emit(hp, hp_max)
 	_flash_t = 0.12
-	if _body:
-		_body.color = Color(1, 1, 1, 1)
+	if _sprite:
+		_sprite.modulate = Color(1.4, 0.7, 0.7, 1)
+		if not _attacking:
+			_play_safe("hit")
 	if hp <= 0.0:
 		_die()
 
@@ -253,14 +316,16 @@ func _die() -> void:
 		return
 	is_dead = true
 	velocity = Vector2.ZERO
-	if _body:
-		_body.color = Color(0.2, 0.2, 0.2, 0.55)
+	_attacking = false
+	if _sprite:
+		_sprite.modulate = Color(0.45, 0.45, 0.5, 0.75)
+		_play_safe("death")
+		_sprite.pause()
 	if _hp_bar:
 		_hp_bar.value = 0
 	died.emit(self)
 	if _manager != null and _manager.has_method("log_combat"):
 		_manager.log_combat("%s 전투불능" % display_name)
-	# Keep node for UI; disable collision.
 	var cs := get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if cs:
 		cs.disabled = true

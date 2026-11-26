@@ -122,23 +122,15 @@ func _ensure_game_state() -> void:
 
 
 func _build_ground() -> void:
-	var ground := ColorRect.new()
+	var ground := Sprite2D.new()
 	ground.name = "Ground"
+	ground.centered = false
 	ground.position = Vector2(0, 0)
-	ground.size = Vector2(1280, 720)
-	ground.color = Color(0.14, 0.22, 0.14, 1)
-	ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ground.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if ResourceLoader.exists("res://assets/backgrounds/combat_bg.png"):
+		ground.texture = load("res://assets/backgrounds/combat_bg.png")
 	_battlefield.add_child(ground)
 	_battlefield.move_child(ground, 0)
-
-	# Simple path / clearing
-	var clearing := ColorRect.new()
-	clearing.position = Vector2(80, 100)
-	clearing.size = Vector2(1120, 480)
-	clearing.color = Color(0.18, 0.28, 0.16, 1)
-	clearing.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_battlefield.add_child(clearing)
-	_battlefield.move_child(clearing, 1)
 
 
 func _spawn_party() -> void:
@@ -179,21 +171,27 @@ func _spawn_party() -> void:
 
 func _spawn_enemies() -> void:
 	var list: Array = enemy_catalog.get("enemies", [])
-	var wolf: Dictionary = {}
-	for e in list:
-		if str(e.get("id", "")) == "wolf":
-			wolf = e
-			break
-	if wolf.is_empty() and list.size() > 0:
-		wolf = list[0]
-	var count: int = int(balance.get("enemy_count_phase_2_1", 2))
+	if list.is_empty():
+		return
+	# Prefer a mixed encounter of up to 3 distinct monsters when available.
+	var roster: Array = []
+	for id_wanted in ["wolf", "slime", "goblin"]:
+		for e in list:
+			if str(e.get("id", "")) == id_wanted:
+				roster.append(e)
+				break
+	if roster.is_empty():
+		roster.append(list[0])
+	var count: int = int(balance.get("enemy_count_phase_2_1", 3))
+	count = clampi(count, 1, maxi(3, roster.size()))
 	var slots := [Vector2(980, 260), Vector2(1040, 380), Vector2(920, 400)]
 	for i in range(count):
+		var data: Dictionary = roster[i % roster.size()]
 		var enemy: Node = ENEMY_SCRIPT.new()
-		enemy.name = "Enemy_wolf_%d" % i
+		enemy.name = "Enemy_%s_%d" % [str(data.get("id", "mob")), i]
 		_enemy_root.add_child(enemy)
 		enemy.bind_manager(self)
-		enemy.setup_from_enemy(wolf)
+		enemy.setup_from_enemy(data)
 		enemy.global_position = slots[i % slots.size()] + Vector2(randf_range(-20, 20), randf_range(-20, 20))
 		enemy.died.connect(_on_combatant_died)
 		enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
