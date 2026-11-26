@@ -38,6 +38,12 @@ const COMBAT_KEYS := [
 	"combat_boss",
 ]
 
+const MP3_EXPECT := {
+	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
+	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
+	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+}
+
 
 func _init() -> void:
 	call_deferred("_run")
@@ -123,6 +129,47 @@ func _run() -> void:
 			failed += 1
 		else:
 			_pass("BGM_PATHS[%s] ok" % key)
+
+	# New MP3 cues: present, loadable as AudioStreamMP3, wired in BGM_PATHS.
+	for key in MP3_EXPECT.keys():
+		var mp3_path: String = MP3_EXPECT[key]
+		if not ResourceLoader.exists(mp3_path):
+			print("FAIL: missing MP3 ", mp3_path)
+			failed += 1
+			continue
+		var mp3_stream: AudioStream = load(mp3_path)
+		if mp3_stream == null:
+			print("FAIL: cannot load MP3 ", mp3_path)
+			failed += 1
+			continue
+		if not (mp3_stream is AudioStreamMP3):
+			print("FAIL: expected AudioStreamMP3 for ", mp3_path)
+			failed += 1
+			continue
+		_pass("MP3 load %s → AudioStreamMP3" % key)
+		if not paths.has(key):
+			print("FAIL: BGM_PATHS missing MP3 key %s" % key)
+			failed += 1
+		elif str(paths[key]) != mp3_path:
+			print("FAIL: BGM_PATHS[%s]=%s expected %s" % [key, str(paths[key]), mp3_path])
+			failed += 1
+		else:
+			_pass("BGM_PATHS[%s] → %s" % [key, mp3_path])
+
+	# Title / town entry hooks play the new MP3s.
+	audio.call("unlock_audio")
+	audio.call("on_enter_title")
+	await process_frame
+	if str(audio.call("get_current_bgm")) != "title":
+		print("FAIL: on_enter_title expected title got ", audio.call("get_current_bgm"))
+		failed += 1
+	else:
+		var title_player: AudioStreamPlayer = audio.get("_bgm")
+		if title_player and title_player.stream is AudioStreamMP3:
+			_pass("Title entry plays Sovereign MP3 stream")
+		else:
+			print("FAIL: title stream is not AudioStreamMP3")
+			failed += 1
 
 	var playlist: Array = audio.get("COMBAT_PLAYLIST")
 	var expect := ["combat_epic", "combat_heroic", "combat_metal", "combat_hunting"]

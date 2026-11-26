@@ -14,22 +14,24 @@ const SFX_PATHS := {
 }
 
 const BGM_PATHS := {
-	## Player-provided licensed cues (MP3).
+	## New MP3 cues (title / town). Combat intensity tracks keep OGG pack.
 	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
 	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
-	## Primary combat theme.
+	## Explicit combat cue (MP3). Normal fights still use COMBAT_PLAYLIST shuffle.
 	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	"combat_epic": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	"combat_metal": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	"combat_heroic": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	"combat_hunting": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	## Boss floors keep the dedicated intensity loop.
+	"combat_epic": "res://assets/audio/bgm/03_combat_epic_rock.ogg",
+	"combat_metal": "res://assets/audio/bgm/04_combat_metal_drive.ogg",
+	"combat_heroic": "res://assets/audio/bgm/05_combat_heroic_anthem.ogg",
+	"combat_hunting": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
 	"combat_boss": "res://assets/audio/bgm/06_combat_boss_intensity.ogg",
 }
 
-## Normal combat: single looping theme (Tobitate).
+## Normal combat rotation order (diversity): Epic → Heroic → Metal → Hunting.
 const COMBAT_PLAYLIST := [
-	"combat",
+	"combat_epic",
+	"combat_heroic",
+	"combat_metal",
+	"combat_hunting",
 ]
 
 const SFX_POOL_SIZE := 6
@@ -345,18 +347,21 @@ func _apply_combat_intensity(intensity: String, force: bool) -> void:
 			start_combat_playlist(force)
 
 
-## Normal combat: loop Tobitate (playlist kept for API compatibility).
+## Normal combat: rotate playlist; each track plays to natural end, then fades to next.
 func start_combat_playlist(force: bool = false) -> void:
 	if not _unlocked:
 		_pending_combat_intensity = "normal"
 		_pending_bgm = ""
 		return
-	if not force and _combat_mode == "playlist" and _current_bgm == "combat" and _bgm.playing:
+	if not force and _combat_mode == "playlist" and _bgm.playing:
 		return
 	_kill_fade()
 	_combat_mode = "playlist"
-	_playlist_queue.clear()
-	_switch_to_track("combat", true, true)
+	_rebuild_playlist_queue(true)
+	var next := _pop_next_playlist_track()
+	if next == "":
+		next = "combat_hunting"
+	_switch_to_track(next, false, true)
 
 
 ## Elite encounter: prefer Metal Drive (loop for the fight).

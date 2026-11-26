@@ -12,14 +12,16 @@
 |-----|------|------|
 | `title` | `music/sovereign_of_the_keep.mp3` | Game start / title screen |
 | `town` | `music/morning_dew_on_stone.mp3` | Town + facilities |
-| `combat` | `music/tobitate_aoi_sora.mp3` | Normal / elite / mid combat (loops) |
+| `combat` | `music/tobitate_aoi_sora.mp3` | Explicit `play_bgm("combat")` cue |
+| `combat_epic` … `combat_hunting` | `bgm/03`…`02` OGG | Normal combat shuffle playlist |
+| `combat_metal` / `combat_heroic` | OGG | Elite / mid-boss intensity loops |
 | `combat_boss` | `bgm/06_combat_boss_intensity.ogg` | Final boss floors |
 
-Web browsers require a first click/key before audio starts.
+Normal combat still shuffles Epic → Heroic → Metal → Hunting (end-of-track fade, no consecutive repeat). Web browsers require a first click/key before audio starts.
 
 ## Legacy MIDI / OGG pack
 
-Godot 4.3 HTML5 has **no GM synth**, so older authored `.mid` files were rendered to `.ogg` under `bgm/`. Those remain for boss intensity and as source archives.
+Godot 4.3 HTML5 has **no GM synth**, so older authored `.mid` files were rendered to `.ogg` under `bgm/`. Those remain for combat intensity / playlist and as source archives.
 
 Re-render (dev machine):
 

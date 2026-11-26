@@ -1,0 +1,95 @@
+WEB AUDIO UNLOCK VERIFICATION REPORT
+====================================
+Date: Thursday, Nov 26, 2026, 4:36 PM UTC
+Test URL: http://127.0.0.1:8743/
+Build: Local Godot 4.3 Web Export of GuildMaster
+
+GOAL: Confirm browser autoplay gating — BGM should only start after first user click
+
+TEST PROCEDURE AND RESULTS:
+===========================
+
+1. TITLE SCREEN LOAD
+   Status: ✅ SUCCESS
+   - Opened Chrome to http://127.0.0.1:8743/
+   - Title screen fully loaded
+   - "GuildMaster" branding visible
+   - Menu buttons visible: 새 게임, 이어하기, 설정, 게임 종료
+   - Screenshot: web_before_click.png
+
+2. BEFORE FIRST CLICK - AUDIO STATE
+   Status: ✅ AUTOPLAY BLOCKED (Expected behavior)
+   - Browser tab showed MUTED SPEAKER ICON (speaker with X)
+   - This indicates audio was blocked by browser autoplay policy
+   - No audio context active before user interaction
+   - Screenshot: web_before_click.png
+
+3. AFTER FIRST CLICK - AUDIO STATE
+   Status: ✅ AUDIO UNLOCKED (Expected behavior)
+   - Clicked on empty title background area (coordinates: 400, 250)
+   - Browser tab icon CHANGED from muted to ACTIVE SPEAKER
+   - Tab tooltip confirmed: "This tab is playing audio"
+   - Audio context successfully unlocked after first user interaction
+   - Screenshot: web_after_first_click.png
+   - Screenshot: web_audio_playing_confirmed.png
+
+4. UI INTERACTION TEST
+   Status: ⚠️ BUTTON NON-FUNCTIONAL (Known issue)
+   - Clicked "새 게임" (New Game) button
+   - No scene transition occurred
+   - Remained on title screen
+   - This is a known issue from previous testing (button handlers broken)
+   - Audio remained active (speaker icon still showing)
+   - Screenshot: web_after_newgame_click.png
+
+CONSOLE ERRORS:
+===============
+- DevTools console could not be opened with F12 or Ctrl+Shift+I
+- No visible console errors or warnings on screen
+- Browser's built-in autoplay indicator behavior was normal
+
+VISUAL EVIDENCE OF AUTOPLAY GATING:
+====================================
+Before Click: Muted speaker icon (🔇) in tab = Audio blocked
+After Click:  Active speaker icon (🔊) in tab = Audio playing
+Tooltip:      "This tab is playing audio" message confirmed
+
+VERIFICATION RESULTS:
+=====================
+
+✅ Title screen loaded successfully
+✅ Audio was BLOCKED before first user click (autoplay gating working)
+✅ Audio was UNLOCKED after first user click (expected behavior)
+✅ Browser autoplay policy behaving correctly
+⚠️  UI did NOT change to town screen (button handler issue, not audio issue)
+
+AUDIO VERIFICATION LIMITATION:
+==============================
+⚠️  IMPORTANT: I cannot verify by ear whether audio is actually playing.
+    Visual indicators only:
+    - Browser tab speaker icon changed from muted to active
+    - Tab tooltip states "This tab is playing audio"
+    - These are browser-level indicators of AudioContext state
+
+CONCLUSION:
+===========
+The web audio unlock mechanism is functioning CORRECTLY:
+1. ✅ Audio is blocked on page load (autoplay policy respected)
+2. ✅ Audio unlocks after first user click
+3. ✅ Browser confirms audio context is active post-interaction
+
+The autoplay gating implementation is working as intended.
+
+SCREENSHOTS SAVED:
+==================
+1. /opt/cursor/artifacts/web_before_click.png
+   - Title screen loaded, muted speaker icon visible
+
+2. /opt/cursor/artifacts/web_after_first_click.png
+   - After first click, speaker icon active
+
+3. /opt/cursor/artifacts/web_audio_playing_confirmed.png
+   - Tab tooltip showing "This tab is playing audio"
+
+4. /opt/cursor/artifacts/web_after_newgame_click.png
+   - After attempting to click New Game button
