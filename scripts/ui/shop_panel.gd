@@ -333,11 +333,16 @@ class ShopPanelRoot extends Control:
 			ItemUI.rarity_label(str(item.get("rarity", "common"))),
 			ItemUI.category_label(str(item.get("category"))),
 		], 13, ItemUI.rarity_color(str(item.get("rarity", "common")))))
+		var sub := ItemUI.subcategory_label(str(item.get("subcategory", "")))
+		if sub != "":
+			meta.add_child(UIStyle.label("세부: %s" % sub, 12, UIStyle.TEXT_DIM))
 		if selected_enhance > 0:
 			meta.add_child(UIStyle.label("강화 +%d" % selected_enhance, 13, UIStyle.GOLD_BRIGHT))
 		var slot := str(item.get("slot", ""))
 		if slot != "":
 			meta.add_child(UIStyle.label("장착 부위: %s" % slot, 12, UIStyle.TEXT_DIM))
+		if str(item.get("balance_status", "")) == "proposed":
+			meta.add_child(UIStyle.label("가격/스탯: 제안(미확정)", 11, Color(0.85, 0.7, 0.35)))
 
 		var desc := UIStyle.label(str(item.get("desc", "")), 13, UIStyle.TEXT_DIM)
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

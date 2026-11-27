@@ -29,15 +29,26 @@ func _run() -> void:
 
 	gs.new_game()
 	var catalog: Array = gs.catalog_items
-	if catalog.size() < 20:
-		_fail("item catalog size %d < 20" % catalog.size())
+	if catalog.size() < 160:
+		_fail("item catalog size %d < 160" % catalog.size())
 	else:
 		_pass("item catalog count=%d" % catalog.size())
 
 	var cats := {}
+	var subcats := {}
 	var missing_icons := 0
+	var seen_ids := {}
+	var dup_ids := 0
 	for it in catalog:
+		var iid := str(it.get("id", ""))
+		if seen_ids.has(iid):
+			dup_ids += 1
+			printerr("  duplicate item id ", iid)
+		seen_ids[iid] = true
 		cats[str(it.get("category", ""))] = true
+		var sub := str(it.get("subcategory", ""))
+		if sub != "":
+			subcats[sub] = int(subcats.get(sub, 0)) + 1
 		var icon := str(it.get("icon", ""))
 		if icon == "" or not ResourceLoader.exists(icon):
 			missing_icons += 1
@@ -45,6 +56,62 @@ func _run() -> void:
 	for need in ["weapon", "armor", "accessory", "consumable", "material"]:
 		if not cats.has(need):
 			_fail("missing category %s" % need)
+		else:
+			# Top-level shop filter must still resolve items.
+			var filtered: Array = gs.items_by_category(need)
+			if filtered.is_empty():
+				_fail("shop filter empty for %s" % need)
+			else:
+				_pass("shop filter %s count=%d" % [need, filtered.size()])
+	if dup_ids > 0:
+		_fail("%d duplicate item ids" % dup_ids)
+	else:
+		_pass("item ids unique")
+	# Subcategory minima (brief targets).
+	var need_subs := {
+		"weapon_1h": 16,
+		"weapon_2h": 16,
+		"shield": 12,
+		"body": 20,
+		"special": 8,
+	}
+	for sk in need_subs.keys():
+		var have: int = int(subcats.get(sk, 0))
+		if have < int(need_subs[sk]):
+			_fail("subcategory %s count %d < %d" % [sk, have, int(need_subs[sk])])
+		else:
+			_pass("subcategory %s=%d" % [sk, have])
+	var ranged_magic: int = int(subcats.get("weapon_ranged", 0)) + int(subcats.get("weapon_magic", 0))
+	if ranged_magic < 16:
+		_fail("ranged/magic subcategory sum %d < 16" % ranged_magic)
+	else:
+		_pass("ranged/magic=%d" % ranged_magic)
+	var hgb: int = int(subcats.get("helm", 0)) + int(subcats.get("gloves", 0)) + int(subcats.get("boots", 0))
+	if hgb < 16:
+		_fail("helm/gloves/boots sum %d < 16" % hgb)
+	else:
+		_pass("helm/gloves/boots=%d" % hgb)
+	var acc_n: int = int(subcats.get("ring", 0)) + int(subcats.get("amulet", 0)) + int(subcats.get("belt", 0)) + int(subcats.get("cloak", 0))
+	if acc_n < 16:
+		_fail("accessory subs sum %d < 16" % acc_n)
+	else:
+		_pass("accessory subs=%d" % acc_n)
+	var cons_n: int = int(subcats.get("potion", 0)) + int(subcats.get("elixir", 0)) + int(subcats.get("food", 0)) + int(subcats.get("scroll", 0))
+	if cons_n < 16:
+		_fail("consumable subs sum %d < 16" % cons_n)
+	else:
+		_pass("consumable subs=%d" % cons_n)
+	var craft_n: int = int(subcats.get("ore", 0)) + int(subcats.get("crystal", 0)) + int(subcats.get("hide", 0)) + int(subcats.get("part", 0))
+	if craft_n < 24:
+		_fail("craft mat subs sum %d < 24" % craft_n)
+	else:
+		_pass("craft mat subs=%d" % craft_n)
+	# Preserve baseline starter prices used by shop/smith tests.
+	var sword: Dictionary = gs.get_item("sword_basic")
+	if int(sword.get("price", 0)) != 2400:
+		_fail("sword_basic price changed")
+	else:
+		_pass("sword_basic price preserved")
 	if missing_icons > 0:
 		_fail("%d items missing icon assets" % missing_icons)
 	else:

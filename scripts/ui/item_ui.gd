@@ -20,7 +20,33 @@ const CATEGORY_LABELS := {
 	"material": "재료",
 }
 
+## Shop top-level filters stay these five; subcategory is display/data only.
 const CATEGORY_ORDER := ["weapon", "armor", "accessory", "consumable", "material"]
+
+const SUBCATEGORY_LABELS := {
+	"weapon_1h": "한손 무기",
+	"weapon_2h": "양손 무기",
+	"weapon_ranged": "원거리",
+	"weapon_magic": "마법 무기",
+	"body": "갑옷",
+	"shield": "방패",
+	"helm": "투구",
+	"gloves": "장갑",
+	"boots": "신발",
+	"ring": "반지",
+	"amulet": "부적",
+	"belt": "벨트",
+	"cloak": "망토",
+	"potion": "물약",
+	"elixir": "영약",
+	"food": "음식",
+	"scroll": "주문서",
+	"ore": "광석",
+	"crystal": "결정",
+	"hide": "가죽/천",
+	"part": "부품",
+	"special": "특수",
+}
 
 const CARD_BG := Color(0.09, 0.08, 0.1, 0.96)
 const CARD_BG_DEEP := Color(0.07, 0.06, 0.08, 0.98)
@@ -49,6 +75,12 @@ static func rarity_label(rarity: String) -> String:
 
 static func category_label(category: String) -> String:
 	return CATEGORY_LABELS.get(category, category)
+
+
+static func subcategory_label(subcategory: String) -> String:
+	if subcategory == "":
+		return ""
+	return SUBCATEGORY_LABELS.get(subcategory, subcategory)
 
 
 static func load_icon(item: Dictionary) -> Texture2D:

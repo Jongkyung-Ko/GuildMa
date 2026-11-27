@@ -257,6 +257,9 @@ class BlacksmithPanelRoot extends Control:
 			ItemUI.rarity_label(str(item.get("rarity", "common"))),
 			ItemUI.category_label(str(item.get("category"))),
 		], 12, ItemUI.rarity_color(str(item.get("rarity", "common")))))
+		var sub := ItemUI.subcategory_label(str(item.get("subcategory", "")))
+		if sub != "":
+			_detail.add_child(UIStyle.label("세부: %s" % sub, 12, UIStyle.TEXT_DIM))
 
 		if maxed:
 			_detail.add_child(UIStyle.label("최대 강화에 도달했습니다.", 14, UIStyle.GOLD_BRIGHT))
