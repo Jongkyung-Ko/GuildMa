@@ -38,4 +38,4 @@ All 9 PR #17 paths present on tip. Diff `57ffb8b` → tip for hall-related files
 
 - Branch: `cursor/autonomous-visual-review-e4aa`
 - Do **not** merge to `main` from this work.
-- `mergeable` / head SHA: filled after push in store result + coordinator report.
+- - Head SHA: `2fa6bc5de123bc8e61db2d2b2f6752c68e7d3154`
