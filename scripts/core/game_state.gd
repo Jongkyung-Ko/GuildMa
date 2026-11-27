@@ -112,6 +112,10 @@ func new_game() -> void:
 		if bool(m.get("in_party", false)):
 			guild_parties["hunt"].append(str(m.get("id")))
 	selected_guild_member_id = str(members[0].get("id", "")) if not members.is_empty() else ""
+	# Starter smithing kit so blacksmith enhance is usable after buying gear.
+	add_item("enhance_stone", 8)
+	add_item("ore_iron", 4)
+	add_item("crystal_fire", 2)
 	is_playing = true
 	save_game()
 	emit_message("새 게임을 시작합니다. 마을에 오신 것을 환영합니다.")
@@ -160,21 +164,239 @@ func get_item(item_id: String) -> Dictionary:
 	return {}
 
 
-func inventory_qty(item_id: String) -> int:
-	for e in inventory:
-		if e.get("id") == item_id:
-			return int(e.get("qty", 0))
-	return 0
+func items_by_category(category: String) -> Array:
+	var out: Array = []
+	for it in catalog_items:
+		if category == "" or category == "all" or str(it.get("category", "")) == category:
+			out.append(it)
+	return out
 
 
-func add_item(item_id: String, qty: int = 1) -> void:
+func inventory_qty(item_id: String, enhance: int = -1) -> int:
+	var total := 0
 	for e in inventory:
-		if e.get("id") == item_id:
+		if str(e.get("id", "")) != item_id:
+			continue
+		if enhance >= 0 and int(e.get("enhance", 0)) != enhance:
+			continue
+		total += int(e.get("qty", 0))
+	return total
+
+
+func add_item(item_id: String, qty: int = 1, enhance: int = 0) -> void:
+	if qty <= 0:
+		return
+	for e in inventory:
+		if str(e.get("id", "")) == item_id and int(e.get("enhance", 0)) == enhance:
 			e["qty"] = int(e.get("qty", 0)) + qty
 			state_changed.emit()
 			return
-	inventory.append({"id": item_id, "qty": qty})
+	inventory.append({"id": item_id, "qty": qty, "enhance": enhance})
 	state_changed.emit()
+
+
+func remove_item(item_id: String, qty: int = 1, enhance: int = 0) -> bool:
+	if qty <= 0:
+		return true
+	for e in inventory:
+		if str(e.get("id", "")) != item_id:
+			continue
+		if int(e.get("enhance", 0)) != enhance:
+			continue
+		var have: int = int(e.get("qty", 0))
+		if have < qty:
+			return false
+		e["qty"] = have - qty
+		if int(e["qty"]) <= 0:
+			inventory.erase(e)
+		state_changed.emit()
+		return true
+	return false
+
+
+func sell_price_of(item_id: String) -> int:
+	var item := get_item(item_id)
+	if item.is_empty():
+		return 0
+	var ratio: float = float(balance.get("sell_price_ratio", 0.4))
+	return maxi(1, int(round(float(item.get("price", 0)) * ratio)))
+
+
+func sell_item(item_id: String, qty: int = 1, enhance: int = 0) -> bool:
+	var item := get_item(item_id)
+	if item.is_empty():
+		emit_message("존재하지 않는 아이템입니다.", true)
+		return false
+	if not remove_item(item_id, qty, enhance):
+		emit_message("판매할 아이템이 부족합니다.", true)
+		return false
+	var unit := sell_price_of(item_id)
+	# Enhanced gear sells slightly higher.
+	if enhance > 0:
+		unit = int(round(float(unit) * (1.0 + 0.08 * float(enhance))))
+	var gained: int = unit * qty
+	add_gold(gained)
+	var enh_txt := (" +%d" % enhance) if enhance > 0 else ""
+	emit_message("%s%s x%d 판매 (+%d G)" % [item.get("name"), enh_txt, qty, gained])
+	save_game()
+	return true
+
+
+func enhance_cfg() -> Dictionary:
+	var cfg = balance.get("enhance", {})
+	return cfg if typeof(cfg) == TYPE_DICTIONARY else {}
+
+
+func enhance_max_level() -> int:
+	return int(enhance_cfg().get("max_level", 10))
+
+
+func enhance_success_rate(current_level: int) -> int:
+	var rates: Array = enhance_cfg().get("success_rates", [])
+	if current_level < 0 or current_level >= rates.size():
+		return 0
+	return int(rates[current_level])
+
+
+func enhance_gold_cost(current_level: int) -> int:
+	var costs: Array = enhance_cfg().get("gold_costs", [])
+	if current_level < 0 or current_level >= costs.size():
+		return 0
+	return int(costs[current_level])
+
+
+func enhance_materials_for(current_level: int) -> Array:
+	var mats: Array = enhance_cfg().get("materials", [])
+	if current_level < 0 or current_level >= mats.size():
+		return []
+	var entry = mats[current_level]
+	# Support either a single material dict or a list of dicts.
+	if typeof(entry) == TYPE_ARRAY:
+		return entry
+	if typeof(entry) == TYPE_DICTIONARY:
+		return [entry]
+	return []
+
+
+func enhanced_stat_value(base_value: int, enhance_level: int) -> int:
+	if base_value == 0:
+		return 0
+	var bonus: float = float(enhance_cfg().get("stat_bonus_per_level", 0.08))
+	return int(round(float(base_value) * (1.0 + bonus * float(enhance_level))))
+
+
+func can_enhance_item(item_id: String) -> bool:
+	var item := get_item(item_id)
+	var slot := str(item.get("slot", ""))
+	return slot == "weapon" or slot == "armor"
+
+
+func enhance_item(item_id: String, current_enhance: int = 0) -> Dictionary:
+	## Returns {ok, success, new_enhance, message}. Mutates inventory/gold on attempt.
+	var result := {"ok": false, "success": false, "new_enhance": current_enhance, "message": ""}
+	var item := get_item(item_id)
+	if item.is_empty() or not can_enhance_item(item_id):
+		result["message"] = "강화할 수 없는 아이템입니다."
+		emit_message(result["message"], true)
+		return result
+	if current_enhance >= enhance_max_level():
+		result["message"] = "이미 최대 강화 단계입니다."
+		emit_message(result["message"], true)
+		return result
+	if inventory_qty(item_id, current_enhance) <= 0:
+		result["message"] = "보유하지 않은 장비입니다."
+		emit_message(result["message"], true)
+		return result
+	var gold_cost := enhance_gold_cost(current_enhance)
+	if gold < gold_cost:
+		result["message"] = "골드가 부족합니다."
+		emit_message(result["message"], true)
+		return result
+	var mats := enhance_materials_for(current_enhance)
+	for m in mats:
+		var mid := str(m.get("id", ""))
+		var need: int = int(m.get("qty", 1))
+		var have := inventory_qty(mid)
+		if have < need and m.has("alt_id"):
+			mid = str(m.get("alt_id"))
+			need = int(m.get("alt_qty", need))
+			have = inventory_qty(mid)
+		if have < need:
+			result["message"] = "강화 재료가 부족합니다."
+			emit_message(result["message"], true)
+			return result
+	# Consume costs first.
+	if not spend_gold(gold_cost):
+		result["message"] = "골드가 부족합니다."
+		return result
+	for m2 in mats:
+		var mid2 := str(m2.get("id", ""))
+		var need2: int = int(m2.get("qty", 1))
+		if inventory_qty(mid2) < need2 and m2.has("alt_id"):
+			mid2 = str(m2.get("alt_id"))
+			need2 = int(m2.get("alt_qty", need2))
+		remove_item(mid2, need2, 0)
+	if not remove_item(item_id, 1, current_enhance):
+		# rollback gold roughly
+		gold += gold_cost
+		result["message"] = "장비 차감에 실패했습니다."
+		emit_message(result["message"], true)
+		state_changed.emit()
+		return result
+	var rate := enhance_success_rate(current_enhance)
+	var roll := randi() % 100
+	var success: bool = roll < rate
+	var new_level := current_enhance
+	var fail_rule := str(enhance_cfg().get("failure_rule", "keep"))
+	if success:
+		new_level = current_enhance + 1
+		add_item(item_id, 1, new_level)
+		result["ok"] = true
+		result["success"] = true
+		result["new_enhance"] = new_level
+		result["message"] = "%s 강화 성공! (+%d → +%d)" % [item.get("name"), current_enhance, new_level]
+		emit_message(result["message"])
+	else:
+		match fail_rule:
+			"destroy":
+				result["message"] = "%s 강화 실패… 장비가 파괴되었습니다." % item.get("name")
+			"downgrade":
+				new_level = maxi(0, current_enhance - 1)
+				add_item(item_id, 1, new_level)
+				result["message"] = "%s 강화 실패… (+%d → +%d)" % [item.get("name"), current_enhance, new_level]
+			_:
+				new_level = current_enhance
+				add_item(item_id, 1, new_level)
+				result["message"] = "%s 강화 실패… 단계는 유지됩니다. (+%d)" % [item.get("name"), new_level]
+		result["ok"] = true
+		result["success"] = false
+		result["new_enhance"] = new_level
+		emit_message(result["message"], true)
+	# Keep equipped copies in sync if this stack was equipped.
+	_sync_equipment_enhance(item_id, current_enhance, new_level if success or fail_rule != "destroy" else -1)
+	save_game()
+	state_changed.emit()
+	return result
+
+
+func _sync_equipment_enhance(item_id: String, from_enhance: int, to_enhance: int) -> void:
+	for m in members:
+		var eq: Dictionary = m.get("equipment", {})
+		for slot in eq.keys():
+			var entry = _normalize_equip_entry(eq[slot])
+			if entry.get("id") == item_id and int(entry.get("enhance", 0)) == from_enhance:
+				if to_enhance < 0:
+					eq[slot] = ""
+				else:
+					eq[slot] = {"id": item_id, "enhance": to_enhance}
+		m["equipment"] = eq
+
+
+func _normalize_equip_entry(raw) -> Dictionary:
+	if typeof(raw) == TYPE_DICTIONARY:
+		return {"id": str(raw.get("id", "")), "enhance": int(raw.get("enhance", 0))}
+	var sid := str(raw) if raw != null else ""
+	return {"id": sid, "enhance": 0}
 
 
 func spend_gold(amount: int) -> bool:
@@ -245,19 +467,20 @@ func buy_item(item_id: String, qty: int = 1) -> bool:
 	return true
 
 
-func equip_item(member_id: String, item_id: String) -> bool:
+func equip_item(member_id: String, item_id: String, enhance: int = 0) -> bool:
 	var item := get_item(item_id)
 	var slot: String = str(item.get("slot", ""))
 	if slot == "":
 		emit_message("장착할 수 없는 아이템입니다.", true)
 		return false
-	if inventory_qty(item_id) <= 0:
+	if inventory_qty(item_id, enhance) <= 0:
 		emit_message("보유하지 않은 장비입니다.", true)
 		return false
 	for m in members:
 		if m.get("id") == member_id:
-			m["equipment"][slot] = item_id
-			emit_message("%s 에게 %s 장착" % [m.get("name"), item.get("name")])
+			m["equipment"][slot] = {"id": item_id, "enhance": enhance}
+			var enh := (" +%d" % enhance) if enhance > 0 else ""
+			emit_message("%s 에게 %s%s 장착" % [m.get("name"), item.get("name"), enh])
 			var audio := get_node_or_null("/root/AudioManager")
 			if audio and audio.has_method("play_equip"):
 				audio.play_equip()
@@ -392,6 +615,7 @@ func load_game() -> bool:
 	minute = int(data.get("minute", 0))
 	members = data.get("members", [])
 	inventory = data.get("inventory", [])
+	_normalize_inventory_entries()
 	active_quests = data.get("active_quests", [])
 	recruited_ids = data.get("recruited_ids", [])
 	dungeon_progress = data.get("dungeon_progress", {})
@@ -926,6 +1150,15 @@ func hunt_move_to(target_id: String) -> bool:
 	_store_active_map(map)
 	emit_message("%s 로 이동" % str(rooms[target_id].get("name", target_id)))
 	return true
+
+
+func _normalize_inventory_entries() -> void:
+	for e in inventory:
+		if typeof(e) != TYPE_DICTIONARY:
+			continue
+		if not e.has("enhance"):
+			e["enhance"] = 0
+		e["qty"] = int(e.get("qty", 0))
 
 
 func _next_season(s: String) -> String:

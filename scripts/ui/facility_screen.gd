@@ -20,6 +20,11 @@ var _toast: Label
 var _gold_label: Label
 var _selected_member_id: String = ""
 var _confirm: AcceptDialog
+var _main_host: PanelContainer
+var _main_box: HBoxContainer
+var _left_visual: VBoxContainer
+var _right_scroll: ScrollContainer
+var _trade_mode: bool = false
 
 
 func _ready() -> void:
@@ -87,44 +92,45 @@ func _build_shell() -> void:
 		nav_box.add_child(b)
 
 	# Main area — anchor to viewport so right-edge content stays visible
-	var main := UIStyle.make_panel()
-	main.anchor_left = 0.0
-	main.anchor_right = 1.0
-	main.anchor_top = 0.0
-	main.anchor_bottom = 1.0
-	main.offset_left = 200
-	main.offset_right = -8
-	main.offset_top = 76
-	main.offset_bottom = -40
-	add_child(main)
-	var main_box := HBoxContainer.new()
-	main_box.add_theme_constant_override("separation", 12)
-	main_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main.add_child(main_box)
+	_main_host = UIStyle.make_panel()
+	_main_host.anchor_left = 0.0
+	_main_host.anchor_right = 1.0
+	_main_host.anchor_top = 0.0
+	_main_host.anchor_bottom = 1.0
+	_main_host.offset_left = 200
+	_main_host.offset_right = -8
+	_main_host.offset_top = 76
+	_main_host.offset_bottom = -40
+	add_child(_main_host)
+	_main_box = HBoxContainer.new()
+	_main_box.add_theme_constant_override("separation", 12)
+	_main_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_main_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_main_host.add_child(_main_box)
 
-	var left_visual := VBoxContainer.new()
-	left_visual.custom_minimum_size = Vector2(340, 0)
-	main_box.add_child(left_visual)
+	_left_visual = VBoxContainer.new()
+	_left_visual.custom_minimum_size = Vector2(340, 0)
+	_main_box.add_child(_left_visual)
 	var interior := TextureRect.new()
+	interior.name = "InteriorTex"
 	interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
 	interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	interior.custom_minimum_size = Vector2(340, 280)
 	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	left_visual.add_child(interior)
-	left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
-	left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
+	_left_visual.add_child(interior)
+	_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
+	_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
 
-	var right := ScrollContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_scroll = ScrollContainer.new()
+	_right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	# Keep gate/hunt buttons reachable without horizontal scroll at 1280x720.
-	right.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_box.add_child(right)
+	_right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_main_box.add_child(_right_scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_content.add_theme_constant_override("separation", 8)
-	right.add_child(_content)
+	_right_scroll.add_child(_content)
 
 	_toast = UIStyle.label("", 14, UIStyle.TEXT)
 	_toast.set_anchors_preset(PRESET_BOTTOM_WIDE)
@@ -152,9 +158,9 @@ func _facility_blurb() -> String:
 		"inn":
 			return "방문 모험가를 확인하고 영입합니다."
 		"shop":
-			return "물품을 구매해 창고에 보관합니다."
+			return "무기·방어구·소모품·재료를 사고팝니다."
 		"blacksmith":
-			return "장비를 확인하고 장착합니다. (강화는 추후)"
+			return "장비를 +0~+10까지 강화하고 장착합니다."
 		"training":
 			return "길드원을 훈련해 경험치를 얻습니다."
 		"warehouse":
@@ -173,8 +179,57 @@ func _refresh_gold() -> void:
 	_gold_label.text = "골드 %d G  |  명성 %d  |  %s" % [GameState.gold, GameState.reputation, GameState.time_text()]
 
 
+func _ensure_default_layout() -> void:
+	if not _trade_mode:
+		return
+	_trade_mode = false
+	for c in _main_box.get_children():
+		c.free()
+	_left_visual = VBoxContainer.new()
+	_left_visual.custom_minimum_size = Vector2(340, 0)
+	_main_box.add_child(_left_visual)
+	var interior := TextureRect.new()
+	interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
+	interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	interior.custom_minimum_size = Vector2(340, 280)
+	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_left_visual.add_child(interior)
+	_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
+	_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
+	_right_scroll = ScrollContainer.new()
+	_right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_main_box.add_child(_right_scroll)
+	_content = VBoxContainer.new()
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_content.add_theme_constant_override("separation", 8)
+	_right_scroll.add_child(_content)
+
+
+func _mount_trade_panel() -> void:
+	_trade_mode = true
+	for c in _main_box.get_children():
+		c.free()
+	_content = null
+	_left_visual = null
+	_right_scroll = null
+	if facility_id == "shop":
+		ShopPanel.mount(_main_box, self)
+	else:
+		BlacksmithPanel.mount(_main_box, self)
+
+
 func _rebuild_content() -> void:
 	_refresh_gold()
+	if facility_id == "shop" or facility_id == "blacksmith":
+		# Trade UIs own their refresh; remount only when entering/switching trade mode.
+		if not _trade_mode:
+			_mount_trade_panel()
+		return
+	_ensure_default_layout()
+	if _content == null:
+		return
 	for c in _content.get_children():
 		c.free()
 	match facility_id:
@@ -182,10 +237,6 @@ func _rebuild_content() -> void:
 			_build_guild()
 		"inn":
 			_build_inn()
-		"shop":
-			_build_shop()
-		"blacksmith":
-			_build_blacksmith()
 		"training":
 			_build_training()
 		"warehouse":
@@ -284,91 +335,6 @@ func _on_confirm_recruit() -> void:
 	GameState.recruit_adventurer(adv)
 
 
-func _build_shop() -> void:
-	_content.add_child(UIStyle.label("상점 — 구매", 20, UIStyle.GOLD_BRIGHT))
-	for item in GameState.catalog_items:
-		var row := UIStyle.make_panel()
-		var hb := HBoxContainer.new()
-		hb.add_theme_constant_override("separation", 12)
-		row.add_child(hb)
-		var vb := VBoxContainer.new()
-		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hb.add_child(vb)
-		vb.add_child(UIStyle.label("%s  (%s)  %d G" % [item.get("name"), item.get("category"), item.get("price")], 15, UIStyle.GOLD_BRIGHT))
-		vb.add_child(UIStyle.label(str(item.get("desc")), 13, UIStyle.TEXT_DIM))
-		var btn := Button.new()
-		btn.text = "구매"
-		UIStyle.apply_button(btn)
-		var item_id := str(item.get("id"))
-		btn.pressed.connect(_make_buy_cb(item_id, str(item.get("name")), int(item.get("price"))))
-		hb.add_child(btn)
-		_content.add_child(row)
-
-
-func _make_buy_cb(item_id: String, item_name: String, price: int) -> Callable:
-	return func():
-		_confirm.dialog_text = "%s 을(를) %d G에 구매할까요?" % [item_name, price]
-		if _confirm.confirmed.is_connected(_on_confirm_buy):
-			_confirm.confirmed.disconnect(_on_confirm_buy)
-		_confirm.set_meta("item_id", item_id)
-		_confirm.confirmed.connect(_on_confirm_buy, CONNECT_ONE_SHOT)
-		_confirm.popup_centered()
-
-
-func _on_confirm_buy() -> void:
-	GameState.buy_item(str(_confirm.get_meta("item_id", "")))
-
-
-func _build_blacksmith() -> void:
-	_content.add_child(UIStyle.label("대장간", 20, UIStyle.GOLD_BRIGHT))
-	_content.add_child(UIStyle.label("탭: 장비 구매/장착  |  강화·제작은 이후 단계에서 활성화됩니다.", 13, UIStyle.TEXT_DIM))
-
-	var enhance := Button.new()
-	enhance.text = "강화 (준비 중)"
-	enhance.disabled = true
-	UIStyle.apply_button(enhance)
-	_content.add_child(enhance)
-
-	_content.add_child(HSeparator.new())
-	_content.add_child(UIStyle.label("장비 목록", 18, UIStyle.GOLD_BRIGHT))
-	for item in GameState.catalog_items:
-		if str(item.get("slot", "")) == "":
-			continue
-		var owned := GameState.inventory_qty(item.get("id"))
-		var row := HBoxContainer.new()
-		row.add_child(UIStyle.label("%s  공격+%s 방어+%s  | 보유 %d  | %d G" % [
-			item.get("name"), item.get("atk", "-"), item.get("def", "-"), owned, item.get("price")
-		], 14))
-		var buy := Button.new()
-		buy.text = "구매"
-		UIStyle.apply_button(buy)
-		var iid := str(item.get("id"))
-		buy.pressed.connect(func(): GameState.buy_item(iid))
-		row.add_child(buy)
-		_content.add_child(row)
-
-	_content.add_child(HSeparator.new())
-	_content.add_child(UIStyle.label("장착 — 길드원 선택 후 보유 장비 장착", 18, UIStyle.GOLD_BRIGHT))
-	_selected_member_id = str(GameState.members[0].get("id")) if GameState.members.size() > 0 else ""
-	var member_opt := OptionButton.new()
-	for m in GameState.members:
-		member_opt.add_item("%s (%s)" % [m.get("name"), UIStyle.job_name(m.get("job"))], member_opt.item_count)
-		member_opt.set_item_metadata(member_opt.item_count - 1, m.get("id"))
-	member_opt.item_selected.connect(func(i): _selected_member_id = str(member_opt.get_item_metadata(i)))
-	_content.add_child(member_opt)
-
-	for e in GameState.inventory:
-		var item := GameState.get_item(e.get("id"))
-		if str(item.get("slot", "")) == "":
-			continue
-		var btn := Button.new()
-		btn.text = "%s 장착 (보유 %d)" % [item.get("name"), e.get("qty")]
-		UIStyle.apply_button(btn)
-		var iid2 := str(item.get("id"))
-		btn.pressed.connect(func(): GameState.equip_item(_selected_member_id, iid2))
-		_content.add_child(btn)
-
-
 func _build_training() -> void:
 	_content.add_child(UIStyle.label("훈련장", 20, UIStyle.GOLD_BRIGHT))
 	_content.add_child(UIStyle.label("훈련 비용 %d G / 획득 경험치 %d" % [GameState.balance.get("train_gold_cost", 50), GameState.balance.get("train_exp_gain", 25)], 13, UIStyle.TEXT_DIM))
@@ -396,9 +362,41 @@ func _build_warehouse() -> void:
 		return
 	for e in GameState.inventory:
 		var item := GameState.get_item(e.get("id"))
-		_content.add_child(UIStyle.label("%s  x%d  [%s]  — %s" % [
-			item.get("name", e.get("id")), e.get("qty"), item.get("category", "?"), item.get("desc", "")
-		], 14))
+		var enh := int(e.get("enhance", 0))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		row.add_child(ItemUI.make_icon_frame(item, 48, enh))
+		var enh_txt := (" +%d" % enh) if enh > 0 else ""
+		var vb := VBoxContainer.new()
+		vb.add_child(UIStyle.label("%s%s  x%d  [%s]" % [
+			item.get("name", e.get("id")), enh_txt, e.get("qty"), ItemUI.category_label(str(item.get("category", "?")))
+		], 14, UIStyle.GOLD_BRIGHT))
+		vb.add_child(UIStyle.label(str(item.get("desc", "")), 12, UIStyle.TEXT_DIM))
+		row.add_child(vb)
+		_content.add_child(row)
+
+	_content.add_child(HSeparator.new())
+	_content.add_child(UIStyle.label("장비 장착", 18, UIStyle.GOLD_BRIGHT))
+	_selected_member_id = str(GameState.members[0].get("id")) if GameState.members.size() > 0 else ""
+	var member_opt := OptionButton.new()
+	for m in GameState.members:
+		member_opt.add_item("%s (%s)" % [m.get("name"), UIStyle.job_name(m.get("job"))], member_opt.item_count)
+		member_opt.set_item_metadata(member_opt.item_count - 1, m.get("id"))
+	member_opt.item_selected.connect(func(i): _selected_member_id = str(member_opt.get_item_metadata(i)))
+	_content.add_child(member_opt)
+	for e2 in GameState.inventory:
+		var item2 := GameState.get_item(e2.get("id"))
+		if str(item2.get("slot", "")) == "":
+			continue
+		var enh2 := int(e2.get("enhance", 0))
+		var btn := Button.new()
+		var enh_label := (" +%d" % enh2) if enh2 > 0 else ""
+		btn.text = "%s%s 장착 (보유 %d)" % [item2.get("name"), enh_label, e2.get("qty")]
+		UIStyle.apply_button(btn)
+		var iid2 := str(item2.get("id"))
+		var enh_copy := enh2
+		btn.pressed.connect(func(): GameState.equip_item(_selected_member_id, iid2, enh_copy))
+		_content.add_child(btn)
 
 
 func _build_infirmary() -> void:

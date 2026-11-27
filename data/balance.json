@@ -11,5 +11,25 @@
   "train_exp_gain": 25,
   "train_gold_cost": 50,
   "heal_gold_cost": 80,
-  "minutes_per_real_second": 2
+  "minutes_per_real_second": 2,
+  "sell_price_ratio": 0.4,
+  "enhance": {
+    "max_level": 10,
+    "stat_bonus_per_level": 0.08,
+    "failure_rule": "keep",
+    "success_rates": [100, 95, 90, 85, 75, 65, 55, 45, 35, 25],
+    "gold_costs": [100, 200, 350, 550, 800, 1200, 1700, 2400, 3300, 4500],
+    "materials": [
+      {"id": "enhance_stone", "qty": 1},
+      {"id": "enhance_stone", "qty": 1},
+      {"id": "enhance_stone", "qty": 2},
+      {"id": "enhance_stone", "qty": 2},
+      {"id": "enhance_stone", "qty": 3},
+      {"id": "ore_iron", "qty": 2, "alt_id": "enhance_stone", "alt_qty": 3},
+      {"id": "ore_iron", "qty": 3, "alt_id": "enhance_stone", "alt_qty": 4},
+      {"id": "crystal_fire", "qty": 2, "alt_id": "enhance_stone", "alt_qty": 4},
+      {"id": "ore_mithril", "qty": 1, "alt_id": "enhance_stone", "alt_qty": 5},
+      {"id": "ore_mithril", "qty": 2, "alt_id": "enhance_stone", "alt_qty": 6}
+    ]
+  }
 }
