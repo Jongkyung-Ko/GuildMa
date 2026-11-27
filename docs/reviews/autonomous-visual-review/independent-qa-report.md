@@ -17,7 +17,7 @@ Independent QA is a different agent id / session from development. Developer sel
 | BEFORE tip (pre roster fix) | `67b0e2c` | Parent of roster fix; same hunt-card bug as hall tip `57ffb8b` |
 | Hall / PR #17 tip | `57ffb8b` | Even flank gaps + outer actors in frame |
 | AFTER tip (roster fix) | `870ced8` | `fix: show all five hunt roster icons on dense 844 landscape` |
-| Merge tip (main integrated) | `2fa6bc5de123bc8e61db2d2b2f6752c68e7d3154` | `origin/main` `@2ad7a3e` merged; conflicts resolved **ours** |
+| Merge tip (main integrated) | `555c9c4` (+ docs commits) | `origin/main` `@2ad7a3e` merged; conflicts resolved **ours**; see branch HEAD |
 
 ## Captures (GitHub-visible)
 
