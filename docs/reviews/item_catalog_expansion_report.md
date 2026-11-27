@@ -1,6 +1,8 @@
 # Item catalog expansion report (≥160)
 
 **Branch:** `cursor/item-catalog-160-3dd7`  
+**PR:** https://github.com/Jongkyung-Ko/GuildMa/pull/20  
+**Head SHA:** `ef16673c3b863d6a895b6533d80e59638212e46c`  
 **Base:** `main` @ post PR #19 (shop/blacksmith)  
 **Tested:** 2026-11-27 20:11 KST (Asia/Seoul)  
 **Do not merge to main** unless explicitly requested.
