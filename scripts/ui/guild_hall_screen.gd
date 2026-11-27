@@ -6,15 +6,17 @@ extends Control
 const HALL_BG := "res://assets/backgrounds/guild_interior.png"
 const PORTRAIT_DIR := "res://assets/sprites/characters/"
 ## Idle sheets are ~64px tall; scale up so actors read clearly in the hall.
-const SPRITE_SCALE := 0.92
-const LORD_SCALE := 1.14
+const SPRITE_SCALE := 1.05
+const LORD_SCALE := 1.28
 const HALL_MEMBER_CAP := 10
 ## Floor line as fraction of the interior texture height (stone floor / rug).
-const INTERIOR_FLOOR_T := 0.80
+const INTERIOR_FLOOR_T := 0.78
 const INTERIOR_ASPECT := 720.0 / 520.0
-const ACTOR_FOOT_MARGIN := 28.0
+const ACTOR_FOOT_MARGIN := 32.0
 const NAMEPLATE_H := 14.0
 const SPRITE_FOOT_OFFSET_Y := -30.0
+## Mild zoom on pinned interior so furniture/actors fill the hall frame.
+const INTERIOR_ZOOM := 1.14
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -308,15 +310,17 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
 	# Compact party strip sized to card content — leftover height goes to the hall.
-	var party_h := 100.0 if _dense else 114.0
-	var hall_h := maxf(220.0 if _dense else 280.0, content_h - party_h - gap)
+	var party_h := 96.0 if _dense else 110.0
+	var hall_h := maxf(230.0 if _dense else 290.0, content_h - party_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
 	_nav_box.size = Vector2(nav_w, content_h)
 	for mid in _nav_buttons.keys():
 		var b: Button = _nav_buttons[mid]
 		if is_instance_valid(b):
-			b.custom_minimum_size = Vector2(0, 36 if _dense else 40)
+			b.custom_minimum_size = Vector2(0, 34 if _dense else 38)
+			if mid == MENU_PARTY:
+				b.text = "파티편성" if _dense else "파티 편성"
 
 	_hall_wrap.position = Vector2(nav_w + gap, 0)
 	_hall_wrap.size = Vector2(mid_w, hall_h)
@@ -356,7 +360,7 @@ func _fit_interior() -> void:
 	var area := _hall_area()
 	if area.x < 8.0 or area.y < 8.0:
 		return
-	var w := area.x
+	var w := area.x * INTERIOR_ZOOM
 	var h := w / INTERIOR_ASPECT
 	if h < area.y:
 		h = area.y
@@ -365,6 +369,7 @@ func _fit_interior() -> void:
 	interior.anchor_top = 0.0
 	interior.anchor_right = 0.0
 	interior.anchor_bottom = 0.0
+	# Bottom-pin + horizontal center — throne/fireplace stay framed.
 	interior.position = Vector2((area.x - w) * 0.5, area.y - h)
 	interior.size = Vector2(w, h)
 
@@ -639,11 +644,11 @@ func _spawn_hall_actor(
 ) -> void:
 	var mid := str(member.get("id", ""))
 	var selected := mid == GameState.selected_guild_member_id
-	# Selection/hit box hugs the scaled idle sprite (sheet ~64px).
-	var body_w := (42.0 if is_lord else 36.0)
-	var body_h := (46.0 if is_lord else 40.0)
-	var box_w := maxf(body_w + 4.0, 52.0)
-	var box_h := NAMEPLATE_H + 2.0 + body_h
+	# Selection/hit box ≈ visible idle body (sheet ~64px * scale, foot offset).
+	var body_w := (34.0 if is_lord else 30.0) * scale_v
+	var body_h := (40.0 if is_lord else 36.0) * scale_v
+	var box_w := maxf(body_w + 8.0, 56.0)
+	var box_h := NAMEPLATE_H + 3.0 + body_h
 	var root := Control.new()
 	# Keep z modest so modal overlay (z=80) always covers hall actors.
 	root.z_index = mini(z + (6 if selected else 0) + (10 if is_lord else 0), 70)
@@ -671,20 +676,25 @@ func _spawn_hall_actor(
 	root.add_child(name_l)
 
 	var body_x := (box_w - body_w) * 0.5
-	var body_y := NAMEPLATE_H + 2.0
+	var body_y := NAMEPLATE_H + 3.0
 	if selected:
-		# Thin ring only — no tall panel chrome around the sprite.
+		# Thin ring only — sized to character body, not nameplate.
+		var pad := 2.0
+		var rx := body_x - pad
+		var ry := body_y - pad
+		var rw := body_w + pad * 2.0
+		var rh := body_h + pad * 2.0
 		var glow := ColorRect.new()
-		glow.position = Vector2(body_x, body_y)
-		glow.size = Vector2(body_w, body_h)
-		glow.color = Color(1.0, 0.85, 0.35, 0.14)
+		glow.position = Vector2(rx, ry)
+		glow.size = Vector2(rw, rh)
+		glow.color = Color(1.0, 0.85, 0.35, 0.12)
 		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(glow)
 		for edge in [
-			[Vector2(body_x, body_y), Vector2(body_w, 2)],
-			[Vector2(body_x, body_y + body_h - 2.0), Vector2(body_w, 2)],
-			[Vector2(body_x, body_y), Vector2(2, body_h)],
-			[Vector2(body_x + body_w - 2.0, body_y), Vector2(2, body_h)],
+			[Vector2(rx, ry), Vector2(rw, 2)],
+			[Vector2(rx, ry + rh - 2.0), Vector2(rw, 2)],
+			[Vector2(rx, ry), Vector2(2, rh)],
+			[Vector2(rx + rw - 2.0, ry), Vector2(2, rh)],
 		]:
 			var line := ColorRect.new()
 			line.position = edge[0]
@@ -812,6 +822,21 @@ func _refresh_party_cards() -> void:
 		c.queue_free()
 	for kind in GameState.GUILD_PARTY_KINDS:
 		_party_host.add_child(_make_party_card(kind))
+	call_deferred("_equalize_party_card_heights")
+
+
+func _equalize_party_card_heights() -> void:
+	if _party_host == null:
+		return
+	var max_h := 0.0
+	for c in _party_host.get_children():
+		if c is Control:
+			max_h = maxf(max_h, (c as Control).get_combined_minimum_size().y)
+	if max_h < 8.0:
+		return
+	for c2 in _party_host.get_children():
+		if c2 is Control:
+			(c2 as Control).custom_minimum_size.y = max_h
 
 
 func _make_party_card(kind: String) -> PanelContainer:
@@ -826,9 +851,7 @@ func _make_party_card(kind: String) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	# Equal height from content — title + icons + 편성, no spare chrome.
-	var card_h := 82.0 if _dense else 94.0
-	card.custom_minimum_size = Vector2(0, card_h)
+	# Height comes from content; equalized after refresh.
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(accent.r * 0.35, accent.g * 0.35, accent.b * 0.35, 0.92)
 	sb.border_color = accent.lightened(0.35)
