@@ -32,26 +32,62 @@ func _ready() -> void:
 
 
 func _build_world() -> void:
+	# EXPAND portrait viewports grow taller than 720; do not stretch the 1280×720
+	# town plate to full rect (that vertically squash/elongates isometric art and
+	# desyncs absolute facility hotspots). Keep the world in a design-sized box.
+	var under := ColorRect.new()
+	under.color = Color(0.05, 0.06, 0.1)
+	under.set_anchors_preset(PRESET_FULL_RECT)
+	under.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(under)
+
+	var world := Control.new()
+	world.name = "TownWorld"
+	world.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	world.position = Vector2.ZERO
+	world.size = Vector2(1280, 720)
+	world.custom_minimum_size = Vector2(1280, 720)
+	add_child(world)
+
 	var bg := TextureRect.new()
 	bg.texture = load("res://assets/backgrounds/town_bg.png")
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
-	bg.set_anchors_preset(PRESET_FULL_RECT)
+	bg.position = Vector2.ZERO
+	bg.size = Vector2(1280, 720)
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	world.add_child(bg)
 
 	for b in BUILDINGS:
-		_add_building(b)
+		_add_building(world, b)
+
+	# Wider EXPAND viewports (landscape phones): center the design plate horizontally.
+	resized.connect(_center_town_world)
+	call_deferred("_center_town_world")
 
 
-func _add_building(b: Dictionary) -> void:
+func _center_town_world() -> void:
+	var world := get_node_or_null("TownWorld") as Control
+	if world == null:
+		return
+	var extra_x: float = maxf(0.0, size.x - 1280.0)
+	var extra_y: float = maxf(0.0, size.y - 720.0)
+	# Prefer top alignment on tall portrait so HUD stays over the art; center on wide.
+	if size.y > size.x:
+		world.position = Vector2(extra_x * 0.5, 0.0)
+	else:
+		world.position = Vector2(extra_x * 0.5, extra_y * 0.5)
+
+
+func _add_building(host: Node, b: Dictionary) -> void:
 	var hit: Vector2 = b.get("hit", Vector2(120, 120))
 	var root := Control.new()
+	root.name = "Hotspot_%s" % str(b["id"])
 	root.position = b["pos"]
 	root.custom_minimum_size = hit
 	root.size = hit
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(root)
+	host.add_child(root)
 
 	# Soft ground plate so clickable facilities remain readable on busy art.
 	var plate := ColorRect.new()

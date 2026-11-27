@@ -60,10 +60,17 @@ func _build_shell() -> void:
 	town_btn.pressed.connect(func(): SceneRouter.go_town())
 	top_row.add_child(town_btn)
 
-	# Left nav
+	# Left nav — stretch with EXPAND tall viewports (fixed 560 left a huge empty void).
 	var nav := UIStyle.make_panel()
-	nav.position = Vector2(8, 76)
-	nav.custom_minimum_size = Vector2(180, 560)
+	nav.name = "FacilityNav"
+	nav.anchor_left = 0.0
+	nav.anchor_right = 0.0
+	nav.anchor_top = 0.0
+	nav.anchor_bottom = 1.0
+	nav.offset_left = 8
+	nav.offset_right = 188
+	nav.offset_top = 76
+	nav.offset_bottom = -40
 	add_child(nav)
 	var nav_box := VBoxContainer.new()
 	nav_box.add_theme_constant_override("separation", 6)

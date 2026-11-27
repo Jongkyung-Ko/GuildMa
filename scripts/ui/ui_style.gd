@@ -1,8 +1,9 @@
 extends Node
 
 ## Shared UI colors/styles + embedded Korean font + PC/mobile display adapt.
-## Stretch aspect is EXPAND for all platforms (portrait phones get taller design
-## viewport — avoids 16:9 KEEP letterboxing with huge black bars).
+## Design size stays 1280×720 on all orientations (town hotspots / facility shell
+## assume that width). Aspect is EXPAND so portrait phones gain vertical design
+## space without 16:9 KEEP letterboxing. Guild Hall reflows via its own compact layout.
 ## Fonts are static OTFs shipped in the project (no OS / variable-font reliance).
 
 const GOLD := Color(0.82, 0.68, 0.32)
@@ -153,18 +154,13 @@ func _apply_display_adapt() -> void:
 		return
 	_mobile_like = _detect_mobile_like()
 
-	# Portrait phones: use a tall design size so UI can reflow vertically.
-	# Landscape/PC: keep the classic 1280×720 design.
-	# EXPAND fills the window without 16:9 KEEP letterboxing (huge black bars).
-	var sz := win.size
-	var portrait := sz.y > sz.x and sz.x > 0
-	if portrait:
-		win.content_scale_size = Vector2i(720, 1280)
-	else:
-		win.content_scale_size = Vector2i(1280, 720)
+	# Keep 1280×720 design width globally — absolute town/facility layouts depend on it.
+	# EXPAND (not KEEP): portrait windows get a taller design viewport (~1280×N)
+	# instead of letterboxed black bars. Per-screen reflow (Guild Hall) handles stacking.
+	win.content_scale_size = Vector2i(1280, 720)
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
-	if _mobile_like or portrait:
+	if _mobile_like:
 		if app_theme:
 			app_theme.default_font_size = 18
 			app_theme.set_font_size("font_size", "Button", 18)
