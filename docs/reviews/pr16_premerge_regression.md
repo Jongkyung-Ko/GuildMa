@@ -46,6 +46,13 @@ Layout/regression checks target landscape windows only. Global design size stays
 
 Artifacts: `/opt/cursor/artifacts/pr16-regression/`, `/opt/cursor/artifacts/guild-hall-responsive/`
 
+## Hall stage / space follow-up (same branch)
+
+- Shared floor line, lord at hearth center, L/R member cluster
+- Interior bottom-pinned; characters clear of party border
+- Compact equal-height party cards; narrower left nav
+- `validate_guild_hall` **PASS**; regression suite **PASS** on 844×390 + 1366×768
+
 ## Follow-ups
 
 - HTML5 browser deep-dive still optional / may be blocked at title unlock.

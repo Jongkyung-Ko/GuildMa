@@ -5,9 +5,16 @@ extends Control
 
 const HALL_BG := "res://assets/backgrounds/guild_interior.png"
 const PORTRAIT_DIR := "res://assets/sprites/characters/"
-const SPRITE_SCALE := 0.48
-const LORD_SCALE := 0.62
+## Idle sheets are ~64px tall; scale up so actors read clearly in the hall.
+const SPRITE_SCALE := 0.92
+const LORD_SCALE := 1.14
 const HALL_MEMBER_CAP := 10
+## Floor line as fraction of the interior texture height (stone floor / rug).
+const INTERIOR_FLOOR_T := 0.80
+const INTERIOR_ASPECT := 720.0 / 520.0
+const ACTOR_FOOT_MARGIN := 28.0
+const NAMEPLATE_H := 14.0
+const SPRITE_FOOT_OFFSET_Y := -30.0
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -27,6 +34,7 @@ var _body_scroll: ScrollContainer
 var _body_host: Control
 var _nav_box: Container
 var _hall_wrap: PanelContainer
+var _hall_root: Control
 var _hall_layer: Control
 var _detail_wrap: PanelContainer
 var _detail_box: VBoxContainer
@@ -54,12 +62,19 @@ func _ready() -> void:
 
 func _first_layout() -> void:
 	_apply_responsive_layout()
+	await get_tree().process_frame
+	_fit_interior()
 	_refresh_all()
 
 
 func _on_window_resized() -> void:
 	_apply_responsive_layout()
-	call_deferred("_refresh_hall")
+	call_deferred("_deferred_hall_refresh")
+
+
+func _deferred_hall_refresh() -> void:
+	_fit_interior()
+	_refresh_hall()
 
 
 func _is_dense_landscape() -> bool:
@@ -128,29 +143,43 @@ func _build_shell() -> void:
 
 	_hall_wrap = UIStyle.make_panel()
 	_hall_wrap.clip_contents = true
+	_hall_wrap.z_index = 0
 	_body_host.add_child(_hall_wrap)
+	# Single PanelContainer child so we can freely position interior art.
+	_hall_root = Control.new()
+	_hall_root.name = "HallRoot"
+	_hall_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_hall_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_hall_root.clip_contents = true
+	_hall_wrap.add_child(_hall_root)
 	var interior := TextureRect.new()
 	interior.name = "Interior"
-	interior.set_anchors_preset(PRESET_FULL_RECT)
+	interior.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	interior.texture = load(HALL_BG)
-	interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	# Manual cover + bottom-pin in _fit_interior so throne/floor stay in frame.
+	interior.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	interior.stretch_mode = TextureRect.STRETCH_SCALE
 	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	interior.modulate = Color(0.92, 0.9, 0.88, 1)
-	_hall_wrap.add_child(interior)
+	_hall_root.add_child(interior)
 	var dim := ColorRect.new()
+	dim.name = "Dim"
 	dim.set_anchors_preset(PRESET_FULL_RECT)
-	dim.color = Color(0.05, 0.04, 0.08, 0.22)
+	dim.color = Color(0.05, 0.04, 0.08, 0.18)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hall_wrap.add_child(dim)
+	_hall_root.add_child(dim)
 	_hall_layer = Control.new()
+	_hall_layer.name = "HallLayer"
 	_hall_layer.set_anchors_preset(PRESET_FULL_RECT)
 	_hall_layer.mouse_filter = Control.MOUSE_FILTER_PASS
 	_hall_layer.clip_contents = true
-	_hall_wrap.add_child(_hall_layer)
+	_hall_root.add_child(_hall_layer)
 	var hall_title := UIStyle.label("길드 홀", 15, UIStyle.GOLD_BRIGHT)
+	hall_title.name = "HallTitle"
 	hall_title.set_anchors_preset(PRESET_TOP_LEFT)
 	hall_title.position = Vector2(10, 8)
-	_hall_wrap.add_child(hall_title)
+	hall_title.z_index = 2
+	_hall_root.add_child(hall_title)
 
 	_detail_wrap = UIStyle.make_panel()
 	_body_host.add_child(_detail_wrap)
@@ -164,15 +193,30 @@ func _build_shell() -> void:
 	detail_scroll.add_child(_detail_box)
 
 	_party_wrap = UIStyle.make_panel()
+	_party_wrap.z_index = 4
+	_party_wrap.clip_contents = true
 	_body_host.add_child(_party_wrap)
+	var party_root := Control.new()
+	party_root.name = "PartyRoot"
+	party_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	party_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	party_root.clip_contents = true
+	_party_wrap.add_child(party_root)
 	var party_vb := VBoxContainer.new()
-	party_vb.set_anchors_preset(PRESET_FULL_RECT)
-	party_vb.add_theme_constant_override("separation", 6)
-	_party_wrap.add_child(party_vb)
-	party_vb.add_child(UIStyle.label("임무 파티", 14, UIStyle.GOLD_BRIGHT))
+	party_vb.name = "PartyVB"
+	party_vb.set_anchors_preset(PRESET_TOP_WIDE)
+	party_vb.anchor_bottom = 0.0
+	party_vb.offset_left = 0
+	party_vb.offset_right = 0
+	party_vb.offset_top = 0
+	party_vb.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	party_vb.add_theme_constant_override("separation", 3)
+	party_vb.alignment = BoxContainer.ALIGNMENT_BEGIN
+	party_root.add_child(party_vb)
+	party_vb.add_child(UIStyle.label("임무 파티", 12, UIStyle.GOLD_BRIGHT))
 	_party_host = HBoxContainer.new()
 	_party_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_party_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_party_host.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_party_host.add_theme_constant_override("separation", 8)
 	party_vb.add_child(_party_host)
 
@@ -258,21 +302,26 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 		compact_actions.visible = false
 	_ensure_nav_orientation(false)
 	_ensure_party_orientation(false)
-	var nav_w := 130.0 if _dense else 150.0
-	var detail_w := 220.0 if _dense else 260.0
+	# Minimize left chrome; keep detail wide enough to read ATK/DEF rows.
+	var nav_w := 96.0 if _dense else 112.0
+	var detail_w := 248.0 if _dense else 268.0
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
-	# Short landscape: keep hall as focus but leave enough party strip height.
-	var hall_ratio := 0.52 if _dense else 0.58
-	var hall_h := maxf(180.0 if _dense else 200.0, content_h * hall_ratio)
-	var party_h := maxf(130.0 if _dense else 150.0, content_h - hall_h - gap)
+	# Compact party strip sized to card content — leftover height goes to the hall.
+	var party_h := 100.0 if _dense else 114.0
+	var hall_h := maxf(220.0 if _dense else 280.0, content_h - party_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
 	_nav_box.size = Vector2(nav_w, content_h)
+	for mid in _nav_buttons.keys():
+		var b: Button = _nav_buttons[mid]
+		if is_instance_valid(b):
+			b.custom_minimum_size = Vector2(0, 36 if _dense else 40)
 
 	_hall_wrap.position = Vector2(nav_w + gap, 0)
 	_hall_wrap.size = Vector2(mid_w, hall_h)
 	_hall_wrap.custom_minimum_size = Vector2(mid_w, hall_h)
+	_fit_interior()
 
 	_party_wrap.position = Vector2(nav_w + gap, hall_h + gap)
 	_party_wrap.size = Vector2(mid_w + detail_w + gap, party_h)
@@ -284,6 +333,40 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 
 	_body_host.custom_minimum_size = Vector2(content_w, content_h)
 	_body_host.size = Vector2(content_w, content_h)
+	# PanelContainer sizes HallRoot on the next layout pass.
+	call_deferred("_fit_interior")
+
+
+func _hall_area() -> Vector2:
+	if _hall_root and _hall_root.size.x > 8.0 and _hall_root.size.y > 8.0:
+		return _hall_root.size
+	if _hall_wrap and _hall_wrap.size.x > 8.0:
+		return _hall_wrap.size
+	return Vector2(640, 280)
+
+
+func _fit_interior() -> void:
+	## Cover the hall panel while pinning the art bottom so the stone floor /
+	## throne stay visible (center-crop COVERED was cutting the floor away).
+	if _hall_root == null:
+		return
+	var interior := _hall_root.get_node_or_null("Interior") as TextureRect
+	if interior == null:
+		return
+	var area := _hall_area()
+	if area.x < 8.0 or area.y < 8.0:
+		return
+	var w := area.x
+	var h := w / INTERIOR_ASPECT
+	if h < area.y:
+		h = area.y
+		w = h * INTERIOR_ASPECT
+	interior.anchor_left = 0.0
+	interior.anchor_top = 0.0
+	interior.anchor_right = 0.0
+	interior.anchor_bottom = 0.0
+	interior.position = Vector2((area.x - w) * 0.5, area.y - h)
+	interior.size = Vector2(w, h)
 
 
 func _ensure_nav_orientation(horizontal: bool) -> void:
@@ -459,25 +542,39 @@ func _refresh_hall() -> void:
 		lord = GameState.members[0]
 		others = GameState.members.slice(1)
 
-	# Use wrap size explicitly — child full-rect layer may still report 0,0 this frame.
-	var area := _hall_wrap.size
-	if area.x < 20.0 or area.y < 20.0:
-		area = Vector2(640, 280)
+	_fit_interior()
+	var area := _hall_area()
+	_hall_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	_hall_layer.size = area
 	_hall_layer.position = Vector2.ZERO
 	_compose_stage(lord, others, area)
 
 
+func _floor_y_for_hall(area: Vector2) -> float:
+	## Shared foot baseline on the interior stone floor, above the party border.
+	var interior: TextureRect = null
+	if _hall_root:
+		interior = _hall_root.get_node_or_null("Interior") as TextureRect
+	var floor_y: float
+	if interior and interior.size.y > 8.0:
+		floor_y = interior.position.y + interior.size.y * INTERIOR_FLOOR_T
+	else:
+		floor_y = area.y * 0.78
+	var max_y := area.y - ACTOR_FOOT_MARGIN
+	var min_y := area.y * 0.55
+	return clampf(floor_y, min_y, max_y)
+
+
 func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
-	## Guildmaster front-center near the hearth; members balanced L/R on the floor.
-	var margin_x := clampf(area.x * 0.07, 28.0, 56.0)
-	# Interior art floor sits in the lower third — keep feet on stone, not the panel rim.
-	var floor_y := area.y * (0.72 if area.y < 220.0 else 0.70)
-	var center_x := area.x * 0.5
-	var lord_clear := clampf(area.x * 0.13, 78.0, 120.0)
-	var short := area.y < 220.0 or area.x < 480.0
-	var scale_mem := SPRITE_SCALE * (0.78 if short else 1.0)
-	var scale_lord := LORD_SCALE * (0.82 if short else 1.0)
+	## Guildmaster at throne center; members balanced L/R on one floor line.
+	var floor_y := _floor_y_for_hall(area)
+	# Bias slightly toward the hearth/throne in the interior art.
+	var center_x := area.x * 0.505
+	var lord_clear := clampf(area.x * 0.10, 70.0, 102.0)
+	# Balanced L/R cluster with readable gaps — not wall-to-wall stretch.
+	var flank_span := clampf(70.0 + float(mini(others.size(), HALL_MEMBER_CAP)) * 32.0, 130.0, 280.0)
+	var scale_mem := SPRITE_SCALE
+	var scale_lord := LORD_SCALE
 
 	var show: Array = []
 	for i in mini(others.size(), HALL_MEMBER_CAP):
@@ -486,32 +583,50 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 	var left_list: Array = show.slice(0, left_n)
 	var right_list: Array = show.slice(left_n, show.size())
 
-	# Farther flanks first; lord last (highest z) so he reads as the focus.
-	_place_flank(left_list, margin_x, center_x - lord_clear, floor_y - 10.0, scale_mem, false)
-	_place_flank(right_list, center_x + lord_clear, area.x - margin_x, floor_y - 10.0, scale_mem, true)
+	var left_x1 := center_x - lord_clear
+	var right_x0 := center_x + lord_clear
+	# Flanks first (lower z); lord last so he reads as focus in front of the throne.
+	_place_flank(left_list, left_x1 - flank_span, left_x1, floor_y, scale_mem, false)
+	_place_flank(right_list, right_x0, right_x0 + flank_span, floor_y, scale_mem, true)
 
 	if not lord.is_empty():
-		_spawn_hall_actor(lord, Vector2(center_x, floor_y + 6.0), scale_lord, true, 60)
+		_spawn_hall_actor(lord, Vector2(center_x, floor_y), scale_lord, true, 55)
+
+	print("LOG: hall stage area=", area, " floor_y=", floor_y, " center_x=", center_x, " members=", show.size())
 
 	if others.size() > HALL_MEMBER_CAP:
 		var more := UIStyle.label("+%d명 더 있음" % (others.size() - HALL_MEMBER_CAP), 11, UIStyle.TEXT_DIM)
-		more.position = Vector2(10, area.y - 22)
+		more.position = Vector2(10, 8)
 		_hall_layer.add_child(more)
 
 
 func _place_flank(list: Array, x0: float, x1: float, floor_y: float, scale_v: float, face_left: bool) -> void:
 	if list.is_empty():
 		return
-	var span := x1 - x0
 	var n := list.size()
+	var min_gap := 66.0
+	var span := x1 - x0
+	if n > 1:
+		var need := min_gap * float(n - 1)
+		if span < need:
+			# Grow outward from the throne-side edge.
+			if face_left:
+				x1 = x0 + need
+			else:
+				x0 = x1 - need
+			span = need
+		elif span > need * 1.35:
+			# Keep even spacing without over-stretching.
+			var mid := (x0 + x1) * 0.5
+			x0 = mid - need * 0.5
+			x1 = mid + need * 0.5
+			span = need
 	for i in n:
 		var t := 0.5 if n == 1 else float(i) / float(n - 1)
 		var x := x0 + span * t
-		# Outer members slightly farther (higher); near-center slightly forward.
-		var depth := absf(t - 0.5) * 18.0
-		var y := floor_y - depth
-		var z := 30 + int(y)
-		_spawn_hall_actor(list[i], Vector2(x, y), scale_v, false, z, face_left)
+		# Same floor_y for every actor; z rises toward center so near-throne reads in front.
+		var z := 28 + int((1.0 - absf(t - 0.5) * 2.0) * 12.0)
+		_spawn_hall_actor(list[i], Vector2(x, floor_y), scale_v, false, z, face_left)
 
 
 func _spawn_hall_actor(
@@ -524,50 +639,59 @@ func _spawn_hall_actor(
 ) -> void:
 	var mid := str(member.get("id", ""))
 	var selected := mid == GameState.selected_guild_member_id
-	var box_w := 88.0 if is_lord else 76.0
-	var box_h := 110.0 if is_lord else 96.0
+	# Selection/hit box hugs the scaled idle sprite (sheet ~64px).
+	var body_w := (42.0 if is_lord else 36.0)
+	var body_h := (46.0 if is_lord else 40.0)
+	var box_w := maxf(body_w + 4.0, 52.0)
+	var box_h := NAMEPLATE_H + 2.0 + body_h
 	var root := Control.new()
 	# Keep z modest so modal overlay (z=80) always covers hall actors.
-	root.z_index = mini(z + (8 if selected else 0) + (12 if is_lord else 0), 70)
+	root.z_index = mini(z + (6 if selected else 0) + (10 if is_lord else 0), 70)
 	root.z_as_relative = true
-	# pos = foot point on the floor line.
+	# pos = shared foot point on the floor line.
 	root.position = Vector2(pos.x - box_w * 0.5, pos.y - box_h)
 	root.custom_minimum_size = Vector2(box_w, box_h)
 	root.size = Vector2(box_w, box_h)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	root.clip_contents = true
+	root.clip_contents = false
 	_hall_layer.add_child(root)
 
-	if selected:
-		var glow := ColorRect.new()
-		glow.size = Vector2(box_w - 4.0, box_h - 4.0)
-		glow.position = Vector2(2, 2)
-		glow.color = Color(1.0, 0.85, 0.35, 0.2)
-		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		root.add_child(glow)
-		var border := Panel.new()
-		border.size = Vector2(box_w, box_h)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0, 0, 0, 0)
-		sb.border_color = UIStyle.GOLD_BRIGHT
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(4)
-		border.add_theme_stylebox_override("panel", sb)
-		border.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		root.add_child(border)
-
-	# Nameplate above the sprite so it never covers the body.
+	# Nameplate above the body — never overlaps the sprite or selection ring.
 	var name_l := UIStyle.label(
 		str(member.get("name", "")),
-		12 if is_lord else 11,
+		11 if is_lord else 10,
 		UIStyle.GOLD_BRIGHT if selected or is_lord else UIStyle.TEXT
 	)
 	name_l.position = Vector2(0, 0)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.custom_minimum_size = Vector2(box_w, 16)
-	name_l.size = Vector2(box_w, 16)
+	name_l.custom_minimum_size = Vector2(box_w, NAMEPLATE_H)
+	name_l.size = Vector2(box_w, NAMEPLATE_H)
+	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(name_l)
+
+	var body_x := (box_w - body_w) * 0.5
+	var body_y := NAMEPLATE_H + 2.0
+	if selected:
+		# Thin ring only — no tall panel chrome around the sprite.
+		var glow := ColorRect.new()
+		glow.position = Vector2(body_x, body_y)
+		glow.size = Vector2(body_w, body_h)
+		glow.color = Color(1.0, 0.85, 0.35, 0.14)
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(glow)
+		for edge in [
+			[Vector2(body_x, body_y), Vector2(body_w, 2)],
+			[Vector2(body_x, body_y + body_h - 2.0), Vector2(body_w, 2)],
+			[Vector2(body_x, body_y), Vector2(2, body_h)],
+			[Vector2(body_x + body_w - 2.0, body_y), Vector2(2, body_h)],
+		]:
+			var line := ColorRect.new()
+			line.position = edge[0]
+			line.size = edge[1]
+			line.color = UIStyle.GOLD_BRIGHT
+			line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			root.add_child(line)
 
 	var job := str(member.get("job", "dps"))
 	var spr := AnimatedSprite2D.new()
@@ -575,10 +699,10 @@ func _spawn_hall_actor(
 	spr.animation = &"idle"
 	spr.play()
 	spr.scale = Vector2(scale_v, scale_v)
-	# Feet near bottom of the hit box; keep drawing inside the clipped root.
-	spr.position = Vector2(box_w * 0.5, box_h - 6.0)
+	# Feet exactly on the shared floor line (bottom of root = pos.y).
+	spr.position = Vector2(box_w * 0.5, box_h)
 	spr.centered = true
-	spr.offset = Vector2(0, -32)
+	spr.offset = Vector2(0, SPRITE_FOOT_OFFSET_Y)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if force_face_left:
 		spr.flip_h = true
@@ -586,7 +710,9 @@ func _spawn_hall_actor(
 
 	var btn := Button.new()
 	btn.flat = true
-	btn.set_anchors_preset(PRESET_FULL_RECT)
+	btn.position = Vector2(body_x, body_y)
+	btn.size = Vector2(body_w, body_h)
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.pressed.connect(_make_select_cb(mid))
 	root.add_child(btn)
@@ -699,33 +825,44 @@ func _make_party_card(kind: String) -> PanelContainer:
 			accent = Color(0.25, 0.38, 0.58)
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	# Equal height from content — title + icons + 편성, no spare chrome.
+	var card_h := 82.0 if _dense else 94.0
+	card.custom_minimum_size = Vector2(0, card_h)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(accent.r * 0.35, accent.g * 0.35, accent.b * 0.35, 0.92)
 	sb.border_color = accent.lightened(0.35)
 	sb.set_border_width_all(2)
 	sb.set_corner_radius_all(6)
-	sb.content_margin_left = 8 if _dense else 10
-	sb.content_margin_right = 8 if _dense else 10
-	sb.content_margin_top = 4 if _dense else 8
-	sb.content_margin_bottom = 4 if _dense else 8
+	sb.content_margin_left = 6
+	sb.content_margin_right = 6
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
 	card.add_theme_stylebox_override("panel", sb)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 2 if _dense else 4)
+	vb.add_theme_constant_override("separation", 2)
+	vb.alignment = BoxContainer.ALIGNMENT_BEGIN
+	vb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	card.add_child(vb)
-	vb.add_child(UIStyle.label(GameState.guild_party_label(kind), 13 if _dense else 14, UIStyle.GOLD_BRIGHT))
-	if not _dense:
-		vb.add_child(UIStyle.label(GameState.guild_party_purpose(kind), 11, UIStyle.TEXT_DIM))
 
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	head.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	vb.add_child(head)
+	var title := UIStyle.label(GameState.guild_party_label(kind), 12 if _dense else 13, UIStyle.GOLD_BRIGHT)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
 	var ids: Array = GameState.get_guild_party(kind)
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(kind, 5))
-	vb.add_child(UIStyle.label("인원 %d / %d" % [ids.size(), max_n], 11 if _dense else 12))
+	head.add_child(UIStyle.label("%d/%d" % [ids.size(), max_n], 11, UIStyle.TEXT_DIM))
 
 	var portraits := HBoxContainer.new()
-	portraits.add_theme_constant_override("separation", 3 if _dense else 4)
+	portraits.add_theme_constant_override("separation", 3)
+	portraits.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	vb.add_child(portraits)
-	var slot_sz := 28.0 if _dense else 36.0
-	var face_sz := 24.0 if _dense else 32.0
+	var slot_sz := 24.0 if _dense else 28.0
+	var face_sz := 20.0 if _dense else 24.0
 	for i in max_n:
 		var slot := PanelContainer.new()
 		var ssb := StyleBoxFlat.new()
@@ -735,6 +872,7 @@ func _make_party_card(kind: String) -> PanelContainer:
 		ssb.set_corner_radius_all(3)
 		slot.add_theme_stylebox_override("panel", ssb)
 		slot.custom_minimum_size = Vector2(slot_sz, slot_sz)
+		slot.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		if i < ids.size():
 			var mem := GameState.get_member_by_id(str(ids[i]))
 			var tr := TextureRect.new()
@@ -746,25 +884,36 @@ func _make_party_card(kind: String) -> PanelContainer:
 			tr.tooltip_text = "%s Lv.%d" % [mem.get("name", ""), int(mem.get("level", 1))]
 			slot.add_child(tr)
 		else:
-			var plus := UIStyle.label("+", 14 if _dense else 16, UIStyle.TEXT_DIM)
+			var plus := UIStyle.label("+", 12, UIStyle.TEXT_DIM)
 			plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			plus.custom_minimum_size = Vector2(face_sz, face_sz)
 			slot.add_child(plus)
 		portraits.add_child(slot)
 
-	if not _dense:
-		if kind == "train":
-			vb.add_child(UIStyle.label("상태: 배정만 (훈련 실행은 훈련장)", 11, UIStyle.TEXT_DIM))
-		elif kind == "defend":
-			vb.add_child(UIStyle.label("상태: 배정만 (방어 이벤트 없음)", 11, UIStyle.TEXT_DIM))
-		else:
-			vb.add_child(UIStyle.label("출정 전투 파티로 동기화", 11, UIStyle.TEXT_DIM))
-
 	var edit := Button.new()
 	edit.text = "편성"
-	edit.custom_minimum_size = Vector2(0, 32 if _dense else 40)
+	edit.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UIStyle.apply_button(edit)
+	# Override mobile 48px min from UIStyle — party strip must stay compact.
+	var btn_h := 24.0 if _dense else 28.0
+	edit.custom_minimum_size = Vector2(0, btn_h)
+	for style_name in ["normal", "hover", "pressed"]:
+		var base_sb: StyleBoxFlat
+		match style_name:
+			"hover":
+				base_sb = UIStyle.button_hover()
+			"pressed":
+				base_sb = UIStyle.button_pressed()
+			_:
+				base_sb = UIStyle.button_normal()
+		var compact_sb := base_sb.duplicate() as StyleBoxFlat
+		compact_sb.content_margin_top = 3
+		compact_sb.content_margin_bottom = 3
+		compact_sb.content_margin_left = 8
+		compact_sb.content_margin_right = 8
+		edit.add_theme_stylebox_override(style_name, compact_sb)
 	var kind_copy: String = kind
 	edit.pressed.connect(func(): _open_assign(kind_copy))
 	vb.add_child(edit)
