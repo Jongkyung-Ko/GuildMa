@@ -311,9 +311,9 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var detail_w := 248.0 if _dense else 268.0
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
-	# Compact party strip — tall enough that 편성 sits fully inside the card clip.
-	var party_h := 114.0 if _dense else 142.0
-	var hall_h := maxf(210.0 if _dense else 250.0, content_h - party_h - gap)
+	# Compact party strip — tall enough that 편성 sits fully above the footer.
+	var party_h := 122.0 if _dense else 156.0
+	var hall_h := maxf(200.0 if _dense else 240.0, content_h - party_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
 	_nav_box.size = Vector2(nav_w, content_h)
@@ -894,23 +894,14 @@ func _equalize_party_card_heights() -> void:
 	if max_h < 8.0:
 		return
 	# Pad so 편성 + bottom margin never sit on the clip edge.
-	max_h += 6.0 if _dense else 10.0
+	max_h += 8.0 if _dense else 12.0
+	# Never grow past the layout-reserved strip (overflow was covering the footer).
+	if _party_wrap:
+		var avail := maxf(64.0, _party_wrap.size.y - 26.0)
+		max_h = minf(max_h, avail)
 	for c2 in _party_host.get_children():
 		if c2 is Control:
 			(c2 as Control).custom_minimum_size.y = max_h
-	# Grow party strip if cards need more room than the layout reserved (no re-entrancy).
-	if _party_wrap and _party_wrap.size.y + 0.5 < max_h + 30.0:
-		var need := max_h + 30.0
-		var delta := need - _party_wrap.size.y
-		_party_wrap.size.y = need
-		_party_wrap.custom_minimum_size.y = need
-		if _hall_wrap:
-			_hall_wrap.size.y = maxf(180.0, _hall_wrap.size.y - delta)
-			_hall_wrap.custom_minimum_size.y = _hall_wrap.size.y
-			_party_wrap.position.y = _hall_wrap.position.y + _hall_wrap.size.y + (6.0 if _dense else 8.0)
-		if _detail_wrap and _hall_wrap:
-			_detail_wrap.size.y = _hall_wrap.size.y
-		call_deferred("_fit_interior")
 
 
 func _make_party_card(kind: String) -> PanelContainer:
