@@ -1,14 +1,13 @@
 extends Control
 
-## Guild Hall HQ — responsive layout (portrait scroll / landscape split) + stage composition.
+## Guild Hall HQ — landscape-only split layout + stage composition.
+## Portrait stacked-scroll layout is disabled (game is landscape-only).
 
 const HALL_BG := "res://assets/backgrounds/guild_interior.png"
 const PORTRAIT_DIR := "res://assets/sprites/characters/"
 const SPRITE_SCALE := 0.48
 const LORD_SCALE := 0.62
 const HALL_MEMBER_CAP := 10
-const COMPACT_WIDTH := 900.0
-
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -18,7 +17,8 @@ var _mode: String = MENU_MEMBERS
 var _assign_kind: String = ""
 var _draft_ids: Array = []
 var _toast: Label
-var _compact: bool = false
+## Dense packing for short landscape windows (e.g. 844×390). Never portrait-stack.
+var _dense: bool = false
 
 var _top_bar: PanelContainer
 var _top_info: Label
@@ -62,14 +62,18 @@ func _on_window_resized() -> void:
 	call_deferred("_refresh_hall")
 
 
-func _is_compact() -> bool:
-	var sz := size
-	if sz.x < 8.0 or sz.y < 8.0:
-		var win := get_window()
-		if win:
-			sz = Vector2(win.size)
-	# Portrait or narrow design viewport → stacked scroll layout.
-	return sz.y > sz.x or sz.x < COMPACT_WIDTH
+func _is_dense_landscape() -> bool:
+	## Short physical landscape window — tighten chrome so hall/parties/detail fit.
+	var win := get_window()
+	if win == null:
+		return false
+	var wsz: Vector2i = win.size
+	if wsz.x < 8 or wsz.y < 8:
+		return false
+	# Landscape only; portrait is out of scope (never enable vertical stack).
+	if wsz.y > wsz.x:
+		return false
+	return wsz.y <= 420 or float(wsz.x) / float(wsz.y) >= 2.0
 
 
 func _build_shell() -> void:
@@ -203,11 +207,11 @@ func _build_shell() -> void:
 func _apply_responsive_layout() -> void:
 	if not _layout_built:
 		return
-	_compact = _is_compact()
-	var pad := 8.0
-	var top_h := 56.0 if _compact else 52.0
-	var foot_h := 52.0
-	var toast_h := 22.0
+	_dense = _is_dense_landscape()
+	var pad := 6.0 if _dense else 8.0
+	var top_h := 44.0 if _dense else 52.0
+	var foot_h := 44.0 if _dense else 52.0
+	var toast_h := 18.0 if _dense else 22.0
 	var w := size.x
 	var h := size.y
 	if w < 8.0 or h < 8.0:
@@ -218,107 +222,33 @@ func _apply_responsive_layout() -> void:
 	_top_bar.offset_right = -pad
 	_top_bar.offset_top = pad
 	_top_bar.offset_bottom = pad + top_h
-	_town_btn.text = "마을로" if _compact else "마을로 돌아가기"
+	_town_btn.text = "마을로" if _dense else "마을로 돌아가기"
 
 	_toast.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	_toast.offset_left = pad
 	_toast.offset_right = -pad
 
-	if _compact:
-		# Footer lives at end of scroll content so portrait never leaves a huge empty void.
-		_footer.visible = false
-		_toast.offset_top = -(pad + toast_h)
-		_toast.offset_bottom = -pad
-		_body_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		_body_scroll.offset_left = pad
-		_body_scroll.offset_right = -pad
-		_body_scroll.offset_top = pad + top_h + 4.0
-		_body_scroll.offset_bottom = -(pad + toast_h + 4.0)
-		_layout_compact(w - pad * 2.0)
-	else:
-		_footer.visible = true
-		_footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
-		_footer.offset_left = pad
-		_footer.offset_right = -pad
-		_footer.offset_top = -(pad + foot_h)
-		_footer.offset_bottom = -pad
-		_toast.offset_top = -(pad + foot_h + toast_h)
-		_toast.offset_bottom = -(pad + foot_h)
-		_body_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		_body_scroll.offset_left = pad
-		_body_scroll.offset_right = -pad
-		_body_scroll.offset_top = pad + top_h + 4.0
-		_body_scroll.offset_bottom = -(pad + foot_h + toast_h + 4.0)
-		var body_h := _body_scroll.size.y if _body_scroll.size.y > 8.0 else h - top_h - foot_h - toast_h - 24.0
-		_layout_wide(w - pad * 2.0, body_h)
+	# Landscape-only: always wide split. Portrait stacked scroll is disabled.
+	var compact_actions := _body_host.get_node_or_null("CompactActions")
+	if compact_actions:
+		compact_actions.visible = false
+	_footer.visible = true
+	_footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
+	_footer.offset_left = pad
+	_footer.offset_right = -pad
+	_footer.offset_top = -(pad + foot_h)
+	_footer.offset_bottom = -pad
+	_toast.offset_top = -(pad + foot_h + toast_h)
+	_toast.offset_bottom = -(pad + foot_h)
+	_body_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	_body_scroll.offset_left = pad
+	_body_scroll.offset_right = -pad
+	_body_scroll.offset_top = pad + top_h + 4.0
+	_body_scroll.offset_bottom = -(pad + foot_h + toast_h + 4.0)
+	var body_h := _body_scroll.size.y if _body_scroll.size.y > 8.0 else h - top_h - foot_h - toast_h - 24.0
+	_layout_wide(w - pad * 2.0, body_h)
 
 	_fit_overlay()
-
-
-func _layout_compact(content_w: float) -> void:
-	# Vertical stack inside scroll — hall on top, then detail, then parties, then actions.
-	_body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	var compact_actions := _ensure_compact_actions()
-	compact_actions.visible = true
-	var gap := 8.0
-	var y := 0.0
-	var nav_h := 56.0
-	_ensure_nav_orientation(true)
-	_nav_box.position = Vector2(0, y)
-	_nav_box.size = Vector2(content_w, nav_h)
-	y += nav_h + gap
-
-	var hall_h := clampf(content_w * 0.72, 240.0, 360.0)
-	_hall_wrap.position = Vector2(0, y)
-	_hall_wrap.size = Vector2(content_w, hall_h)
-	_hall_wrap.custom_minimum_size = Vector2(content_w, hall_h)
-	y += hall_h + gap
-
-	var detail_h := 300.0
-	_detail_wrap.position = Vector2(0, y)
-	_detail_wrap.size = Vector2(content_w, detail_h)
-	_detail_wrap.custom_minimum_size = Vector2(content_w, detail_h)
-	y += detail_h + gap
-
-	_ensure_party_orientation(true)
-	var party_h := 540.0
-	_party_wrap.position = Vector2(0, y)
-	_party_wrap.size = Vector2(content_w, party_h)
-	_party_wrap.custom_minimum_size = Vector2(content_w, party_h)
-	y += party_h + gap
-
-	# Inline action row (always reachable by scrolling to end).
-	compact_actions.position = Vector2(0, y)
-	compact_actions.size = Vector2(content_w, 52.0)
-	y += 60.0
-
-	_body_host.custom_minimum_size = Vector2(content_w, y)
-	_body_host.size = Vector2(content_w, y)
-
-
-func _ensure_compact_actions() -> HBoxContainer:
-	var existing := _body_host.get_node_or_null("CompactActions")
-	if existing:
-		return existing as HBoxContainer
-	var row := HBoxContainer.new()
-	row.name = "CompactActions"
-	row.add_theme_constant_override("separation", 10)
-	_body_host.add_child(row)
-	var save_btn := Button.new()
-	save_btn.text = "파티 저장"
-	save_btn.custom_minimum_size = Vector2(0, 48)
-	save_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UIStyle.apply_button(save_btn)
-	save_btn.pressed.connect(_on_save_parties)
-	row.add_child(save_btn)
-	var close_btn := Button.new()
-	close_btn.text = "닫기"
-	close_btn.custom_minimum_size = Vector2(0, 48)
-	close_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	UIStyle.apply_button(close_btn)
-	close_btn.pressed.connect(func(): SceneRouter.go_town())
-	row.add_child(close_btn)
-	return row
 
 
 func _layout_wide(content_w: float, content_h: float) -> void:
@@ -328,12 +258,14 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 		compact_actions.visible = false
 	_ensure_nav_orientation(false)
 	_ensure_party_orientation(false)
-	var nav_w := 150.0
-	var detail_w := 260.0
-	var gap := 8.0
+	var nav_w := 130.0 if _dense else 150.0
+	var detail_w := 220.0 if _dense else 260.0
+	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
-	var hall_h := maxf(200.0, content_h * 0.58)
-	var party_h := maxf(150.0, content_h - hall_h - gap)
+	# Short landscape: keep hall as focus but leave enough party strip height.
+	var hall_ratio := 0.52 if _dense else 0.58
+	var hall_h := maxf(180.0 if _dense else 200.0, content_h * hall_ratio)
+	var party_h := maxf(130.0 if _dense else 150.0, content_h - hall_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
 	_nav_box.size = Vector2(nav_w, content_h)
@@ -448,12 +380,12 @@ func _fit_overlay() -> void:
 	if _overlay_panel == null:
 		return
 	var vw := maxf(size.x, 320.0)
-	var vh := maxf(size.y, 480.0)
+	var vh := maxf(size.y, 360.0)
 	var pw := minf(720.0, vw - 24.0)
 	var ph := minf(520.0, vh - 48.0)
-	if _compact:
-		pw = vw - 16.0
-		ph = minf(vh * 0.82, vh - 32.0)
+	if _dense:
+		pw = minf(vw - 20.0, 900.0)
+		ph = minf(vh - 24.0, vh * 0.92)
 	_overlay_panel.set_anchors_preset(PRESET_CENTER)
 	_overlay_panel.custom_minimum_size = Vector2(pw, ph)
 	_overlay_panel.offset_left = -pw * 0.5
@@ -485,7 +417,7 @@ func _refresh_all() -> void:
 
 
 func _refresh_top() -> void:
-	if _compact:
+	if _dense:
 		_top_info.text = "%s Lv.%d · 명성 %d · %s · %dG" % [
 			GameState.guild_name, GameState.guild_level, GameState.reputation,
 			GameState.member_count_text(), GameState.gold,
@@ -540,11 +472,12 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 	## Guildmaster front-center near the hearth; members balanced L/R on the floor.
 	var margin_x := clampf(area.x * 0.07, 28.0, 56.0)
 	# Interior art floor sits in the lower third — keep feet on stone, not the panel rim.
-	var floor_y := area.y * 0.70
+	var floor_y := area.y * (0.72 if area.y < 220.0 else 0.70)
 	var center_x := area.x * 0.5
 	var lord_clear := clampf(area.x * 0.13, 78.0, 120.0)
-	var scale_mem := SPRITE_SCALE if area.x >= 480.0 else SPRITE_SCALE * 0.85
-	var scale_lord := LORD_SCALE if area.x >= 480.0 else LORD_SCALE * 0.88
+	var short := area.y < 220.0 or area.x < 480.0
+	var scale_mem := SPRITE_SCALE * (0.78 if short else 1.0)
+	var scale_lord := LORD_SCALE * (0.82 if short else 1.0)
 
 	var show: Array = []
 	for i in mini(others.size(), HALL_MEMBER_CAP):
@@ -766,32 +699,33 @@ func _make_party_card(kind: String) -> PanelContainer:
 			accent = Color(0.25, 0.38, 0.58)
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	if _compact:
-		card.custom_minimum_size = Vector2(0, 150)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(accent.r * 0.35, accent.g * 0.35, accent.b * 0.35, 0.92)
 	sb.border_color = accent.lightened(0.35)
 	sb.set_border_width_all(2)
 	sb.set_corner_radius_all(6)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 8
-	sb.content_margin_bottom = 8
+	sb.content_margin_left = 8 if _dense else 10
+	sb.content_margin_right = 8 if _dense else 10
+	sb.content_margin_top = 4 if _dense else 8
+	sb.content_margin_bottom = 4 if _dense else 8
 	card.add_theme_stylebox_override("panel", sb)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 4)
+	vb.add_theme_constant_override("separation", 2 if _dense else 4)
 	card.add_child(vb)
-	vb.add_child(UIStyle.label(GameState.guild_party_label(kind), 14, UIStyle.GOLD_BRIGHT))
-	vb.add_child(UIStyle.label(GameState.guild_party_purpose(kind), 11, UIStyle.TEXT_DIM))
+	vb.add_child(UIStyle.label(GameState.guild_party_label(kind), 13 if _dense else 14, UIStyle.GOLD_BRIGHT))
+	if not _dense:
+		vb.add_child(UIStyle.label(GameState.guild_party_purpose(kind), 11, UIStyle.TEXT_DIM))
 
 	var ids: Array = GameState.get_guild_party(kind)
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(kind, 5))
-	vb.add_child(UIStyle.label("인원 %d / %d" % [ids.size(), max_n], 12))
+	vb.add_child(UIStyle.label("인원 %d / %d" % [ids.size(), max_n], 11 if _dense else 12))
 
 	var portraits := HBoxContainer.new()
-	portraits.add_theme_constant_override("separation", 4)
+	portraits.add_theme_constant_override("separation", 3 if _dense else 4)
 	vb.add_child(portraits)
+	var slot_sz := 28.0 if _dense else 36.0
+	var face_sz := 24.0 if _dense else 32.0
 	for i in max_n:
 		var slot := PanelContainer.new()
 		var ssb := StyleBoxFlat.new()
@@ -800,35 +734,36 @@ func _make_party_card(kind: String) -> PanelContainer:
 		ssb.set_border_width_all(1)
 		ssb.set_corner_radius_all(3)
 		slot.add_theme_stylebox_override("panel", ssb)
-		slot.custom_minimum_size = Vector2(36, 36)
+		slot.custom_minimum_size = Vector2(slot_sz, slot_sz)
 		if i < ids.size():
 			var mem := GameState.get_member_by_id(str(ids[i]))
 			var tr := TextureRect.new()
 			tr.texture = _portrait_for(str(mem.get("job", "lord")))
-			tr.custom_minimum_size = Vector2(32, 32)
+			tr.custom_minimum_size = Vector2(face_sz, face_sz)
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			tr.tooltip_text = "%s Lv.%d" % [mem.get("name", ""), int(mem.get("level", 1))]
 			slot.add_child(tr)
 		else:
-			var plus := UIStyle.label("+", 16, UIStyle.TEXT_DIM)
+			var plus := UIStyle.label("+", 14 if _dense else 16, UIStyle.TEXT_DIM)
 			plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			plus.custom_minimum_size = Vector2(32, 32)
+			plus.custom_minimum_size = Vector2(face_sz, face_sz)
 			slot.add_child(plus)
 		portraits.add_child(slot)
 
-	if kind == "train":
-		vb.add_child(UIStyle.label("상태: 배정만 (훈련 실행은 훈련장)", 11, UIStyle.TEXT_DIM))
-	elif kind == "defend":
-		vb.add_child(UIStyle.label("상태: 배정만 (방어 이벤트 없음)", 11, UIStyle.TEXT_DIM))
-	else:
-		vb.add_child(UIStyle.label("출정 전투 파티로 동기화", 11, UIStyle.TEXT_DIM))
+	if not _dense:
+		if kind == "train":
+			vb.add_child(UIStyle.label("상태: 배정만 (훈련 실행은 훈련장)", 11, UIStyle.TEXT_DIM))
+		elif kind == "defend":
+			vb.add_child(UIStyle.label("상태: 배정만 (방어 이벤트 없음)", 11, UIStyle.TEXT_DIM))
+		else:
+			vb.add_child(UIStyle.label("출정 전투 파티로 동기화", 11, UIStyle.TEXT_DIM))
 
 	var edit := Button.new()
 	edit.text = "편성"
-	edit.custom_minimum_size = Vector2(0, 40)
+	edit.custom_minimum_size = Vector2(0, 32 if _dense else 40)
 	UIStyle.apply_button(edit)
 	var kind_copy: String = kind
 	edit.pressed.connect(func(): _open_assign(kind_copy))
@@ -858,19 +793,15 @@ func _show_overlay_assign() -> void:
 	root.add_child(count)
 	_update_assign_count_label(count)
 
-	var split: Container
-	if _compact:
-		split = VBoxContainer.new()
-	else:
-		split = HBoxContainer.new()
+	var split := HBoxContainer.new()
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split.add_theme_constant_override("separation", 12)
+	split.add_theme_constant_override("separation", 8 if _dense else 12)
 	root.add_child(split)
 
 	var left_scroll := ScrollContainer.new()
 	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_scroll.custom_minimum_size = Vector2(280, 220)
+	left_scroll.custom_minimum_size = Vector2(240 if _dense else 280, 160 if _dense else 220)
 	split.add_child(left_scroll)
 	var left_box := VBoxContainer.new()
 	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL

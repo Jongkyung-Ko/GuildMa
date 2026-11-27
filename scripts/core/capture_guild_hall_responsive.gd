@@ -1,13 +1,13 @@
 extends SceneTree
 
-## Multi-resolution Guild Hall layout captures for PR16.
+## Landscape-only Guild Hall layout captures for PR16.
+## Required targets: mobile landscape 844×390 + PC 1366×768.
+## Portrait is out of scope (GuildMaster is landscape-only).
 ## godot --path . -s res://scripts/core/capture_guild_hall_responsive.gd
 
 const ART := "/opt/cursor/artifacts/guild-hall-responsive"
 
 const SIZES := [
-	["mobile_portrait_390x844", Vector2i(390, 844)],
-	["mobile_portrait_430x932", Vector2i(430, 932)],
 	["mobile_landscape_844x390", Vector2i(844, 390)],
 	["pc_1366x768", Vector2i(1366, 768)],
 ]

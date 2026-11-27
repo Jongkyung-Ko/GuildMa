@@ -1,12 +1,13 @@
 extends SceneTree
 
-## PR16 pre-merge regression captures across screens / orientations.
+## PR16 landscape-only regression captures across screens.
+## Required targets: mobile landscape 844×390 + PC 1366×768.
+## Portrait layouts are out of scope (GuildMaster is landscape-only).
 ## godot --path . -s res://scripts/core/capture_pr16_regression.gd
 
 const ART := "/opt/cursor/artifacts/pr16-regression"
 
 const ORIENTATIONS := [
-	["portrait_390x844", Vector2i(390, 844)],
 	["landscape_844x390", Vector2i(844, 390)],
 	["pc_1366x768", Vector2i(1366, 768)],
 ]
@@ -81,11 +82,11 @@ func _run() -> void:
 		else:
 			_pass("%s town: TownWorld plate 1280x720 (aspect preserved)" % tag)
 
-		if tag.begins_with("portrait") and scale_sz.x != 1280:
-			_fail("%s unexpected portrait content_scale_size.x=%d (want 1280 to protect town layout)" % [tag, scale_sz.x])
+		if scale_sz.x != 1280 or scale_sz.y != 720:
+			_fail("%s unexpected content_scale_size=%s (want 1280x720 landscape design)" % [tag, str(scale_sz)])
 			failed += 1
-		elif tag.begins_with("portrait"):
-			_pass("%s portrait keeps design width 1280 (EXPAND tall viewport)" % tag)
+		else:
+			_pass("%s keeps design size 1280x720 + EXPAND" % tag)
 
 		# --- Facilities ---
 		for fid in ["inn", "shop", "training", "blacksmith"]:
@@ -125,56 +126,43 @@ func _run() -> void:
 			current.call("_refresh_all")
 		await _settle()
 		await _capture("%s_guild_hall" % tag)
-		# Footer / compact actions reachability heuristics
-		if current.has_method("_is_compact") and bool(current.call("_is_compact")):
-			var found := _find_named(current, "CompactActions")
-			if found == null:
-				_fail("%s guild hall compact: CompactActions missing" % tag)
+		# Landscape-only: wide footer must stay visible (portrait compact stack disabled).
+		if current.has_method("_is_dense_landscape"):
+			var dense := bool(current.call("_is_dense_landscape"))
+			if tag.begins_with("landscape") and not dense:
+				_fail("%s guild hall: expected dense landscape packing on short window" % tag)
+				failed += 1
+			elif tag.begins_with("pc") and dense:
+				_fail("%s guild hall: unexpected dense packing on PC" % tag)
 				failed += 1
 			else:
-				_pass("%s guild hall compact: CompactActions present" % tag)
-				# Scroll to end so save/close are in the capture frame.
-				var sc: ScrollContainer = current.get("_body_scroll") as ScrollContainer
-				if sc:
-					await _settle()
-					sc.scroll_vertical = 100000
-					await _settle()
-					await _capture("%s_guild_hall_actions" % tag)
-					var save_ok := false
-					var close_ok := false
-					for ch in found.get_children():
-						if ch is Button:
-							var t := str((ch as Button).text)
-							if t.find("저장") >= 0:
-								save_ok = true
-							if t.find("닫기") >= 0:
-								close_ok = true
-					if save_ok and close_ok:
-						_pass("%s guild hall compact: save/close buttons present" % tag)
-					else:
-						_fail("%s guild hall compact: save/close labels missing" % tag)
-						failed += 1
+				_pass("%s guild hall dense=%s (expected for this target)" % [tag, str(dense)])
+		var footer = current.get("_footer")
+		if footer == null or not bool(footer.visible):
+			_fail("%s guild hall wide: footer missing/hidden" % tag)
+			failed += 1
 		else:
-			var footer = current.get("_footer")
-			if footer == null or not bool(footer.visible):
-				_fail("%s guild hall wide: footer missing/hidden" % tag)
-				failed += 1
+			_pass("%s guild hall wide: footer visible" % tag)
+			var save_ok := false
+			var close_ok := false
+			for ch in footer.get_children():
+				if ch is Button:
+					var t := str((ch as Button).text)
+					if t.find("저장") >= 0:
+						save_ok = true
+					if t.find("닫기") >= 0:
+						close_ok = true
+			if save_ok and close_ok:
+				_pass("%s guild hall wide: save/close in footer" % tag)
 			else:
-				_pass("%s guild hall wide: footer visible" % tag)
-				var save_ok := false
-				var close_ok := false
-				for ch in footer.get_children():
-					if ch is Button:
-						var t := str((ch as Button).text)
-						if t.find("저장") >= 0:
-							save_ok = true
-						if t.find("닫기") >= 0:
-							close_ok = true
-				if save_ok and close_ok:
-					_pass("%s guild hall wide: save/close in footer" % tag)
-				else:
-					_fail("%s guild hall wide: save/close missing in footer" % tag)
-					failed += 1
+				_fail("%s guild hall wide: save/close missing in footer" % tag)
+				failed += 1
+		var compact_actions := _find_named(current, "CompactActions")
+		if compact_actions != null and bool(compact_actions.visible):
+			_fail("%s guild hall: CompactActions still visible (portrait path must stay off)" % tag)
+			failed += 1
+		else:
+			_pass("%s guild hall: portrait CompactActions hidden/absent" % tag)
 
 		# Scene transition persistence: town again after guild
 		current = await _swap_scene(current, "res://scenes/town/town.tscn")

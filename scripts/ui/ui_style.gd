@@ -1,9 +1,9 @@
 extends Node
 
 ## Shared UI colors/styles + embedded Korean font + PC/mobile display adapt.
-## Design size stays 1280×720 on all orientations (town hotspots / facility shell
-## assume that width). Aspect is EXPAND so portrait phones gain vertical design
-## space without 16:9 KEEP letterboxing. Guild Hall reflows via its own compact layout.
+## Landscape-only game. Design size stays 1280×720 (town hotspots / facility shell
+## assume that width). Aspect EXPAND fills landscape windows without letterboxing;
+## portrait is out of scope (no dedicated portrait layout).
 ## Fonts are static OTFs shipped in the project (no OS / variable-font reliance).
 
 const GOLD := Color(0.82, 0.68, 0.32)
@@ -154,9 +154,8 @@ func _apply_display_adapt() -> void:
 		return
 	_mobile_like = _detect_mobile_like()
 
-	# Keep 1280×720 design width globally — absolute town/facility layouts depend on it.
-	# EXPAND (not KEEP): portrait windows get a taller design viewport (~1280×N)
-	# instead of letterboxed black bars. Per-screen reflow (Guild Hall) handles stacking.
+	# Keep 1280×720 design size globally — absolute town/facility layouts depend on it.
+	# EXPAND: landscape phones (e.g. 844×390) fill the screen without side letterboxing.
 	win.content_scale_size = Vector2i(1280, 720)
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
