@@ -100,7 +100,8 @@ jobs:
           set -euo pipefail
           # Redeploys reuse the same *.tmp.now URL when .vercel/anonymous.json is cached.
           # Anonymous deploys expire ~60m unless claimed via claim URL in the log.
-          npx --yes vercel@39.1.1 deploy --temporary --yes | tee /tmp/vercel-out.txt
+          # Latest CLI supports anonymous --temporary; older pins require login.
+          npx --yes vercel deploy --temporary --yes | tee /tmp/vercel-out.txt
           python3 <<'PY'
           import json, pathlib, re
           text = pathlib.Path("/tmp/vercel-out.txt").read_text(encoding="utf-8", errors="replace")
