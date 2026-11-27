@@ -7,7 +7,7 @@
 | **Prior FAIL cycle tip** | ChatGPT visual QA **FAIL** on first evidence set (`06a6e4a`) |
 | **Fix cycle** | P1 card/scroll + local enhance FX + P2 sell feedback; evidence PNGs **overwritten in place** (not deleted) |
 | **Prior UI fix commit** | `deee2504c01056658de99f693d2abac8e9c20550` |
-| **Category-scroll fix commit** | _(this push)_ |
+| **Category-scroll fix commit** | `e069abadb075e23b75d5b85af432598443b4d89d` |
 | **Resolution** | **1366×768** + short mobile landscape **844×390** proof |
 | **Engine** | Godot 4.3.stable.official · `DISPLAY=:1` · x11 · opengl3 |
 | **Capture scripts** | `capture_shop_blacksmith_visual_qa.gd`, `capture_shop_category_scroll.gd` |
