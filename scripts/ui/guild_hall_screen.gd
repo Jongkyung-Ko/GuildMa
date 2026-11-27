@@ -313,8 +313,8 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var detail_w := 248.0 if _dense else 268.0
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
-	# Compact party strip — tall enough that 편성 sits fully above the footer.
-	var party_h := 122.0 if _dense else 156.0
+	# Compact party strip — tall enough for 5 readable roster slots + 편성 above footer.
+	var party_h := 132.0 if _dense else 156.0
 	var hall_h := maxf(200.0 if _dense else 240.0, content_h - party_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
@@ -988,11 +988,14 @@ func _make_party_card(kind: String) -> PanelContainer:
 	head.add_child(UIStyle.label("%d/%d" % [ids.size(), max_n], 11, UIStyle.TEXT_DIM))
 
 	var portraits := HBoxContainer.new()
-	portraits.add_theme_constant_override("separation", 3)
+	# Dense 844: spread slots across the card — tiny left-clumped faces read as “missing”.
+	portraits.add_theme_constant_override("separation", 4 if _dense else 3)
+	portraits.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	portraits.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	vb.add_child(portraits)
-	var slot_sz := 24.0 if _dense else 28.0
-	var face_sz := 20.0 if _dense else 24.0
+	# Viewport→screen scale on 844 shrinks chrome; keep dense slots larger so 5/5 stay readable.
+	var slot_sz := 34.0 if _dense else 28.0
+	var face_sz := 30.0 if _dense else 24.0
 	for i in max_n:
 		var slot := PanelContainer.new()
 		var ssb := StyleBoxFlat.new()
@@ -1000,23 +1003,33 @@ func _make_party_card(kind: String) -> PanelContainer:
 		ssb.border_color = accent
 		ssb.set_border_width_all(1)
 		ssb.set_corner_radius_all(3)
+		ssb.content_margin_left = 2
+		ssb.content_margin_right = 2
+		ssb.content_margin_top = 2
+		ssb.content_margin_bottom = 2
 		slot.add_theme_stylebox_override("panel", ssb)
 		slot.custom_minimum_size = Vector2(slot_sz, slot_sz)
+		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		slot.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		slot.clip_contents = true
 		if i < ids.size():
 			var mem := GameState.get_member_by_id(str(ids[i]))
 			var tr := TextureRect.new()
 			tr.texture = _portrait_for(str(mem.get("job", "lord")))
 			tr.custom_minimum_size = Vector2(face_sz, face_sz)
+			tr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			tr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			tr.tooltip_text = "%s Lv.%d" % [mem.get("name", ""), int(mem.get("level", 1))]
 			slot.add_child(tr)
 		else:
-			var plus := UIStyle.label("+", 12, UIStyle.TEXT_DIM)
+			var plus := UIStyle.label("+", 14 if _dense else 12, UIStyle.TEXT_DIM)
 			plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			plus.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			plus.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			plus.custom_minimum_size = Vector2(face_sz, face_sz)
 			slot.add_child(plus)
 		portraits.add_child(slot)
