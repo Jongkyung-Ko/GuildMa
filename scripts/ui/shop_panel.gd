@@ -40,6 +40,10 @@ class ShopPanelRoot extends Control:
 	var _left_panel: PanelContainer
 	var _left_host: Control
 	var _cat_scroll: ScrollContainer
+	## Staged catalog spawn — avoids one-frame 48-card/icon hitch (BGM underrun on web).
+	const GRID_BATCH_SIZE := 4
+	var _grid_gen: int = 0
+	var _grid_queue: Array = []
 
 	func build() -> void:
 		set_anchors_preset(PRESET_FULL_RECT)
@@ -373,23 +377,64 @@ class ShopPanelRoot extends Control:
 			return
 
 	func _populate_grid() -> void:
+		## Clear immediately, then spawn cards across frames so town BGM does not underrun.
+		## First batch is deferred one frame so facility shell/layout cost does not stack.
+		if _grid == null:
+			return
 		for c in _grid.get_children():
 			c.free()
+		_grid_gen += 1
+		var gen := _grid_gen
+		_grid_queue.clear()
 		if mode == "buy":
 			for item in GameState.items_by_category(category):
-				_grid.add_child(_make_buy_card(item))
+				_grid_queue.append({
+					"kind": "buy",
+					"item": item,
+				})
 		else:
-			var any := false
 			for e in GameState.inventory:
 				var item := GameState.get_item(str(e.get("id", "")))
 				if item.is_empty():
 					continue
 				if str(item.get("category", "")) != category:
 					continue
-				any = true
-				_grid.add_child(_make_sell_card(item, int(e.get("enhance", 0)), int(e.get("qty", 0))))
-			if not any:
+				_grid_queue.append({
+					"kind": "sell",
+					"item": item,
+					"enhance": int(e.get("enhance", 0)),
+					"qty": int(e.get("qty", 0)),
+				})
+			if _grid_queue.is_empty():
 				_grid.add_child(UIStyle.label("이 분류의 보유 아이템이 없습니다.", 13, UIStyle.TEXT_DIM))
+				return
+		_pump_grid(gen, true)
+
+	func _pump_grid(gen: int, defer_first: bool = false) -> void:
+		if gen != _grid_gen or _grid == null or not is_inside_tree():
+			return
+		if defer_first:
+			await get_tree().process_frame
+			if gen != _grid_gen or _grid == null or not is_inside_tree():
+				return
+		var n := 0
+		while n < GRID_BATCH_SIZE and not _grid_queue.is_empty():
+			var entry: Dictionary = _grid_queue.pop_front()
+			if str(entry.get("kind", "")) == "buy":
+				_grid.add_child(_make_buy_card(entry["item"]))
+			else:
+				_grid.add_child(_make_sell_card(
+					entry["item"],
+					int(entry.get("enhance", 0)),
+					int(entry.get("qty", 0))
+				))
+			n += 1
+		if _grid_queue.is_empty():
+			return
+		await get_tree().process_frame
+		if gen != _grid_gen:
+			return
+		_pump_grid(gen, false)
 
 	func _card_opts(extra: Dictionary) -> Dictionary:
 		var opts := {

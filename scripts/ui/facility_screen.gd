@@ -108,29 +108,32 @@ func _build_shell() -> void:
 	_main_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_main_host.add_child(_main_box)
 
-	_left_visual = VBoxContainer.new()
-	_left_visual.custom_minimum_size = Vector2(340, 0)
-	_main_box.add_child(_left_visual)
-	var interior := TextureRect.new()
-	interior.name = "InteriorTex"
-	interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
-	interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	interior.custom_minimum_size = Vector2(340, 280)
-	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_left_visual.add_child(interior)
-	_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
-	_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
+	# Shop/blacksmith trade UIs remount `_main_box` immediately — skip loading an
+	# interior texture that would be freed the same frame (BGM hitch on web).
+	if facility_id != "shop" and facility_id != "blacksmith":
+		_left_visual = VBoxContainer.new()
+		_left_visual.custom_minimum_size = Vector2(340, 0)
+		_main_box.add_child(_left_visual)
+		var interior := TextureRect.new()
+		interior.name = "InteriorTex"
+		interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
+		interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		interior.custom_minimum_size = Vector2(340, 280)
+		interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_left_visual.add_child(interior)
+		_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
+		_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
 
-	_right_scroll = ScrollContainer.new()
-	_right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	# Keep gate/hunt buttons reachable without horizontal scroll at 1280x720.
-	_right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_main_box.add_child(_right_scroll)
-	_content = VBoxContainer.new()
-	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_content.add_theme_constant_override("separation", 8)
-	_right_scroll.add_child(_content)
+		_right_scroll = ScrollContainer.new()
+		_right_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# Keep gate/hunt buttons reachable without horizontal scroll at 1280x720.
+		_right_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_main_box.add_child(_right_scroll)
+		_content = VBoxContainer.new()
+		_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_content.add_theme_constant_override("separation", 8)
+		_right_scroll.add_child(_content)
 
 	_toast = UIStyle.label("", 14, UIStyle.TEXT)
 	_toast.set_anchors_preset(PRESET_BOTTOM_WIDE)

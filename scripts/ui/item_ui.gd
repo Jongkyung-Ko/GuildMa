@@ -83,16 +83,35 @@ static func subcategory_label(subcategory: String) -> String:
 	return SUBCATEGORY_LABELS.get(subcategory, subcategory)
 
 
+## Path → Texture2D. Avoids repeat ResourceLoader work across shop category toggles.
+static var _icon_cache: Dictionary = {}
+
+
 static func load_icon(item: Dictionary) -> Texture2D:
 	var path := str(item.get("icon", ""))
+	if path != "" and _icon_cache.has(path):
+		return _icon_cache[path] as Texture2D
 	if path != "" and ResourceLoader.exists(path):
-		return load(path) as Texture2D
+		var tex0: Texture2D = load(path) as Texture2D
+		if tex0:
+			_icon_cache[path] = tex0
+		return tex0
 	var by_id := "res://assets/items/%s.png" % str(item.get("id", ""))
+	if _icon_cache.has(by_id):
+		return _icon_cache[by_id] as Texture2D
 	if ResourceLoader.exists(by_id):
-		return load(by_id) as Texture2D
+		var tex1: Texture2D = load(by_id) as Texture2D
+		if tex1:
+			_icon_cache[by_id] = tex1
+		return tex1
 	var legacy := "res://assets/sprites/items/%s.png" % str(item.get("id", ""))
+	if _icon_cache.has(legacy):
+		return _icon_cache[legacy] as Texture2D
 	if ResourceLoader.exists(legacy):
-		return load(legacy) as Texture2D
+		var tex2: Texture2D = load(legacy) as Texture2D
+		if tex2:
+			_icon_cache[legacy] = tex2
+		return tex2
 	if ResourceLoader.exists("res://assets/items/iron_sword.png"):
 		return load("res://assets/items/iron_sword.png") as Texture2D
 	if ResourceLoader.exists("res://assets/sprites/icons/shop.png"):
