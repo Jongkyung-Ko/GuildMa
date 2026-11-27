@@ -47,8 +47,11 @@ var _bgm: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _sfx_idx: int = 0
-## Cached base streams — always .duplicate() before assigning to a player.
+## Cached base streams for SAMPLE one-shots. Do NOT .duplicate() per play —
+## fresh WAV copies force re-register_as_sample and hitch BGM STREAM on web.
 var _sfx_stream_cache: Dictionary = {}
+## Dedicated UI click voice (pre-bound stream) — hottest path, zero acquire churn.
+var _ui_click: AudioStreamPlayer
 
 var _unlocked: bool = false
 var _pending_bgm: String = ""
@@ -98,6 +101,13 @@ func _ready() -> void:
 		add_child(p)
 		_sfx_players.append(p)
 
+	_ui_click = AudioStreamPlayer.new()
+	_ui_click.name = "UiClickPlayer"
+	_ui_click.bus = "SFX"
+	_ui_click.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE
+	add_child(_ui_click)
+	_bind_ui_click_stream()
+
 	_apply_volumes()
 	# Browser autoplay: wait for first user gesture.
 	set_process_input(true)
@@ -112,6 +122,30 @@ func _preload_sfx_cache() -> void:
 		var s: AudioStream = load(path)
 		if s:
 			_sfx_stream_cache[id] = s
+			_ensure_sample_registered(s)
+
+
+func _ensure_sample_registered(stream: AudioStream) -> void:
+	## Register once so SAMPLE play() does not hitch the mix graph (BGM STREAM).
+	if stream == null:
+		return
+	if not AudioServer.has_method("is_stream_registered_as_sample"):
+		return
+	if AudioServer.is_stream_registered_as_sample(stream):
+		return
+	if AudioServer.has_method("register_stream_as_sample"):
+		AudioServer.register_stream_as_sample(stream)
+
+
+func _bind_ui_click_stream() -> void:
+	if _ui_click == null:
+		return
+	var click: AudioStream = _sfx_stream_for("ui_click")
+	if click == null:
+		return
+	_ensure_sample_registered(click)
+	if _ui_click.stream != click:
+		_ui_click.stream = click
 
 
 func _ensure_buses() -> void:
@@ -246,9 +280,12 @@ func play_sfx(id: String, volume_scale: float = 1.0) -> void:
 	var stream := _sfx_stream_for(id)
 	if stream == null:
 		return
+	_ensure_sample_registered(stream)
 	var p := _acquire_sfx_player()
-	# Assign a unique duplicate so simultaneous plays do not share playback state.
-	p.stream = stream.duplicate()
+	# Reuse cached SAMPLE stream — per-click .duplicate() re-registers samples and
+	# briefly stalls the audio graph (audible BGM chop on web).
+	if p.stream != stream:
+		p.stream = stream
 	p.volume_db = _linear_to_db(clampf(volume_scale, 0.0, 1.2))
 	p.play()
 
@@ -263,6 +300,7 @@ func _sfx_stream_for(id: String) -> AudioStream:
 	var s: AudioStream = load(path)
 	if s:
 		_sfx_stream_cache[id] = s
+		_ensure_sample_registered(s)
 	return s
 
 
@@ -282,7 +320,21 @@ func _acquire_sfx_player() -> AudioStreamPlayer:
 
 
 func play_ui_click() -> void:
-	play_sfx("ui_click", 0.7)
+	## Hot path for every UIStyle button — dedicated SAMPLE voice, no pool steal,
+	## no stream.duplicate(), no BGM touch.
+	if not _unlocked:
+		unlock_audio()
+	if _ui_click == null:
+		play_sfx("ui_click", 0.7)
+		return
+	if _ui_click.stream == null:
+		_bind_ui_click_stream()
+	if _ui_click.stream == null:
+		return
+	_ensure_sample_registered(_ui_click.stream)
+	_ui_click.volume_db = _linear_to_db(0.7)
+	# Restart from 0 if already playing (rapid clicks) without reallocating stream.
+	_ui_click.play(0.0)
 
 
 func play_hit() -> void:
@@ -314,6 +366,7 @@ func ensure_combat_ambience(force_restart: bool = false) -> void:
 		base = load(path) as AudioStream
 	if base == null:
 		return
+	# Ambience uses PLAYBACK_TYPE_STREAM — duplicate so loop flag edits stay local.
 	var stream: AudioStream = base.duplicate()
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD

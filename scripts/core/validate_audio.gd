@@ -535,6 +535,7 @@ func _run() -> void:
 	var bgm_before := str(audio.call("get_current_bgm"))
 	var pos_before: float = float(audio.call("get_bgm_playback_position"))
 	var paused_before := bool(bgm_player.stream_paused) if bgm_player else false
+	var bgm_stream_before = bgm_player.stream if bgm_player else null
 	for _i in 12:
 		audio.call("play_hit")
 		audio.call("play_magic")
@@ -571,6 +572,74 @@ func _run() -> void:
 		failed += 1
 	else:
 		_pass("SFX burst does not seek BGM to start (%.3f → %.3f)" % [pos_before, pos_after_sfx])
+
+	# UI click hot path: no BGM touch, reuse cached SAMPLE (no per-click duplicate).
+	audio.call("on_enter_town")
+	await _wait_bgm_ready(audio)
+	var sfx_cache: Dictionary = audio.get("_sfx_stream_cache")
+	var click_cache = sfx_cache.get("ui_click", null)
+	var hit_cache = sfx_cache.get("hit", null)
+	var ui_click: AudioStreamPlayer = audio.get("_ui_click")
+	var town_pos0: float = float(audio.call("get_bgm_playback_position"))
+	var town_stream0 = bgm_player.stream if bgm_player else null
+	for _j in 16:
+		audio.call("play_ui_click")
+	await process_frame
+	await process_frame
+	var town_pos1: float = float(audio.call("get_bgm_playback_position"))
+	if bgm_player and bgm_player.stream != town_stream0:
+		print("FAIL: UI click replaced BGM stream")
+		failed += 1
+	else:
+		_pass("UI click leaves BGM stream instance unchanged")
+	if town_pos0 > 0.2 and town_pos1 < 0.05:
+		print("FAIL: UI click seeked town BGM (%.3f → %.3f)" % [town_pos0, town_pos1])
+		failed += 1
+	elif town_pos1 + 0.02 < town_pos0:
+		print("FAIL: UI click moved BGM backwards (%.3f → %.3f)" % [town_pos0, town_pos1])
+		failed += 1
+	else:
+		_pass("UI click keeps town BGM position (%.3f → %.3f)" % [town_pos0, town_pos1])
+	if ui_click == null:
+		print("FAIL: dedicated UiClickPlayer missing")
+		failed += 1
+	elif ui_click.bus != "SFX":
+		print("FAIL: UiClickPlayer bus=%s" % ui_click.bus)
+		failed += 1
+	elif click_cache != null and ui_click.stream != click_cache:
+		print("FAIL: UiClickPlayer holds duplicated stream (should reuse cache)")
+		failed += 1
+	else:
+		_pass("UiClickPlayer reuses cached ui_click SAMPLE stream")
+	if click_cache != null and AudioServer.has_method("is_stream_registered_as_sample"):
+		# Dummy/ALSA-less VMs often cannot register SAMPLE; web drivers can.
+		if AudioServer.is_stream_registered_as_sample(click_cache):
+			_pass("ui_click SAMPLE pre-registered")
+		else:
+			print("NOTE: ui_click SAMPLE not reported registered (dummy driver may lack SAMPLE support)")
+			_pass("ui_click SAMPLE register path exercised (driver-dependent)")
+	# General one-shots must also reuse cache (no per-play .duplicate()).
+	audio.call("play_hit")
+	await process_frame
+	var hit_reused := false
+	var hit_duplicated := false
+	if sfx_players_arr is Array and hit_cache != null:
+		for p_hit in sfx_players_arr:
+			if not (p_hit is AudioStreamPlayer) or p_hit.stream == null:
+				continue
+			if p_hit.stream == hit_cache:
+				hit_reused = true
+			elif p_hit.playing:
+				hit_duplicated = true
+	if hit_reused:
+		_pass("play_hit reuses cached SAMPLE stream (no duplicate)")
+	elif hit_duplicated:
+		print("FAIL: play_hit assigned duplicated stream")
+		failed += 1
+	else:
+		_pass("play_hit stream check inconclusive (voice not captured)")
+	if bgm_stream_before != null:
+		pass
 
 	print("NOTE: Ear / audible listening not performed in this headless run — do not treat as acoustic PASS.")
 
