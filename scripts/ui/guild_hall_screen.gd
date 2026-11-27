@@ -17,8 +17,8 @@ const NAMEPLATE_H := 16.0
 const SPRITE_FOOT_OFFSET_Y := -30.0
 ## Mild zoom on pinned interior so furniture/actors fill the hall frame.
 const INTERIOR_ZOOM := 1.14
-## Floor for center-to-center gaps; wide jobs (tank/mage) add more at runtime.
-const FLANK_MIN_GAP := 110.0
+## Idle frames are ~150–165px wide; gaps must clear half-width * scale.
+const FLANK_MIN_GAP := 160.0
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -592,13 +592,35 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 	var lord_r := _actor_radius(lord if not lord.is_empty() else {}, scale_lord, true)
 	var left_inner_r := _actor_radius(left_list[0] if not left_list.is_empty() else {}, scale_mem, false)
 	var right_inner_r := _actor_radius(right_list[0] if not right_list.is_empty() else {}, scale_mem, false)
-	var lord_clear_l := maxf(FLANK_MIN_GAP, lord_r + left_inner_r + 20.0)
-	var lord_clear_r := maxf(FLANK_MIN_GAP, lord_r + right_inner_r + 20.0)
+	var lord_clear_l := maxf(FLANK_MIN_GAP, lord_r + left_inner_r + 12.0)
+	var lord_clear_r := maxf(FLANK_MIN_GAP, lord_r + right_inner_r + 12.0)
 	# Symmetry: use the larger clearance on both sides so L/R reads even.
 	var lord_clear := maxf(lord_clear_l, lord_clear_r)
 
-	_place_flank_outward(left_list, center_x - lord_clear, -1.0, floor_y, scale_mem, false)
-	_place_flank_outward(right_list, center_x + lord_clear, 1.0, floor_y, scale_mem, true)
+	var left_xs := _flank_xs(left_list, center_x - lord_clear, -1.0, scale_mem)
+	var right_xs := _flank_xs(right_list, center_x + lord_clear, 1.0, scale_mem)
+	# If flanks would hit the wall, shrink all gaps uniformly (keeps L/R even).
+	var margin := 36.0
+	var min_x := center_x
+	var max_x := center_x
+	for v in left_xs:
+		min_x = minf(min_x, float(v))
+	for v2 in right_xs:
+		max_x = maxf(max_x, float(v2))
+	var lo := margin
+	var hi := area.x - margin
+	if min_x < lo or max_x > hi:
+		var span_now := maxf(1.0, max_x - min_x)
+		var span_fit := hi - lo
+		var s := clampf(span_fit / span_now, 0.55, 1.0)
+		lord_clear *= s
+		left_xs = _flank_xs(left_list, center_x - lord_clear, -1.0, scale_mem, s)
+		right_xs = _flank_xs(right_list, center_x + lord_clear, 1.0, scale_mem, s)
+
+	for i in left_list.size():
+		_spawn_hall_actor(left_list[i], Vector2(float(left_xs[i]), floor_y), scale_mem, false, 40 - i * 2, false)
+	for j in right_list.size():
+		_spawn_hall_actor(right_list[j], Vector2(float(right_xs[j]), floor_y), scale_mem, false, 40 - j * 2, true)
 
 	if not lord.is_empty():
 		_spawn_hall_actor(lord, Vector2(center_x, floor_y), scale_lord, true, 55)
@@ -619,49 +641,39 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 
 
 func _actor_radius(member: Dictionary, scale_v: float, is_lord: bool = false) -> float:
-	## Half-width used for collision-free spacing (accounts for wide jobs).
+	## Half-width of idle sheet (~150–165px). Used for collision-free spacing.
 	if is_lord:
-		return 36.0 * scale_v
+		return 80.0 * scale_v
 	var job := str(member.get("job", "dps"))
-	var base := 32.0
+	var base := 76.0
 	match job:
 		"tank":
-			base = 40.0
+			base = 78.0
 		"mage":
-			base = 36.0
+			base = 82.0
 		"healer":
-			base = 34.0
+			base = 76.0
 		"dps":
-			base = 33.0
+			base = 78.0
 		_:
-			base = 34.0
+			base = 76.0
 	return base * scale_v
 
 
-func _place_flank_outward(
-	list: Array,
-	inner_x: float,
-	dir: float,
-	floor_y: float,
-	scale_v: float,
-	face_left: bool
-) -> void:
-	## Place members outward from the lord; gaps use per-job radii so wide
-	## sprites (tank) never collide with neighbors.
+func _flank_xs(list: Array, inner_x: float, dir: float, scale_v: float, gap_scale: float = 1.0) -> Array:
+	## X positions outward from the lord; gaps use per-job radii.
+	var xs: Array = []
 	if list.is_empty():
-		return
-	var n := list.size()
-	var margin := 44.0
+		return xs
 	var x := inner_x
-	for i in n:
+	for i in list.size():
 		if i > 0:
 			var prev_r := _actor_radius(list[i - 1], scale_v, false)
 			var cur_r := _actor_radius(list[i], scale_v, false)
-			var step := maxf(FLANK_MIN_GAP, prev_r + cur_r + 24.0)
+			var step := maxf(FLANK_MIN_GAP, prev_r + cur_r + 12.0) * gap_scale
 			x = x + dir * step
-		x = clampf(x, margin, _hall_area().x - margin)
-		var z := 40 - i * 2
-		_spawn_hall_actor(list[i], Vector2(x, floor_y), scale_v, false, z, face_left)
+		xs.append(x)
+	return xs
 
 
 func _spawn_hall_actor(
