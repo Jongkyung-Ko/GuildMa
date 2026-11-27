@@ -161,17 +161,22 @@ static func make_icon_frame(item: Dictionary, size: float = 72.0, enhance: int =
 
 static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	## Shop/blacksmith selectable card: icon + name + rarity + price/qty.
+	## Taller defaults + autowrap so subtype/status lines are not clipped.
 	var enhance: int = int(opts.get("enhance", 0))
 	var selected: bool = bool(opts.get("selected", false))
 	var price_text: String = str(opts.get("price_text", ""))
 	var sub_text: String = str(opts.get("sub_text", ""))
+	var subtype_text: String = str(opts.get("subtype_text", ""))
+	if subtype_text == "":
+		subtype_text = subcategory_label(str(item.get("subcategory", "")))
 	var icon_size: float = float(opts.get("icon_size", 72))
-	var min_w: float = float(opts.get("min_w", 118))
-	var min_h: float = float(opts.get("min_h", 148))
+	var min_w: float = float(opts.get("min_w", 128))
+	var min_h: float = float(opts.get("min_h", 178))
 
 	var cell := Button.new()
 	cell.flat = true
 	cell.custom_minimum_size = Vector2(min_w, min_h)
+	cell.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(cell)
 	var wrap := PanelContainer.new()
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -180,7 +185,7 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	cell.add_child(wrap)
 	var vb := VBoxContainer.new()
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vb.add_theme_constant_override("separation", 4)
+	vb.add_theme_constant_override("separation", 5)
 	wrap.add_child(vb)
 	var icon_row := CenterContainer.new()
 	icon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -188,12 +193,18 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	vb.add_child(icon_row)
 	var name_l := UIStyle.label(str(item.get("name")), 12, UIStyle.TEXT)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.clip_text = true
-	name_l.custom_minimum_size = Vector2(min_w - 16, 0)
+	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_l.custom_minimum_size = Vector2(min_w - 18, 28)
 	vb.add_child(name_l)
 	var rar := UIStyle.label(rarity_label(str(item.get("rarity", "common"))), 11, rarity_color(str(item.get("rarity", "common"))))
 	rar.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(rar)
+	if subtype_text != "":
+		var st := UIStyle.label(subtype_text, 11, UIStyle.TEXT_DIM)
+		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		st.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		st.custom_minimum_size = Vector2(min_w - 18, 16)
+		vb.add_child(st)
 	if price_text != "":
 		var pl := UIStyle.label(price_text, 12, UIStyle.GOLD_BRIGHT)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -201,6 +212,8 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	if sub_text != "":
 		var sl := UIStyle.label(sub_text, 11, UIStyle.TEXT_DIM)
 		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sl.custom_minimum_size = Vector2(min_w - 18, 16)
 		vb.add_child(sl)
 	return cell
 

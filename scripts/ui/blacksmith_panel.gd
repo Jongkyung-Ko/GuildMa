@@ -31,6 +31,9 @@ class BlacksmithPanelRoot extends Control:
 	var _compact: bool = false
 	var _busy: bool = false
 	var _glow_tween: Tween
+	var _fx_anchor: Control = null
+	var _fx_left_icon: PanelContainer = null
+	var _fx_right_icon: PanelContainer = null
 
 	func build() -> void:
 		set_anchors_preset(PRESET_FULL_RECT)
@@ -163,8 +166,8 @@ class BlacksmithPanelRoot extends Control:
 		vb.add_child(scroll)
 		_equip_grid = GridContainer.new()
 		_equip_grid.columns = 2 if _compact else 2
-		_equip_grid.add_theme_constant_override("h_separation", 8)
-		_equip_grid.add_theme_constant_override("v_separation", 8)
+		_equip_grid.add_theme_constant_override("h_separation", 10)
+		_equip_grid.add_theme_constant_override("v_separation", 12)
 		scroll.add_child(_equip_grid)
 		_feedback = UIStyle.label("", 13, UIStyle.OK)
 		_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -208,10 +211,10 @@ class BlacksmithPanelRoot extends Control:
 				"enhance": enh,
 				"selected": selected,
 				"price_text": "+%d" % enh,
-				"sub_text": "x%d" % int(e.get("qty", 0)),
+				"sub_text": "보유 x%d" % int(e.get("qty", 0)),
 				"icon_size": 60 if _compact else 68,
-				"min_w": 100,
-				"min_h": 132,
+				"min_w": 108 if _compact else 118,
+				"min_h": 160 if _compact else 176,
 			})
 			var id_copy := iid
 			var enh_copy := enh
@@ -227,6 +230,9 @@ class BlacksmithPanelRoot extends Control:
 	func _populate_detail() -> void:
 		for c in _detail.get_children():
 			c.free()
+		_fx_anchor = null
+		_fx_left_icon = null
+		_fx_right_icon = null
 		_detail.add_child(UIStyle.label("장비 강화", 20, UIStyle.GOLD_BRIGHT))
 		if selected_id == "":
 			_detail.add_child(UIStyle.label("오른쪽에서 장비를 선택하세요.", 13, UIStyle.TEXT_DIM))
@@ -240,17 +246,31 @@ class BlacksmithPanelRoot extends Control:
 
 		var compare := HBoxContainer.new()
 		compare.alignment = BoxContainer.ALIGNMENT_CENTER
-		compare.add_theme_constant_override("separation", 16)
+		compare.add_theme_constant_override("separation", 18)
 		_detail.add_child(compare)
+		_fx_anchor = compare
+
+		var left_wrap := PanelContainer.new()
+		left_wrap.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false, Color(0.45, 0.48, 0.55)))
 		var left := VBoxContainer.new()
-		left.add_child(ItemUI.make_icon_frame(item, 88 if not _compact else 72, cur, true))
-		left.add_child(UIStyle.label("현재 +%d" % cur, 15, UIStyle.GOLD_BRIGHT))
-		compare.add_child(left)
-		compare.add_child(UIStyle.label(">>>", 24, UIStyle.GOLD_BRIGHT))
+		left.add_theme_constant_override("separation", 6)
+		left_wrap.add_child(left)
+		_fx_left_icon = ItemUI.make_icon_frame(item, 88 if not _compact else 72, cur, true)
+		left.add_child(_fx_left_icon)
+		left.add_child(UIStyle.label("현재 +%d" % cur, 14, UIStyle.TEXT_DIM))
+		compare.add_child(left_wrap)
+
+		compare.add_child(UIStyle.label("→", 28, UIStyle.GOLD_BRIGHT))
+
+		var right_wrap := PanelContainer.new()
+		right_wrap.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(true, Color(1.0, 0.55, 0.2)))
 		var right := VBoxContainer.new()
-		right.add_child(ItemUI.make_icon_frame(item, 88 if not _compact else 72, nxt, false))
-		right.add_child(UIStyle.label("강화 +%d" % nxt, 15, Color(1.0, 0.55, 0.2)))
-		compare.add_child(right)
+		right.add_theme_constant_override("separation", 6)
+		right_wrap.add_child(right)
+		_fx_right_icon = ItemUI.make_icon_frame(item, 88 if not _compact else 72, nxt, false)
+		right.add_child(_fx_right_icon)
+		right.add_child(UIStyle.label("다음 +%d" % nxt, 14, Color(1.0, 0.7, 0.25)))
+		compare.add_child(right_wrap)
 
 		_detail.add_child(UIStyle.label(str(item.get("name")), 16, UIStyle.GOLD_BRIGHT))
 		_detail.add_child(UIStyle.label("%s · %s" % [
@@ -265,9 +285,16 @@ class BlacksmithPanelRoot extends Control:
 			_detail.add_child(UIStyle.label("최대 강화에 도달했습니다.", 14, UIStyle.GOLD_BRIGHT))
 			return
 
-		_detail.add_child(UIStyle.label("능력치 변화", 14, UIStyle.TEXT_DIM))
+		_detail.add_child(UIStyle.label("능력치 변화 (현재 → 다음)", 14, UIStyle.TEXT_DIM))
 		for entry in ItemUI.stat_delta_lines(item, cur, nxt):
 			var col := UIStyle.OK if bool(entry.get("positive", true)) else UIStyle.DANGER
+			var diff: int = int(entry.get("diff", 0))
+			if diff > 0:
+				col = Color(0.45, 0.95, 0.55)
+			elif diff < 0:
+				col = UIStyle.DANGER
+			else:
+				col = UIStyle.TEXT_DIM
 			_detail.add_child(UIStyle.label(str(entry.get("text")), 14, col))
 
 		var gold_cost := GameState.enhance_gold_cost(cur)
@@ -362,12 +389,57 @@ class BlacksmithPanelRoot extends Control:
 			tw.tween_callback(spark.queue_free)
 
 	func _flash_result(color: Color) -> void:
-		var flash := ColorRect.new()
-		flash.color = color
-		flash.set_anchors_preset(PRESET_FULL_RECT)
-		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(flash)
-		var tw := create_tween()
-		tw.tween_property(flash, "color:a", 0.0, 0.45)
-		tw.tween_callback(flash.queue_free)
-		await tw.finished
+		## Local success/fail FX only — no full-screen color wash.
+		## Glow selected compare icons + border pulse + short particles around the compare row.
+		var success := color.g > 0.5 and color.r > 0.7
+		var glow := color
+		glow.a = 0.55
+		var targets: Array = []
+		if _fx_left_icon:
+			targets.append(_fx_left_icon)
+		if _fx_right_icon:
+			targets.append(_fx_right_icon)
+		if targets.is_empty() and _fx_anchor:
+			targets.append(_fx_anchor)
+
+		for t in targets:
+			var panel: Control = t
+			var style := panel.get_theme_stylebox("panel")
+			if style is StyleBoxFlat:
+				var pulsed: StyleBoxFlat = (style as StyleBoxFlat).duplicate()
+				pulsed.border_color = Color(glow.r, glow.g, glow.b, 1.0)
+				pulsed.set_border_width_all(5)
+				pulsed.shadow_color = Color(glow.r, glow.g, glow.b, 0.85)
+				pulsed.shadow_size = 14
+				panel.add_theme_stylebox_override("panel", pulsed)
+
+		# Soft local wash behind compare icons only (not the whole screen).
+		var local_flash: ColorRect = null
+		if _fx_anchor:
+			local_flash = ColorRect.new()
+			local_flash.color = Color(glow.r, glow.g, glow.b, 0.42)
+			local_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			local_flash.z_index = 8
+			_fx_anchor.add_child(local_flash)
+			local_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			# Particles around compare row.
+			for i in 14:
+				var spark := ColorRect.new()
+				spark.color = Color(glow.r, glow.g, glow.b, 1.0) if success else Color(1.0, 0.35, 0.25, 1.0)
+				spark.size = Vector2(5, 5)
+				spark.position = Vector2(20 + randf() * maxf(40.0, _fx_anchor.size.x - 40.0), 10 + randf() * 60.0)
+				spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				_fx_anchor.add_child(spark)
+				var twp := create_tween()
+				var dest := spark.position + Vector2(randf_range(-50, 50), randf_range(-80, -20))
+				twp.tween_property(spark, "position", dest, 0.4)
+				twp.parallel().tween_property(spark, "color:a", 0.0, 0.4)
+				twp.tween_callback(spark.queue_free)
+
+		if local_flash:
+			var tw := create_tween()
+			tw.tween_property(local_flash, "color:a", 0.0, 0.55)
+			tw.tween_callback(local_flash.queue_free)
+			await tw.finished
+		else:
+			await get_tree().create_timer(0.45).timeout

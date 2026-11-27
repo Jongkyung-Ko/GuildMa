@@ -130,7 +130,7 @@ func _capture_shop_suite() -> void:
 	else:
 		_fail("shop_purchase: no selected item")
 
-	# Sell mode with inventory in weapon category.
+	# Sell mode — perform a real sell so feedback shows gold gained / remaining qty.
 	shop.mode = "sell"
 	shop.category = "weapon"
 	shop.selected_id = ""
@@ -139,9 +139,12 @@ func _capture_shop_suite() -> void:
 		shop._dialogue.text = "팔고 싶은 물건이 있으면 언제든 말씀하세요."
 	shop._refresh()
 	await _settle()
+	if str(shop.selected_id) != "":
+		shop._on_sell_pressed()
+		await _settle()
 	await _capture("shop_sell")
 	_note("shop_purchase: real AcceptDialog confirm modal (not a custom purchase result screen).")
-	_note("shop_sell: sell mode + inventory cards + sell CTA (no separate sell-result modal).")
+	_note("shop_sell: post-sell inline feedback (gold gained, remaining qty, updated gold chip).")
 
 
 func _capture_blacksmith_suite() -> void:
@@ -204,37 +207,36 @@ func _run_enhance_and_capture(smith: Node, expect_success: bool, name: String) -
 	var success := bool(result.get("success", false))
 	if expect_success and not success:
 		_fail("%s: expected success" % name)
+	var sid := str(smith.selected_id)
 	if success:
-		smith.selected_enhance = int(result.get("new_enhance", smith.selected_enhance))
+		var new_enh: int = int(result.get("new_enhance", before_enh + 1))
+		smith.selected_id = sid
+		smith.selected_enhance = new_enh
 		smith._feedback.text = str(result.get("message", "성공"))
 		smith._feedback.add_theme_color_override("font_color", GOLD_BRIGHT)
 		smith._dialogue.text = "망치가 울리면 강함이 깃든다!"
-		var flash := ColorRect.new()
-		flash.color = Color(1.0, 0.85, 0.2, 0.55)
-		flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		smith.add_child(flash)
+		smith._refresh()
+		# Keep selection on the enhanced piece (refresh may auto-pick another).
+		smith.selected_id = sid
+		smith.selected_enhance = new_enh
 		smith._refresh()
 		await process_frame
-		await process_frame
-		await _capture(name)
-		flash.queue_free()
-		_note("%s: real enhance success (+%d→+%d) with gold flash overlay." % [name, before_enh, int(smith.selected_enhance)])
+		await _peak_local_fx_and_capture(smith, Color(1.0, 0.85, 0.2, 0.55), name)
+		_note("%s: real enhance success (+%d→+%d) with local gold icon/border FX." % [name, before_enh, new_enh])
 	else:
+		var keep_enh: int = int(result.get("new_enhance", before_enh))
+		smith.selected_id = sid
+		smith.selected_enhance = keep_enh
 		smith._feedback.text = str(result.get("message", "실패"))
 		smith._feedback.add_theme_color_override("font_color", DANGER)
 		smith._dialogue.text = "실패해도 낙담 말게. 다시 벼리면 된다."
-		var flash2 := ColorRect.new()
-		flash2.color = Color(0.9, 0.2, 0.15, 0.55)
-		flash2.set_anchors_preset(Control.PRESET_FULL_RECT)
-		flash2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		smith.add_child(flash2)
+		smith._refresh()
+		smith.selected_id = sid
+		smith.selected_enhance = keep_enh
 		smith._refresh()
 		await process_frame
-		await process_frame
-		await _capture(name)
-		flash2.queue_free()
-		_note("%s: real enhance fail with red flash overlay." % name)
+		await _peak_local_fx_and_capture(smith, Color(0.9, 0.2, 0.15, 0.55), name)
+		_note("%s: real enhance fail with local red icon/border FX." % name)
 
 
 func _force_fail_capture(smith: Node) -> void:
@@ -272,21 +274,60 @@ func _force_fail_capture(smith: Node) -> void:
 		_fail("blacksmith_upgrade_fail: seed produced success unexpectedly (seed=%d rate=%d)" % [fail_seed, rate])
 		smith._refresh()
 		return
-	smith.selected_enhance = int(result.get("new_enhance", 9))
+	var keep_enh: int = int(result.get("new_enhance", 9))
+	smith.selected_id = "sword_steel"
+	smith.selected_enhance = keep_enh
 	smith._feedback.text = str(result.get("message", "실패"))
 	smith._feedback.add_theme_color_override("font_color", DANGER)
 	smith._dialogue.text = "실패해도 낙담 말게. 다시 벼리면 된다."
-	var flash := ColorRect.new()
-	flash.color = Color(0.9, 0.2, 0.15, 0.55)
-	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	smith.add_child(flash)
+	smith._refresh()
+	smith.selected_id = "sword_steel"
+	smith.selected_enhance = keep_enh
 	smith._refresh()
 	await process_frame
+	await _peak_local_fx_and_capture(smith, Color(0.9, 0.2, 0.15, 0.55), "blacksmith_upgrade_fail")
+	_note("blacksmith_upgrade_fail: real enhance_item fail at +9 (seeded RNG); local red FX (no full-screen wash).")
+
+
+func _peak_local_fx_and_capture(smith: Node, color: Color, name: String) -> void:
+	## Apply local glow at peak opacity, capture, then let it fade — never full-screen wash.
+	var glow := color
+	glow.a = 0.55
+	var targets: Array = []
+	if smith._fx_left_icon:
+		targets.append(smith._fx_left_icon)
+	if smith._fx_right_icon:
+		targets.append(smith._fx_right_icon)
+	for t in targets:
+		var panel: Control = t
+		var style = panel.get_theme_stylebox("panel")
+		if style is StyleBoxFlat:
+			var pulsed: StyleBoxFlat = (style as StyleBoxFlat).duplicate()
+			pulsed.border_color = Color(glow.r, glow.g, glow.b, 1.0)
+			pulsed.set_border_width_all(5)
+			pulsed.shadow_color = Color(glow.r, glow.g, glow.b, 0.85)
+			pulsed.shadow_size = 14
+			panel.add_theme_stylebox_override("panel", pulsed)
+	var local_flash: ColorRect = null
+	if smith._fx_anchor:
+		local_flash = ColorRect.new()
+		local_flash.color = Color(glow.r, glow.g, glow.b, 0.42)
+		local_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		local_flash.z_index = 8
+		smith._fx_anchor.add_child(local_flash)
+		local_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		for i in 10:
+			var spark := ColorRect.new()
+			spark.color = Color(glow.r, glow.g, glow.b, 1.0)
+			spark.size = Vector2(5, 5)
+			spark.position = Vector2(20 + randf() * 120.0, 10 + randf() * 50.0)
+			spark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			smith._fx_anchor.add_child(spark)
 	await process_frame
-	await _capture("blacksmith_upgrade_fail")
-	flash.queue_free()
-	_note("blacksmith_upgrade_fail: real enhance_item fail at +9 (seeded RNG); red flash overlay; hammer shown without spark randf to keep seed stable.")
+	await process_frame
+	await _capture(name)
+	if local_flash and is_instance_valid(local_flash):
+		local_flash.queue_free()
 
 
 func _find_fail_seed(rate: int) -> int:

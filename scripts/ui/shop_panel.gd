@@ -62,22 +62,34 @@ class ShopPanelRoot extends Control:
 				continue
 			c.free()
 		_cat_buttons.clear()
-		var scroll := ScrollContainer.new()
-		scroll.set_anchors_preset(PRESET_FULL_RECT)
-		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		add_child(scroll)
 
-		var body: Control = VBoxContainer.new() if _compact else HBoxContainer.new()
-		body.add_theme_constant_override("separation", 10)
-		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		scroll.add_child(body)
-
-		body.add_child(_build_left_npc())
-		body.add_child(_build_center_grid())
-		body.add_child(_build_detail())
+		# Desktop: no outer scroll — left/center/right each scroll independently.
+		# Compact: outer scroll stacks panels for short landscape / portrait.
+		if _compact:
+			var outer := ScrollContainer.new()
+			outer.set_anchors_preset(PRESET_FULL_RECT)
+			outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			outer.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			add_child(outer)
+			var body := VBoxContainer.new()
+			body.add_theme_constant_override("separation", 10)
+			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			outer.add_child(body)
+			body.add_child(_build_left_npc())
+			body.add_child(_build_center_grid())
+			body.add_child(_build_detail())
+		else:
+			var body := HBoxContainer.new()
+			body.set_anchors_preset(PRESET_FULL_RECT)
+			body.add_theme_constant_override("separation", 10)
+			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			add_child(body)
+			body.add_child(_build_left_npc())
+			body.add_child(_build_center_grid())
+			body.add_child(_build_detail())
 		_refresh()
 
 	func _build_left_npc() -> Control:
@@ -85,30 +97,44 @@ class ShopPanelRoot extends Control:
 		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false))
 		panel.custom_minimum_size = Vector2(230 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
+		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.size_flags_stretch_ratio = 0.95
-		var vb := VBoxContainer.new()
-		vb.add_theme_constant_override("separation", 8)
-		panel.add_child(vb)
+		var root_vb := VBoxContainer.new()
+		root_vb.add_theme_constant_override("separation", 8)
+		panel.add_child(root_vb)
 
-		vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
+		root_vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
 		var portrait := TextureRect.new()
 		portrait.texture = load("res://assets/backgrounds/shop_interior.png")
-		portrait.custom_minimum_size = Vector2(0, 130 if _compact else 230)
+		# Shorter atmosphere so category buttons stay reachable at 1366×768 / 844×390.
+		portrait.custom_minimum_size = Vector2(0, 110 if _compact else 150)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		vb.add_child(portrait)
+		root_vb.add_child(portrait)
 
 		_dialogue = UIStyle.label(NPC_LINES[0], 13, UIStyle.TEXT)
 		_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		vb.add_child(_dialogue)
+		root_vb.add_child(_dialogue)
+
+		# Independent scroll for categories + buy/sell so every button is reachable.
+		var cat_scroll := ScrollContainer.new()
+		cat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cat_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		cat_scroll.custom_minimum_size = Vector2(0, 160 if _compact else 220)
+		root_vb.add_child(cat_scroll)
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 8)
+		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cat_scroll.add_child(vb)
 
 		vb.add_child(UIStyle.label("카테고리", 13, UIStyle.TEXT_DIM))
 		for cat in ItemUI.CATEGORY_ORDER:
 			var cat_str: String = str(cat)
 			var b := Button.new()
 			b.text = ItemUI.category_label(cat_str)
-			b.custom_minimum_size = Vector2(0, 34 if _compact else 40)
+			b.custom_minimum_size = Vector2(0, 36 if _compact else 42)
 			UIStyle.apply_button(b)
 			var cat_id: String = cat_str
 			b.pressed.connect(func():
@@ -125,6 +151,7 @@ class ShopPanelRoot extends Control:
 		_mode_buy = Button.new()
 		_mode_buy.text = "구매"
 		_mode_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_mode_buy.custom_minimum_size = Vector2(0, 40)
 		UIStyle.apply_button(_mode_buy)
 		_mode_buy.pressed.connect(func():
 			mode = "buy"
@@ -136,6 +163,7 @@ class ShopPanelRoot extends Control:
 		_mode_sell = Button.new()
 		_mode_sell.text = "판매"
 		_mode_sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_mode_sell.custom_minimum_size = Vector2(0, 40)
 		UIStyle.apply_button(_mode_sell)
 		_mode_sell.pressed.connect(func():
 			mode = "sell"
@@ -168,20 +196,23 @@ class ShopPanelRoot extends Control:
 		_level_chip = UIStyle.label("", 13, UIStyle.TEXT_DIM)
 		top.add_child(_level_chip)
 
+		# Catalog scrolls independently of left categories / right detail.
 		var scroll := ScrollContainer.new()
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.custom_minimum_size = Vector2(0, 240)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.custom_minimum_size = Vector2(0, 220 if _compact else 360)
 		vb.add_child(scroll)
 		_grid = GridContainer.new()
 		_grid.columns = 3 if _compact else 4
-		_grid.add_theme_constant_override("h_separation", 10)
-		_grid.add_theme_constant_override("v_separation", 10)
+		_grid.add_theme_constant_override("h_separation", 12)
+		_grid.add_theme_constant_override("v_separation", 14)
 		_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.add_child(_grid)
 
 		_feedback = UIStyle.label("", 13, UIStyle.OK)
 		_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_feedback.custom_minimum_size = Vector2(0, 36)
 		vb.add_child(_feedback)
 		return panel
 
@@ -190,10 +221,17 @@ class ShopPanelRoot extends Control:
 		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(true))
 		panel.custom_minimum_size = Vector2(260 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
+		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.size_flags_stretch_ratio = 1.05
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		panel.add_child(scroll)
 		_detail = VBoxContainer.new()
 		_detail.add_theme_constant_override("separation", 8)
-		panel.add_child(_detail)
+		_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(_detail)
 		return panel
 
 	func _style_active_buttons() -> void:
@@ -269,19 +307,26 @@ class ShopPanelRoot extends Control:
 			if not any:
 				_grid.add_child(UIStyle.label("이 분류의 보유 아이템이 없습니다.", 13, UIStyle.TEXT_DIM))
 
+	func _card_opts(extra: Dictionary) -> Dictionary:
+		var opts := {
+			"icon_size": 60 if _compact else 72,
+			"min_w": 112 if _compact else 132,
+			"min_h": 168 if _compact else 188,
+		}
+		for k in extra.keys():
+			opts[k] = extra[k]
+		return opts
+
 	func _make_buy_card(item: Dictionary) -> Control:
 		var id := str(item.get("id", ""))
 		var selected := selected_id == id and selected_enhance == 0
 		var slot := str(item.get("slot", ""))
 		var sub := "장착 가능" if slot != "" else ItemUI.category_label(str(item.get("category")))
-		var cell := ItemUI.make_item_card(item, {
+		var cell := ItemUI.make_item_card(item, _card_opts({
 			"selected": selected,
 			"price_text": "%d G" % int(item.get("price", 0)),
 			"sub_text": sub,
-			"icon_size": 64 if _compact else 76,
-			"min_w": 108 if _compact else 124,
-			"min_h": 138 if _compact else 156,
-		})
+		}))
 		cell.pressed.connect(func():
 			selected_id = id
 			selected_enhance = 0
@@ -296,15 +341,12 @@ class ShopPanelRoot extends Control:
 		var unit := GameState.sell_price_of(id)
 		if enhance > 0:
 			unit = int(round(float(unit) * (1.0 + 0.08 * float(enhance))))
-		var cell := ItemUI.make_item_card(item, {
+		var cell := ItemUI.make_item_card(item, _card_opts({
 			"enhance": enhance,
 			"selected": selected,
 			"price_text": "%d G" % unit,
 			"sub_text": "보유 x%d" % qty,
-			"icon_size": 64 if _compact else 76,
-			"min_w": 108 if _compact else 124,
-			"min_h": 138 if _compact else 156,
-		})
+		}))
 		cell.pressed.connect(func():
 			selected_id = id
 			selected_enhance = enhance
@@ -419,9 +461,25 @@ class ShopPanelRoot extends Control:
 		_refresh()
 
 	func _on_sell_pressed() -> void:
-		var ok := GameState.sell_item(selected_id, 1, selected_enhance)
-		_feedback.text = "판매 완료!" if ok else "판매 실패"
-		_feedback.add_theme_color_override("font_color", UIStyle.OK if ok else UIStyle.DANGER)
-		if ok and GameState.inventory_qty(selected_id, selected_enhance) <= 0:
-			selected_id = ""
+		var item := GameState.get_item(selected_id)
+		var unit2 := GameState.sell_price_of(selected_id)
+		if selected_enhance > 0:
+			unit2 = int(round(float(unit2) * (1.0 + 0.08 * float(selected_enhance))))
+		var sold_id := selected_id
+		var sold_enh := selected_enhance
+		var ok := GameState.sell_item(sold_id, 1, sold_enh)
+		if ok:
+			var remain := GameState.inventory_qty(sold_id, sold_enh)
+			var enh_txt := (" +%d" % sold_enh) if sold_enh > 0 else ""
+			_feedback.text = "판매 성공! %s%s +%d G · 남은 보유 %d · 현재 골드 %d G" % [
+				item.get("name", sold_id), enh_txt, unit2, remain, GameState.gold
+			]
+			_feedback.add_theme_color_override("font_color", UIStyle.OK)
+			_dialogue.text = "잘 팔렸어요! +%d G 획득했습니다." % unit2
+			if remain <= 0:
+				selected_id = ""
+				selected_enhance = 0
+		else:
+			_feedback.text = "판매 실패"
+			_feedback.add_theme_color_override("font_color", UIStyle.DANGER)
 		_refresh()
