@@ -93,14 +93,29 @@ jobs:
           restore-keys: |
             pr20-vercel-anonymous-
 
+      - name: Publish artifact branch preview-pr-20 (not Pages)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: preview-pr-20
+          force_orphan: true
+          exclude_assets: ".vercel"
+          commit_message: "chore: PR20 web preview ${{ github.sha }}"
+
       - name: Deploy anonymous Vercel temporary preview
         id: vercel
+        continue-on-error: true
         working-directory: build/web
+        env:
+          # Vercel CLI often refuses anonymous --temporary when it detects Actions CI.
+          CI: ""
+          GITHUB_ACTIONS: ""
+          VERCEL_FORCE_NO_BUILD_CACHE: "1"
         run: |
           set -euo pipefail
           # Redeploys reuse the same *.tmp.now URL when .vercel/anonymous.json is cached.
           # Anonymous deploys expire ~60m unless claimed via claim URL in the log.
-          # Latest CLI supports anonymous --temporary; older pins require login.
           npx --yes vercel deploy --temporary --yes | tee /tmp/vercel-out.txt
           python3 <<'PY'
           import json, pathlib, re
@@ -134,13 +149,13 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Live preview URL: $URL"
 
-      - name: Publish to preview-pr-20 (orphan branch, not Pages)
+      - name: Refresh preview-pr-20 with Vercel URL metadata
+        if: steps.vercel.outcome == 'success'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
           publish_branch: preview-pr-20
           force_orphan: true
-          # Keep vercel anonymous state out of the public preview branch.
           exclude_assets: ".vercel"
-          commit_message: "chore: PR20 web preview ${{ github.sha }}"
+          commit_message: "chore: PR20 web preview URL ${{ github.sha }}"
