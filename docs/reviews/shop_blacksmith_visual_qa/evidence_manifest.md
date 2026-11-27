@@ -12,9 +12,10 @@
 | **Engine** | Godot 4.3.stable.official · `DISPLAY=:1` · x11 · opengl3 |
 | **Capture scripts** | `capture_shop_blacksmith_visual_qa.gd`, `capture_shop_category_scroll.gd` |
 | **Validate** | `validate_shop_blacksmith.gd` → **PASS (0 fails)** after category-scroll fix |
-| **Category-scroll ASSERTS** | `validate_shop_category_scroll.gd` → **FAIL (ok=15 fail=1)** — Buy/Sell not on-screen inside left clip host at **844×390**; all other asserts PASS at both sizes |
+| **Category-scroll ASSERTS** | `validate_shop_category_scroll.gd` → **PASS (ok=16 fail=0)** after compact left-host width cap fix |
+| **844 Sell off-screen fix** | Compact left host no longer `EXPAND_FILL` to card-driven body width; capped to facility main width (`win−200−8`) via `SHRINK_BEGIN`; compact portrait 110→90 so Buy/Sell fit host height. 1366 path unchanged. |
 | **Real-run flag** | **YES** |
-| **Visual PASS claim** | **No** — verification only; no visual PASS; no main merge |
+| **Visual PASS claim** | **No** — asserts/evidence only; no visual PASS; no main merge |
 | **Do not delete** | Keep evidence until ChatGPT confirms review complete |
 
 ## Fixes addressed (ChatGPT FAIL → this cycle)

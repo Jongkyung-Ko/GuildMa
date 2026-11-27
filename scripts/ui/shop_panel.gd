@@ -76,6 +76,9 @@ class ShopPanelRoot extends Control:
 	func _fit_left_panel_height() -> void:
 		## Category column height = available column height (resize-safe).
 		## compact: clamp via _left_host (min_size alone cannot cap VBox children).
+		## Also cap compact width to the on-screen facility main area — the stacked
+		## ScrollContainer body grows with card min-widths; SIZE_EXPAND_FILL on the
+		## left host would match that overflow width and push Sell past the window.
 		var win_sz: Vector2i = _window_size()
 		# Facility main host ≈ window minus top HUD (76) and bottom pad (40).
 		var host_h: int = maxi(160, win_sz.y - 76 - 40)
@@ -83,8 +86,13 @@ class ShopPanelRoot extends Control:
 			host_h = mini(host_h, int(size.y))
 		var avail: int = maxi(160, host_h - 4)
 		if _compact and _left_host != null:
-			_left_host.custom_minimum_size = Vector2(0, avail)
-			_left_host.set_deferred("size", Vector2(maxi(_left_host.size.x, 1.0), float(avail)))
+			# Facility main_host offsets: left 200, right 8 (see facility_screen.gd).
+			var avail_w: int = maxi(220, win_sz.x - 200 - 8)
+			_left_host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			_left_host.custom_minimum_size = Vector2(avail_w, avail)
+			_left_host.set_deferred("size", Vector2(float(avail_w), float(avail)))
+			if _left_panel:
+				_left_panel.clip_contents = true
 		elif not _compact and _left_panel != null:
 			_left_panel.custom_minimum_size = Vector2(230, 0)
 			_left_panel.clip_contents = true
@@ -148,8 +156,9 @@ class ShopPanelRoot extends Control:
 		root_vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
 		var portrait := TextureRect.new()
 		portrait.texture = load("res://assets/backgrounds/shop_interior.png")
-		# Keep existing atmosphere heights — only the category region flexes/scrolls.
-		portrait.custom_minimum_size = Vector2(0, 110 if _compact else 150)
+		# Compact short-landscape: keep atmosphere but leave room for pinned Buy/Sell
+		# inside the height-clamped left host (110 + mins overflowed ~270px host).
+		portrait.custom_minimum_size = Vector2(0, 90 if _compact else 150)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -232,12 +241,16 @@ class ShopPanelRoot extends Control:
 		mode_row.add_child(_mode_sell)
 
 		if _compact:
-			# Clamp height to available viewport — VBox-in-Scroll would otherwise grow with content.
+			# Clamp to on-screen facility main area — do NOT EXPAND_FILL to the
+			# card-driven ScrollContainer body width (that pushed Sell off-window).
 			var host := Control.new()
 			_left_host = host
-			host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 			host.clip_contents = true
-			host.custom_minimum_size = Vector2(0, maxi(160, int(size.y) - 4))
+			var win_sz: Vector2i = _window_size()
+			var avail_w: int = maxi(220, win_sz.x - 200 - 8)
+			var avail_h: int = maxi(160, win_sz.y - 76 - 40 - 4)
+			host.custom_minimum_size = Vector2(avail_w, avail_h)
 			panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
