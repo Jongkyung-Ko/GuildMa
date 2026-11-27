@@ -13,10 +13,12 @@ const HALL_MEMBER_CAP := 10
 const INTERIOR_FLOOR_T := 0.78
 const INTERIOR_ASPECT := 720.0 / 520.0
 const ACTOR_FOOT_MARGIN := 32.0
-const NAMEPLATE_H := 14.0
+const NAMEPLATE_H := 16.0
 const SPRITE_FOOT_OFFSET_Y := -30.0
 ## Mild zoom on pinned interior so furniture/actors fill the hall frame.
 const INTERIOR_ZOOM := 1.14
+## Floor for center-to-center gaps; wide jobs (tank/mage) add more at runtime.
+const FLANK_MIN_GAP := 110.0
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -309,9 +311,9 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var detail_w := 248.0 if _dense else 268.0
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
-	# Compact party strip sized to card content — leftover height goes to the hall.
-	var party_h := 96.0 if _dense else 110.0
-	var hall_h := maxf(230.0 if _dense else 290.0, content_h - party_h - gap)
+	# Compact party strip — tall enough that 편성 sits fully inside the card clip.
+	var party_h := 114.0 if _dense else 142.0
+	var hall_h := maxf(210.0 if _dense else 250.0, content_h - party_h - gap)
 
 	_nav_box.position = Vector2(0, 0)
 	_nav_box.size = Vector2(nav_w, content_h)
@@ -575,29 +577,40 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 	var floor_y := _floor_y_for_hall(area)
 	# Bias slightly toward the hearth/throne in the interior art.
 	var center_x := area.x * 0.505
-	var lord_clear := clampf(area.x * 0.10, 70.0, 102.0)
-	# Balanced L/R cluster with readable gaps — not wall-to-wall stretch.
-	var flank_span := clampf(70.0 + float(mini(others.size(), HALL_MEMBER_CAP)) * 32.0, 130.0, 280.0)
 	var scale_mem := SPRITE_SCALE
 	var scale_lord := LORD_SCALE
-
 	var show: Array = []
 	for i in mini(others.size(), HALL_MEMBER_CAP):
 		show.append(others[i])
-	var left_n := int(ceili(float(show.size()) / 2.0))
+	var left_n := int(floor(float(show.size()) / 2.0))
+	# Prefer equal counts; if odd, put the extra on the right.
 	var left_list: Array = show.slice(0, left_n)
 	var right_list: Array = show.slice(left_n, show.size())
+	# Mirror left order so index 0 is nearest the lord on both flanks.
+	left_list.reverse()
 
-	var left_x1 := center_x - lord_clear
-	var right_x0 := center_x + lord_clear
-	# Flanks first (lower z); lord last so he reads as focus in front of the throne.
-	_place_flank(left_list, left_x1 - flank_span, left_x1, floor_y, scale_mem, false)
-	_place_flank(right_list, right_x0, right_x0 + flank_span, floor_y, scale_mem, true)
+	var lord_r := _actor_radius(lord if not lord.is_empty() else {}, scale_lord, true)
+	var left_inner_r := _actor_radius(left_list[0] if not left_list.is_empty() else {}, scale_mem, false)
+	var right_inner_r := _actor_radius(right_list[0] if not right_list.is_empty() else {}, scale_mem, false)
+	var lord_clear_l := maxf(FLANK_MIN_GAP, lord_r + left_inner_r + 20.0)
+	var lord_clear_r := maxf(FLANK_MIN_GAP, lord_r + right_inner_r + 20.0)
+	# Symmetry: use the larger clearance on both sides so L/R reads even.
+	var lord_clear := maxf(lord_clear_l, lord_clear_r)
+
+	_place_flank_outward(left_list, center_x - lord_clear, -1.0, floor_y, scale_mem, false)
+	_place_flank_outward(right_list, center_x + lord_clear, 1.0, floor_y, scale_mem, true)
 
 	if not lord.is_empty():
 		_spawn_hall_actor(lord, Vector2(center_x, floor_y), scale_lord, true, 55)
 
-	print("LOG: hall stage area=", area, " floor_y=", floor_y, " center_x=", center_x, " members=", show.size())
+	print(
+		"LOG: hall stage area=", area,
+		" floor_y=", floor_y,
+		" center_x=", center_x,
+		" lord_clear=", lord_clear,
+		" left=", left_list.size(),
+		" right=", right_list.size()
+	)
 
 	if others.size() > HALL_MEMBER_CAP:
 		var more := UIStyle.label("+%d명 더 있음" % (others.size() - HALL_MEMBER_CAP), 11, UIStyle.TEXT_DIM)
@@ -605,32 +618,49 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 		_hall_layer.add_child(more)
 
 
-func _place_flank(list: Array, x0: float, x1: float, floor_y: float, scale_v: float, face_left: bool) -> void:
+func _actor_radius(member: Dictionary, scale_v: float, is_lord: bool = false) -> float:
+	## Half-width used for collision-free spacing (accounts for wide jobs).
+	if is_lord:
+		return 36.0 * scale_v
+	var job := str(member.get("job", "dps"))
+	var base := 32.0
+	match job:
+		"tank":
+			base = 40.0
+		"mage":
+			base = 36.0
+		"healer":
+			base = 34.0
+		"dps":
+			base = 33.0
+		_:
+			base = 34.0
+	return base * scale_v
+
+
+func _place_flank_outward(
+	list: Array,
+	inner_x: float,
+	dir: float,
+	floor_y: float,
+	scale_v: float,
+	face_left: bool
+) -> void:
+	## Place members outward from the lord; gaps use per-job radii so wide
+	## sprites (tank) never collide with neighbors.
 	if list.is_empty():
 		return
 	var n := list.size()
-	var min_gap := 66.0
-	var span := x1 - x0
-	if n > 1:
-		var need := min_gap * float(n - 1)
-		if span < need:
-			# Grow outward from the throne-side edge.
-			if face_left:
-				x1 = x0 + need
-			else:
-				x0 = x1 - need
-			span = need
-		elif span > need * 1.35:
-			# Keep even spacing without over-stretching.
-			var mid := (x0 + x1) * 0.5
-			x0 = mid - need * 0.5
-			x1 = mid + need * 0.5
-			span = need
+	var margin := 44.0
+	var x := inner_x
 	for i in n:
-		var t := 0.5 if n == 1 else float(i) / float(n - 1)
-		var x := x0 + span * t
-		# Same floor_y for every actor; z rises toward center so near-throne reads in front.
-		var z := 28 + int((1.0 - absf(t - 0.5) * 2.0) * 12.0)
+		if i > 0:
+			var prev_r := _actor_radius(list[i - 1], scale_v, false)
+			var cur_r := _actor_radius(list[i], scale_v, false)
+			var step := maxf(FLANK_MIN_GAP, prev_r + cur_r + 24.0)
+			x = x + dir * step
+		x = clampf(x, margin, _hall_area().x - margin)
+		var z := 40 - i * 2
 		_spawn_hall_actor(list[i], Vector2(x, floor_y), scale_v, false, z, face_left)
 
 
@@ -662,18 +692,35 @@ func _spawn_hall_actor(
 	root.clip_contents = false
 	_hall_layer.add_child(root)
 
-	# Nameplate above the body — never overlaps the sprite or selection ring.
-	var name_l := UIStyle.label(
-		str(member.get("name", "")),
-		11 if is_lord else 10,
-		UIStyle.GOLD_BRIGHT if selected or is_lord else UIStyle.TEXT
-	)
-	name_l.position = Vector2(0, 0)
+	# Nameplate above the body — always readable (dense 844 needs contrast + size).
+	var plate := PanelContainer.new()
+	plate.position = Vector2(0, 0)
+	plate.custom_minimum_size = Vector2(box_w, NAMEPLATE_H)
+	plate.size = Vector2(box_w, NAMEPLATE_H)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.z_index = 2
+	var plate_sb := StyleBoxFlat.new()
+	plate_sb.bg_color = Color(0.04, 0.04, 0.07, 0.88)
+	plate_sb.border_color = Color(0.82, 0.68, 0.32, 0.55 if (selected or is_lord) else 0.35)
+	plate_sb.set_border_width_all(1)
+	plate_sb.set_corner_radius_all(3)
+	plate_sb.content_margin_left = 3
+	plate_sb.content_margin_right = 3
+	plate_sb.content_margin_top = 1
+	plate_sb.content_margin_bottom = 1
+	plate.add_theme_stylebox_override("panel", plate_sb)
+	var name_fs := 12
+	if _dense:
+		name_fs = 13
+	elif is_lord or selected:
+		name_fs = 12
+	var name_col := UIStyle.GOLD_BRIGHT if (selected or is_lord) else Color(0.98, 0.96, 0.9)
+	var name_l := UIStyle.label(str(member.get("name", "")), name_fs, name_col)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.custom_minimum_size = Vector2(box_w, NAMEPLATE_H)
-	name_l.size = Vector2(box_w, NAMEPLATE_H)
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(name_l)
+	plate.add_child(name_l)
+	root.add_child(plate)
 
 	var body_x := (box_w - body_w) * 0.5
 	var body_y := NAMEPLATE_H + 3.0
@@ -834,9 +881,24 @@ func _equalize_party_card_heights() -> void:
 			max_h = maxf(max_h, (c as Control).get_combined_minimum_size().y)
 	if max_h < 8.0:
 		return
+	# Pad so 편성 + bottom margin never sit on the clip edge.
+	max_h += 6.0 if _dense else 10.0
 	for c2 in _party_host.get_children():
 		if c2 is Control:
 			(c2 as Control).custom_minimum_size.y = max_h
+	# Grow party strip if cards need more room than the layout reserved (no re-entrancy).
+	if _party_wrap and _party_wrap.size.y + 0.5 < max_h + 30.0:
+		var need := max_h + 30.0
+		var delta := need - _party_wrap.size.y
+		_party_wrap.size.y = need
+		_party_wrap.custom_minimum_size.y = need
+		if _hall_wrap:
+			_hall_wrap.size.y = maxf(180.0, _hall_wrap.size.y - delta)
+			_hall_wrap.custom_minimum_size.y = _hall_wrap.size.y
+			_party_wrap.position.y = _hall_wrap.position.y + _hall_wrap.size.y + (6.0 if _dense else 8.0)
+		if _detail_wrap and _hall_wrap:
+			_detail_wrap.size.y = _hall_wrap.size.y
+		call_deferred("_fit_interior")
 
 
 func _make_party_card(kind: String) -> PanelContainer:
@@ -859,12 +921,12 @@ func _make_party_card(kind: String) -> PanelContainer:
 	sb.set_corner_radius_all(6)
 	sb.content_margin_left = 6
 	sb.content_margin_right = 6
-	sb.content_margin_top = 3
-	sb.content_margin_bottom = 3
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 6
 	card.add_theme_stylebox_override("panel", sb)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 2)
+	vb.add_theme_constant_override("separation", 4)
 	vb.alignment = BoxContainer.ALIGNMENT_BEGIN
 	vb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	card.add_child(vb)
@@ -919,9 +981,10 @@ func _make_party_card(kind: String) -> PanelContainer:
 	edit.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UIStyle.apply_button(edit)
-	# Override mobile 48px min from UIStyle — party strip must stay compact.
-	var btn_h := 24.0 if _dense else 28.0
+	# Override mobile 48px min from UIStyle — keep 편성 fully inside the card.
+	var btn_h := 26.0 if _dense else 32.0
 	edit.custom_minimum_size = Vector2(0, btn_h)
+	edit.clip_text = false
 	for style_name in ["normal", "hover", "pressed"]:
 		var base_sb: StyleBoxFlat
 		match style_name:
@@ -932,8 +995,8 @@ func _make_party_card(kind: String) -> PanelContainer:
 			_:
 				base_sb = UIStyle.button_normal()
 		var compact_sb := base_sb.duplicate() as StyleBoxFlat
-		compact_sb.content_margin_top = 3
-		compact_sb.content_margin_bottom = 3
+		compact_sb.content_margin_top = 4
+		compact_sb.content_margin_bottom = 4
 		compact_sb.content_margin_left = 8
 		compact_sb.content_margin_right = 8
 		edit.add_theme_stylebox_override(style_name, compact_sb)
