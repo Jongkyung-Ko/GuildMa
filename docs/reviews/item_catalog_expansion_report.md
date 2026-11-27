@@ -2,7 +2,7 @@
 
 **Branch:** `cursor/item-catalog-160-3dd7`  
 **PR:** https://github.com/Jongkyung-Ko/GuildMa/pull/20  
-**Head SHA:** `ef16673c3b863d6a895b6533d80e59638212e46c`  
+**Head SHA:** `661eb98f8931fe405fdf84a41606b4a96af72c47`  
 **Base:** `main` @ post PR #19 (shop/blacksmith)  
 **Tested:** 2026-11-27 20:11 KST (Asia/Seoul)  
 **Do not merge to main** unless explicitly requested.
