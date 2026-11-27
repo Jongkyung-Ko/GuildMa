@@ -1,0 +1,33 @@
+validate_shop_category_scroll
+tip_lineage=e069aba / b72cca2
+engine=Godot 4.3 DISPLAY=:1 x11 opengl3
+content_scale=DISABLED (real 844/1366 content sizes)
+passed=15 failed=1
+RESULT=FAIL
+
+## Assert summary
+1 last category visible on screen: PASS @844 PASS @1366
+2 Buy/Sell visible at max category scroll: FAIL @844 (clipped by left_host / Sell off-window) PASS @1366
+3 same checks on both sizes: covered
+4 scroll position reaches max: PASS @844 (215/215 usable) PASS @1366 (usable_max=0 fit)
+5 last category clickable: PASS @844 PASS @1366
+6 Buy/Sell mode switch: PASS @844 PASS @1366
+filter changes after category select: PASS @844 PASS @1366 (armor + material)
+
+## 844 FAIL detail (verification only — no UI rewrite)
+compact=true left_host=(1318,270) buy=(222,351,646x42) sell=(874,351,646x42)
+buy∩host height≈5px (<8px threshold); sell∩window empty (x past 844)
+Mode switch still works via pressed.emit (logic OK; on-screen chrome FAIL)
+
+## Evidence PNGs (old files kept)
+docs/reviews/shop_blacksmith_visual_qa/evidence/category_scroll_verify_report.txt
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_buy_sell_at_max_1366x768.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_buy_sell_at_max_844x390.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_cat_scroll_max_1366x768.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_cat_scroll_max_844x390.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_filter_material_1366x768.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_filter_material_844x390.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_mode_buy_1366x768.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_mode_buy_844x390.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_mode_sell_1366x768.png
+docs/reviews/shop_blacksmith_visual_qa/evidence/verify_mode_sell_844x390.png

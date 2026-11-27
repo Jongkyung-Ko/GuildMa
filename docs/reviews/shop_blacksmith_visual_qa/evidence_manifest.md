@@ -12,8 +12,9 @@
 | **Engine** | Godot 4.3.stable.official · `DISPLAY=:1` · x11 · opengl3 |
 | **Capture scripts** | `capture_shop_blacksmith_visual_qa.gd`, `capture_shop_category_scroll.gd` |
 | **Validate** | `validate_shop_blacksmith.gd` → **PASS (0 fails)** after category-scroll fix |
+| **Category-scroll ASSERTS** | `validate_shop_category_scroll.gd` → **FAIL (ok=15 fail=1)** — Buy/Sell not on-screen inside left clip host at **844×390**; all other asserts PASS at both sizes |
 | **Real-run flag** | **YES** |
-| **Visual PASS claim** | **No** — fix + proof only; ChatGPT owns re-review |
+| **Visual PASS claim** | **No** — verification only; no visual PASS; no main merge |
 | **Do not delete** | Keep evidence until ChatGPT confirms review complete |
 
 ## Fixes addressed (ChatGPT FAIL → this cycle)
@@ -89,7 +90,26 @@ DISPLAY=:1 godot4 --path . --headless -s res://scripts/core/validate_shop_blacks
 ```bash
 DISPLAY=:1 godot4 --path . --display-driver x11 --rendering-driver opengl3 \
   -s res://scripts/core/capture_shop_category_scroll.gd
+
+DISPLAY=:1 godot4 --path . --display-driver x11 --rendering-driver opengl3 \
+  -s res://scripts/core/validate_shop_category_scroll.gd
 ```
+
+## Category-scroll ASSERT evidence (verification only; prior PNGs kept)
+
+| Path | Size | Notes |
+|---|---|---|
+| `evidence/verify_cat_scroll_max_844x390.png` | 844×390 | Scroll at usable max |
+| `evidence/verify_buy_sell_at_max_844x390.png` | 844×390 | **FAIL** — Buy/Sell clipped / Sell off-window |
+| `evidence/verify_filter_material_844x390.png` | 844×390 | Filter after last-cat select |
+| `evidence/verify_mode_sell_844x390.png` | 844×390 | Sell mode switch |
+| `evidence/verify_mode_buy_844x390.png` | 844×390 | Buy mode switch |
+| `evidence/verify_cat_scroll_max_1366x768.png` | 1366×768 | Categories fit (usable_max=0) |
+| `evidence/verify_buy_sell_at_max_1366x768.png` | 1366×768 | Buy/Sell pinned visible |
+| `evidence/verify_filter_material_1366x768.png` | 1366×768 | Filter after last-cat select |
+| `evidence/verify_mode_sell_1366x768.png` | 1366×768 | Sell mode switch |
+| `evidence/verify_mode_buy_1366x768.png` | 1366×768 | Buy mode switch |
+| `evidence/category_scroll_verify_report.txt` | — | Assert log (15 OK / 1 FAIL) |
 
 ## Post-review delete (only after ChatGPT confirms)
 
