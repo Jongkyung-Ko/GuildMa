@@ -73,16 +73,17 @@ class BlacksmithPanelRoot extends Control:
 		_refresh()
 
 	func _build_npc() -> Control:
-		var panel := UIStyle.make_panel()
-		panel.custom_minimum_size = Vector2(210 if not _compact else 0, 0)
+		var panel := PanelContainer.new()
+		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false))
+		panel.custom_minimum_size = Vector2(220 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
 		var vb := VBoxContainer.new()
 		vb.add_theme_constant_override("separation", 8)
 		panel.add_child(vb)
-		vb.add_child(UIStyle.label("대장장이", 16, UIStyle.GOLD_BRIGHT))
+		vb.add_child(UIStyle.label("대장간", 18, UIStyle.GOLD_BRIGHT))
 
 		var stage := Control.new()
-		stage.custom_minimum_size = Vector2(0, 120 if _compact else 220)
+		stage.custom_minimum_size = Vector2(0, 130 if _compact else 230)
 		stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		vb.add_child(stage)
 
@@ -91,7 +92,7 @@ class BlacksmithPanelRoot extends Control:
 		bg.set_anchors_preset(PRESET_FULL_RECT)
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		stage.add_child(bg)
 
 		_furnace_glow = ColorRect.new()
@@ -115,36 +116,42 @@ class BlacksmithPanelRoot extends Control:
 		_hammer.offset_bottom = 18
 		stage.add_child(_hammer)
 
-		# Soft furnace pulse (finite loops — avoid infinite tween on scene swap)
 		if _glow_tween and _glow_tween.is_valid():
 			_glow_tween.kill()
 		_glow_tween = create_tween()
 		_glow_tween.set_loops(40)
-		_glow_tween.tween_property(_furnace_glow, "color:a", 0.22, 1.1)
-		_glow_tween.tween_property(_furnace_glow, "color:a", 0.06, 1.1)
+		_glow_tween.tween_property(_furnace_glow, "color:a", 0.28, 1.0)
+		_glow_tween.tween_property(_furnace_glow, "color:a", 0.08, 1.0)
 
 		_dialogue = UIStyle.label(NPC_LINES[0], 13, UIStyle.TEXT)
 		_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vb.add_child(_dialogue)
-		vb.add_child(UIStyle.label("강화 +0 ~ +%d · 실패 규칙: %s" % [
-			GameState.enhance_max_level(),
-			str(GameState.enhance_cfg().get("failure_rule", "keep")),
-		], 12, UIStyle.TEXT_DIM))
+		var guide := UIStyle.label(
+			"무기·방어구를 선택해 +0~+%d까지 강화합니다.\n재료와 골드를 소모하며, 실패 시 규칙은 [%s]입니다." % [
+				GameState.enhance_max_level(),
+				str(GameState.enhance_cfg().get("failure_rule", "keep")),
+			],
+			12, UIStyle.TEXT_DIM
+		)
+		guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vb.add_child(guide)
 		return panel
 
 	func _build_enhance_stage() -> Control:
-		var panel := UIStyle.make_panel()
+		var panel := PanelContainer.new()
+		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false))
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		panel.size_flags_stretch_ratio = 1.35
+		panel.size_flags_stretch_ratio = 1.4
 		_detail = VBoxContainer.new()
 		_detail.add_theme_constant_override("separation", 8)
 		panel.add_child(_detail)
 		return panel
 
 	func _build_inventory() -> Control:
-		var panel := UIStyle.make_panel(true)
-		panel.custom_minimum_size = Vector2(230 if not _compact else 0, 0)
+		var panel := PanelContainer.new()
+		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(true))
+		panel.custom_minimum_size = Vector2(240 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
 		var vb := VBoxContainer.new()
 		vb.add_theme_constant_override("separation", 8)
@@ -152,10 +159,10 @@ class BlacksmithPanelRoot extends Control:
 		vb.add_child(UIStyle.label("강화 가능 장비", 16, UIStyle.GOLD_BRIGHT))
 		var scroll := ScrollContainer.new()
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		scroll.custom_minimum_size = Vector2(0, 240)
+		scroll.custom_minimum_size = Vector2(0, 250)
 		vb.add_child(scroll)
 		_equip_grid = GridContainer.new()
-		_equip_grid.columns = 3 if _compact else 2
+		_equip_grid.columns = 2 if _compact else 2
 		_equip_grid.add_theme_constant_override("h_separation", 8)
 		_equip_grid.add_theme_constant_override("v_separation", 8)
 		scroll.add_child(_equip_grid)
@@ -191,24 +198,21 @@ class BlacksmithPanelRoot extends Control:
 			var iid := str(e.get("id", ""))
 			if not GameState.can_enhance_item(iid):
 				continue
-			any = true
 			var item := GameState.get_item(iid)
+			if item.is_empty():
+				continue
+			any = true
 			var enh := int(e.get("enhance", 0))
 			var selected := selected_id == iid and selected_enhance == enh
-			var cell := Button.new()
-			cell.custom_minimum_size = Vector2(84, 96)
-			cell.flat = true
-			UIStyle.apply_button(cell)
-			var vb := VBoxContainer.new()
-			vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			cell.add_child(vb)
-			vb.add_child(ItemUI.make_icon_frame(item, 56, enh, selected))
-			var nm := UIStyle.label(str(item.get("name")), 11)
-			nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			nm.clip_text = true
-			nm.custom_minimum_size = Vector2(76, 0)
-			vb.add_child(nm)
-			vb.add_child(UIStyle.label("x%d" % int(e.get("qty", 0)), 11, UIStyle.TEXT_DIM))
+			var cell := ItemUI.make_item_card(item, {
+				"enhance": enh,
+				"selected": selected,
+				"price_text": "+%d" % enh,
+				"sub_text": "x%d" % int(e.get("qty", 0)),
+				"icon_size": 60 if _compact else 68,
+				"min_w": 100,
+				"min_h": 132,
+			})
 			var id_copy := iid
 			var enh_copy := enh
 			cell.pressed.connect(func():
@@ -235,34 +239,43 @@ class BlacksmithPanelRoot extends Control:
 		var maxed := cur >= GameState.enhance_max_level()
 
 		var compare := HBoxContainer.new()
-		compare.add_theme_constant_override("separation", 12)
+		compare.alignment = BoxContainer.ALIGNMENT_CENTER
+		compare.add_theme_constant_override("separation", 16)
 		_detail.add_child(compare)
 		var left := VBoxContainer.new()
-		left.add_child(ItemUI.make_icon_frame(item, 72, cur, true))
-		left.add_child(UIStyle.label("+%d" % cur, 16, UIStyle.GOLD_BRIGHT))
+		left.add_child(ItemUI.make_icon_frame(item, 88 if not _compact else 72, cur, true))
+		left.add_child(UIStyle.label("현재 +%d" % cur, 15, UIStyle.GOLD_BRIGHT))
 		compare.add_child(left)
-		compare.add_child(UIStyle.label(">>>", 22, UIStyle.GOLD_BRIGHT))
+		compare.add_child(UIStyle.label(">>>", 24, UIStyle.GOLD_BRIGHT))
 		var right := VBoxContainer.new()
-		right.add_child(ItemUI.make_icon_frame(item, 72, nxt, false))
-		right.add_child(UIStyle.label("+%d" % nxt, 16, Color(1.0, 0.55, 0.2)))
+		right.add_child(ItemUI.make_icon_frame(item, 88 if not _compact else 72, nxt, false))
+		right.add_child(UIStyle.label("강화 +%d" % nxt, 15, Color(1.0, 0.55, 0.2)))
 		compare.add_child(right)
 
 		_detail.add_child(UIStyle.label(str(item.get("name")), 16, UIStyle.GOLD_BRIGHT))
-		for line in ItemUI.stats_lines(item, cur):
-			_detail.add_child(UIStyle.label("현재  %s" % line, 13, UIStyle.TEXT))
-		if not maxed:
-			for line2 in ItemUI.stats_lines(item, nxt):
-				_detail.add_child(UIStyle.label("다음  %s" % line2, 13, UIStyle.OK))
+		_detail.add_child(UIStyle.label("%s · %s" % [
+			ItemUI.rarity_label(str(item.get("rarity", "common"))),
+			ItemUI.category_label(str(item.get("category"))),
+		], 12, ItemUI.rarity_color(str(item.get("rarity", "common")))))
 
 		if maxed:
 			_detail.add_child(UIStyle.label("최대 강화에 도달했습니다.", 14, UIStyle.GOLD_BRIGHT))
 			return
 
+		_detail.add_child(UIStyle.label("능력치 변화", 14, UIStyle.TEXT_DIM))
+		for entry in ItemUI.stat_delta_lines(item, cur, nxt):
+			var col := UIStyle.OK if bool(entry.get("positive", true)) else UIStyle.DANGER
+			_detail.add_child(UIStyle.label(str(entry.get("text")), 14, col))
+
 		var gold_cost := GameState.enhance_gold_cost(cur)
 		var rate := GameState.enhance_success_rate(cur)
-		_detail.add_child(UIStyle.label("성공 확률 %d%%" % rate, 15, UIStyle.GOLD_BRIGHT))
-		_detail.add_child(UIStyle.label("비용 %d G" % gold_cost, 14))
-
+		var cost_panel := PanelContainer.new()
+		cost_panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false, Color(0.55, 0.4, 0.18)))
+		var cost_vb := VBoxContainer.new()
+		cost_vb.add_theme_constant_override("separation", 6)
+		cost_panel.add_child(cost_vb)
+		cost_vb.add_child(UIStyle.label("성공 확률  %d%%" % rate, 16, UIStyle.GOLD_BRIGHT))
+		cost_vb.add_child(UIStyle.label("강화 비용  %d G" % gold_cost, 14))
 		var mats := GameState.enhance_materials_for(cur)
 		for m in mats:
 			var mid := str(m.get("id", ""))
@@ -270,7 +283,7 @@ class BlacksmithPanelRoot extends Control:
 			var have := GameState.inventory_qty(mid)
 			var mat_item := GameState.get_item(mid)
 			var label_txt := "%s  %d / %d" % [mat_item.get("name", mid), have, need]
-			var col := UIStyle.OK if have >= need else UIStyle.DANGER
+			var col2 := UIStyle.OK if have >= need else UIStyle.DANGER
 			if have < need and m.has("alt_id"):
 				var alt := str(m.get("alt_id"))
 				var alt_need := int(m.get("alt_qty", need))
@@ -278,16 +291,17 @@ class BlacksmithPanelRoot extends Control:
 				var alt_item := GameState.get_item(alt)
 				label_txt += "  (또는 %s %d/%d)" % [alt_item.get("name", alt), alt_have, alt_need]
 				if alt_have >= alt_need:
-					col = UIStyle.OK
+					col2 = UIStyle.OK
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 8)
-			row.add_child(ItemUI.make_icon_frame(mat_item if not mat_item.is_empty() else {"id": mid, "rarity": "common"}, 36))
-			row.add_child(UIStyle.label(label_txt, 13, col))
-			_detail.add_child(row)
+			row.add_child(ItemUI.make_icon_frame(mat_item if not mat_item.is_empty() else {"id": mid, "rarity": "common"}, 40))
+			row.add_child(UIStyle.label(label_txt, 13, col2))
+			cost_vb.add_child(row)
+		_detail.add_child(cost_panel)
 
 		var btn := Button.new()
-		btn.text = "강화 실행"
-		btn.custom_minimum_size = Vector2(0, 52)
+		btn.text = "강화 실행  (+%d → +%d)" % [cur, nxt]
+		btn.custom_minimum_size = Vector2(0, 54)
 		btn.disabled = _busy
 		UIStyle.apply_button(btn)
 		btn.pressed.connect(_on_enhance_pressed)

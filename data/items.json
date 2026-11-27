@@ -11,7 +11,7 @@
       "acc": 2,
       "req_level": 1,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/sword_basic.png"
+      "icon": "res://assets/items/rusty_sword.png"
     },
     {
       "id": "sword_steel",
@@ -24,7 +24,7 @@
       "acc": 3,
       "req_level": 5,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/sword_steel.png"
+      "icon": "res://assets/items/steel_arming_sword.png"
     },
     {
       "id": "axe_battle",
@@ -37,7 +37,7 @@
       "crit": 4,
       "req_level": 6,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/axe_battle.png"
+      "icon": "res://assets/items/battle_axe.png"
     },
     {
       "id": "dagger_swift",
@@ -51,7 +51,7 @@
       "crit": 6,
       "req_level": 8,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/dagger_swift.png"
+      "icon": "res://assets/items/twin_daggers.png"
     },
     {
       "id": "staff_oak",
@@ -64,7 +64,7 @@
       "matk": 14,
       "req_level": 1,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/staff_oak.png"
+      "icon": "res://assets/items/magic_staff.png"
     },
     {
       "id": "blade_rune",
@@ -78,7 +78,7 @@
       "crit": 5,
       "req_level": 15,
       "slot": "weapon",
-      "icon": "res://assets/sprites/items/blade_rune.png"
+      "icon": "res://assets/items/ornate_sword.png"
     },
     {
       "id": "armor_leather",
@@ -90,7 +90,7 @@
       "def": 8,
       "req_level": 1,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/armor_leather.png"
+      "icon": "res://assets/items/leather_armor.png"
     },
     {
       "id": "armor_chain",
@@ -102,7 +102,7 @@
       "def": 16,
       "req_level": 6,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/armor_chain.png"
+      "icon": "res://assets/items/chain_armor.png"
     },
     {
       "id": "shield_wood",
@@ -114,7 +114,7 @@
       "def": 6,
       "req_level": 1,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/shield_wood.png"
+      "icon": "res://assets/items/wooden_shield.png"
     },
     {
       "id": "helm_iron",
@@ -126,7 +126,7 @@
       "def": 7,
       "req_level": 4,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/helm_iron.png"
+      "icon": "res://assets/items/iron_helmet.png"
     },
     {
       "id": "boots_leather",
@@ -139,7 +139,7 @@
       "agi": 2,
       "req_level": 1,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/boots_leather.png"
+      "icon": "res://assets/items/leather_boots.png"
     },
     {
       "id": "plate_guardian",
@@ -152,7 +152,7 @@
       "vit": 3,
       "req_level": 12,
       "slot": "armor",
-      "icon": "res://assets/sprites/items/plate_guardian.png"
+      "icon": "res://assets/items/plate_armor.png"
     },
     {
       "id": "ring_copper",
@@ -164,7 +164,7 @@
       "atk": 2,
       "req_level": 1,
       "slot": "accessory",
-      "icon": "res://assets/sprites/items/ring_copper.png"
+      "icon": "res://assets/items/copper_ring.png"
     },
     {
       "id": "ring_silver",
@@ -177,7 +177,7 @@
       "matk": 4,
       "req_level": 5,
       "slot": "accessory",
-      "icon": "res://assets/sprites/items/ring_silver.png"
+      "icon": "res://assets/items/silver_ring.png"
     },
     {
       "id": "amulet_ward",
@@ -190,7 +190,7 @@
       "vit": 2,
       "req_level": 8,
       "slot": "accessory",
-      "icon": "res://assets/sprites/items/amulet_ward.png"
+      "icon": "res://assets/items/ward_amulet.png"
     },
     {
       "id": "belt_power",
@@ -203,7 +203,7 @@
       "str": 2,
       "req_level": 6,
       "slot": "accessory",
-      "icon": "res://assets/sprites/items/belt_power.png"
+      "icon": "res://assets/items/power_belt.png"
     },
     {
       "id": "potion_hp_s",
@@ -214,7 +214,7 @@
       "desc": "HP를 조금 회복한다.",
       "heal": 30,
       "slot": "",
-      "icon": "res://assets/sprites/items/potion_hp_s.png"
+      "icon": "res://assets/items/health_potion.png"
     },
     {
       "id": "potion_hp_m",
@@ -225,7 +225,7 @@
       "desc": "HP를 꽤 회복한다.",
       "heal": 80,
       "slot": "",
-      "icon": "res://assets/sprites/items/potion_hp_m.png"
+      "icon": "res://assets/items/health_potion_mid.png"
     },
     {
       "id": "potion_mp_s",
@@ -236,7 +236,7 @@
       "desc": "MP를 조금 회복한다.",
       "heal_mp": 20,
       "slot": "",
-      "icon": "res://assets/sprites/items/potion_mp_s.png"
+      "icon": "res://assets/items/mana_potion.png"
     },
     {
       "id": "potion_mp_m",
@@ -247,7 +247,7 @@
       "desc": "MP를 꽤 회복한다.",
       "heal_mp": 55,
       "slot": "",
-      "icon": "res://assets/sprites/items/potion_mp_m.png"
+      "icon": "res://assets/items/mana_potion_mid.png"
     },
     {
       "id": "elixir_str",
@@ -258,7 +258,7 @@
       "desc": "일시적으로 공격력을 높이는 쓴맛의 영약.",
       "buff_atk": 10,
       "slot": "",
-      "icon": "res://assets/sprites/items/elixir_str.png"
+      "icon": "res://assets/items/strength_elixir.png"
     },
     {
       "id": "ore_iron",
@@ -268,7 +268,7 @@
       "price": 80,
       "desc": "대장간에서 쓰이는 기본 재료.",
       "slot": "",
-      "icon": "res://assets/sprites/items/ore_iron.png"
+      "icon": "res://assets/items/iron_ore.png"
     },
     {
       "id": "ore_mithril",
@@ -278,7 +278,7 @@
       "price": 480,
       "desc": "은빛으로 빛나는 희귀 광석. 고급 강화에 필요하다.",
       "slot": "",
-      "icon": "res://assets/sprites/items/ore_mithril.png"
+      "icon": "res://assets/items/mithril_ore.png"
     },
     {
       "id": "crystal_fire",
@@ -288,7 +288,7 @@
       "price": 220,
       "desc": "뜨거운 마력이 응축된 붉은 결정.",
       "slot": "",
-      "icon": "res://assets/sprites/items/crystal_fire.png"
+      "icon": "res://assets/items/fire_crystal.png"
     },
     {
       "id": "leather_scrap",
@@ -298,7 +298,7 @@
       "price": 60,
       "desc": "방어구 수선에 쓰는 질긴 가죽 조각.",
       "slot": "",
-      "icon": "res://assets/sprites/items/leather_scrap.png"
+      "icon": "res://assets/items/leather_scrap.png"
     },
     {
       "id": "enhance_stone",
@@ -308,7 +308,7 @@
       "price": 350,
       "desc": "장비 강화의 핵심 재료. 대장간에서 소모된다.",
       "slot": "",
-      "icon": "res://assets/sprites/items/enhance_stone.png"
+      "icon": "res://assets/items/enhance_stone.png"
     }
   ]
 }
