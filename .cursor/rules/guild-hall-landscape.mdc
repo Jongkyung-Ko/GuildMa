@@ -1,0 +1,12 @@
+---
+description: Guild Hall landscape-only visual targets and capture expectations
+alwaysApply: true
+---
+
+guild-hall-landscape:
+
+- Guild Hall UI work is **landscape-only**. Do not implement or verify portrait stacked-scroll layouts (e.g. 390×844) unless the task explicitly reopens portrait.
+- Required visual sizes: **844×390** (dense short landscape) and **1366×768** (PC).
+- Stage criteria independent QA will eye-check: shared foot baseline, lord at throne center, L/R member balance, clear of party strip border, readable nameplates, even flank spacing, selection chrome, hall framing (no outer actor clipped by gold border), character scale, hall/party boundary, equal party card heights when applicable.
+- Prefer `res://scripts/core/capture_guild_hall_audit.gd` or `capture_autonomous_review.gd` for full-screen PNGs. Bind a display (`DISPLAY` / x11); headless null images are not valid QA evidence.
+- Copy cycle captures into the project store under `media/` when the task names a store path (e.g. `media/autonomous-review/before|after/`).

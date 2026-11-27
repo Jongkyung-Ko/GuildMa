@@ -15,6 +15,8 @@
 
 권장 해상도: **1280×720**, 텍스처 필터 **Nearest** (프로젝트에 설정됨)
 
+에이전트/시각 QA 루프: [`AGENTS.md`](AGENTS.md), [`docs/autonomous-visual-review.md`](docs/autonomous-visual-review.md). 자동 테스트만으로 시각 PASS를 주장하지 않습니다.
+
 ## 플레이 흐름
 
 1. **시작 화면** → 새 게임 / 이어하기 / 설정 / 종료

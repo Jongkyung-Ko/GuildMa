@@ -1,0 +1,14 @@
+---
+description: Continuous self-review — implement, capture, wait for independent visual QA, fix, never self-PASS
+alwaysApply: true
+---
+
+autonomous-visual-review:
+
+- After any UI/layout/visual change: implement → run the game → capture full-screen PNGs → hand off to an **independent** visual QA agent/session → fix from its numbered defect list → recapture → repeat until QA clears or you are blocked.
+- **Never** claim visual PASS from your own eye, automation, pixel heuristics, or regression scripts alone. Automated suites are evidence only; independent QA owns visual PASS/FAIL.
+- Guild Hall (and other landscape hall checks): verify **844×390** and **1366×768** only. Portrait compact layouts are out of scope unless the task explicitly asks.
+- Capture hygiene: distinct states (e.g. main / lord_selected / member_selected); do not reuse a prior resolution’s selection across sizes; overwrite the agreed artifact/store paths for the cycle.
+- Do **not** merge to `main` or auto-merge PRs unless the user/coordinator explicitly asks. Prefer a feature branch + PR.
+- Hard platform limit: Cursor/Godot **cannot** auto-spawn a second cloud agent from inside the game or a capture script. “Independent QA” means a **separate agent or chat** that Reads the PNGs. Document that limit; do not pretend CI or headless validates are eye QA.
+- While serious visual defects remain on the independent QA list, do not mark the visual work done.
