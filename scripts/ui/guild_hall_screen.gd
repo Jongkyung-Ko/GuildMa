@@ -17,8 +17,10 @@ const NAMEPLATE_H := 16.0
 const SPRITE_FOOT_OFFSET_Y := -30.0
 ## Mild zoom on pinned interior so furniture/actors fill the hall frame.
 const INTERIOR_ZOOM := 1.14
-## Idle frames are ~150–165px wide; gaps must clear half-width * scale.
-const FLANK_MIN_GAP := 160.0
+## Target clear air between opaque sprite edges (combat_00 content, recentered).
+const VISUAL_GAP := 32.0
+## Padding from opaque sprite edge to hall gold frame.
+const EDGE_SPRITE_PAD := 20.0
 const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
@@ -573,49 +575,64 @@ func _floor_y_for_hall(area: Vector2) -> float:
 
 
 func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
-	## Guildmaster at throne center; members balanced L/R on one floor line.
+	## Guildmaster centered; L/R use per-side steps so opaque-edge gaps match.
+	## Sprites are optically recentered so foot X == content center.
 	var floor_y := _floor_y_for_hall(area)
-	# Bias slightly toward the hearth/throne in the interior art.
-	var center_x := area.x * 0.505
+	var center_x := area.x * 0.5
 	var scale_mem := SPRITE_SCALE
 	var scale_lord := LORD_SCALE
 	var show: Array = []
 	for i in mini(others.size(), HALL_MEMBER_CAP):
 		show.append(others[i])
 	var left_n := int(floor(float(show.size()) / 2.0))
-	# Prefer equal counts; if odd, put the extra on the right.
 	var left_list: Array = show.slice(0, left_n)
 	var right_list: Array = show.slice(left_n, show.size())
-	# Mirror left order so index 0 is nearest the lord on both flanks.
 	left_list.reverse()
 
-	var lord_r := _actor_radius(lord if not lord.is_empty() else {}, scale_lord, true)
-	var left_inner_r := _actor_radius(left_list[0] if not left_list.is_empty() else {}, scale_mem, false)
-	var right_inner_r := _actor_radius(right_list[0] if not right_list.is_empty() else {}, scale_mem, false)
-	var lord_clear_l := maxf(FLANK_MIN_GAP, lord_r + left_inner_r + 12.0)
-	var lord_clear_r := maxf(FLANK_MIN_GAP, lord_r + right_inner_r + 12.0)
-	# Symmetry: use the larger clearance on both sides so L/R reads even.
-	var lord_clear := maxf(lord_clear_l, lord_clear_r)
+	var lord_r := _content_radius(str(lord.get("job", "lord")) if not lord.is_empty() else "lord", scale_lord)
+	var left_inner_r := 0.0
+	var right_inner_r := 0.0
+	if not left_list.is_empty():
+		left_inner_r = _content_radius(str(left_list[0].get("job", "dps")), scale_mem)
+	if not right_list.is_empty():
+		right_inner_r = _content_radius(str(right_list[0].get("job", "dps")), scale_mem)
+	# Per-side clearances — equal VISUAL air, not equal foot distances.
+	var clear_l := lord_r + left_inner_r + VISUAL_GAP if not left_list.is_empty() else VISUAL_GAP
+	var clear_r := lord_r + right_inner_r + VISUAL_GAP if not right_list.is_empty() else VISUAL_GAP
+	var left_steps: Array = _flank_visual_steps(left_list, scale_mem)
+	var right_steps: Array = _flank_visual_steps(right_list, scale_mem)
 
-	var left_xs := _flank_xs(left_list, center_x - lord_clear, -1.0, scale_mem)
-	var right_xs := _flank_xs(right_list, center_x + lord_clear, 1.0, scale_mem)
-	# If flanks would hit the wall, shrink all gaps uniformly (keeps L/R even).
-	var margin := 36.0
-	var min_x := center_x
-	var max_x := center_x
-	for v in left_xs:
-		min_x = minf(min_x, float(v))
-	for v2 in right_xs:
-		max_x = maxf(max_x, float(v2))
-	var lo := margin
-	var hi := area.x - margin
-	if min_x < lo or max_x > hi:
-		var span_now := maxf(1.0, max_x - min_x)
-		var span_fit := hi - lo
-		var s := clampf(span_fit / span_now, 0.55, 1.0)
-		lord_clear *= s
-		left_xs = _flank_xs(left_list, center_x - lord_clear, -1.0, scale_mem, s)
-		right_xs = _flank_xs(right_list, center_x + lord_clear, 1.0, scale_mem, s)
+	var lo := EDGE_SPRITE_PAD
+	var hi := area.x - EDGE_SPRITE_PAD
+	if not left_list.is_empty():
+		lo = _content_radius(str(left_list[left_list.size() - 1].get("job", "dps")), scale_mem) + EDGE_SPRITE_PAD
+	if not right_list.is_empty():
+		hi = area.x - (
+			_content_radius(str(right_list[right_list.size() - 1].get("job", "dps")), scale_mem) + EDGE_SPRITE_PAD
+		)
+
+	var gap_scale := 1.0
+	var left_xs: Array = []
+	var right_xs: Array = []
+	for _attempt in 8:
+		left_xs = [] if left_list.is_empty() else _flank_xs_from_steps(
+			center_x - clear_l * gap_scale, -1.0, left_steps, gap_scale
+		)
+		right_xs = [] if right_list.is_empty() else _flank_xs_from_steps(
+			center_x + clear_r * gap_scale, 1.0, right_steps, gap_scale
+		)
+		var min_x := center_x
+		var max_x := center_x
+		for v in left_xs:
+			min_x = minf(min_x, float(v))
+		for v2 in right_xs:
+			max_x = maxf(max_x, float(v2))
+		if min_x >= lo - 0.5 and max_x <= hi + 0.5:
+			break
+		var need_l := maxf(0.0, lo - min_x)
+		var need_r := maxf(0.0, max_x - hi)
+		var span := maxf(1.0, max_x - min_x)
+		gap_scale = clampf(gap_scale * maxf(0.45, (span - need_l - need_r) / span), 0.45, 1.0)
 
 	for i in left_list.size():
 		_spawn_hall_actor(left_list[i], Vector2(float(left_xs[i]), floor_y), scale_mem, false, 40 - i * 2, false)
@@ -629,7 +646,9 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 		"LOG: hall stage area=", area,
 		" floor_y=", floor_y,
 		" center_x=", center_x,
-		" lord_clear=", lord_clear,
+		" clear_l=", clear_l * gap_scale,
+		" clear_r=", clear_r * gap_scale,
+		" gap_scale=", gap_scale,
 		" left=", left_list.size(),
 		" right=", right_list.size()
 	)
@@ -640,38 +659,58 @@ func _compose_stage(lord: Dictionary, others: Array, area: Vector2) -> void:
 		_hall_layer.add_child(more)
 
 
-func _actor_radius(member: Dictionary, scale_v: float, is_lord: bool = false) -> float:
-	## Half-width of idle sheet (~150–165px). Used for collision-free spacing.
-	if is_lord:
-		return 80.0 * scale_v
-	var job := str(member.get("job", "dps"))
-	var base := 76.0
+func _content_radius(job: String, scale_v: float) -> float:
+	## Half-width of opaque combat_00 content (after optical recenter).
+	var half := 64.0
 	match job:
 		"tank":
-			base = 78.0
-		"mage":
-			base = 82.0
-		"healer":
-			base = 76.0
+			half = 61.0
 		"dps":
-			base = 78.0
+			half = 64.0
+		"healer":
+			half = 49.0
+		"mage":
+			half = 65.0
+		"lord":
+			half = 48.0
 		_:
-			base = 76.0
-	return base * scale_v
+			half = 64.0
+	return half * scale_v
 
 
-func _flank_xs(list: Array, inner_x: float, dir: float, scale_v: float, gap_scale: float = 1.0) -> Array:
-	## X positions outward from the lord; gaps use per-job radii.
+func _sprite_recenter_x(job: String) -> float:
+	## Sheet-space shift so opaque content centers on the foot (combat_00).
+	match job:
+		"tank":
+			return 10.5
+		"dps":
+			return 17.5
+		"healer":
+			return -8.5
+		"mage":
+			return 36.5
+		"lord":
+			return 33.5
+		_:
+			return 0.0
+
+
+func _flank_visual_steps(list: Array, scale_v: float) -> Array:
+	## Center-to-center steps that keep VISUAL_GAP between opaque edges.
+	var steps: Array = []
+	for i in range(1, list.size()):
+		var a := _content_radius(str(list[i - 1].get("job", "dps")), scale_v)
+		var b := _content_radius(str(list[i].get("job", "dps")), scale_v)
+		steps.append(a + b + VISUAL_GAP)
+	return steps
+
+
+func _flank_xs_from_steps(inner_x: float, dir: float, steps: Array, gap_scale: float) -> Array:
 	var xs: Array = []
-	if list.is_empty():
-		return xs
 	var x := inner_x
-	for i in list.size():
-		if i > 0:
-			var prev_r := _actor_radius(list[i - 1], scale_v, false)
-			var cur_r := _actor_radius(list[i], scale_v, false)
-			var step := maxf(FLANK_MIN_GAP, prev_r + cur_r + 12.0) * gap_scale
-			x = x + dir * step
+	xs.append(x)
+	for i in steps.size():
+		x = x + dir * float(steps[i]) * gap_scale
 		xs.append(x)
 	return xs
 
@@ -768,8 +807,11 @@ func _spawn_hall_actor(
 	spr.animation = &"idle"
 	spr.play()
 	spr.scale = Vector2(scale_v, scale_v)
-	# Feet exactly on the shared floor line (bottom of root = pos.y).
-	spr.position = Vector2(box_w * 0.5, box_h)
+	# Feet on shared floor line; nudge X so opaque content centers on foot.
+	var rcx := _sprite_recenter_x(job) * scale_v
+	if force_face_left:
+		rcx = -rcx
+	spr.position = Vector2(box_w * 0.5 + rcx, box_h)
 	spr.centered = true
 	spr.offset = Vector2(0, SPRITE_FOOT_OFFSET_Y)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
