@@ -6,7 +6,7 @@
 | **Branch** | `cursor/item-catalog-160-3dd7` |
 | **Base tip before evidence commit** | `4128b72b926925f80052f6726cc8475d2dc7cd92` |
 | **Evidence PNG commit SHA** | `06a6e4a16891fc42ae048902a0f8534efcaf1f97` |
-| **Branch tip SHA** | `dddc05beeac795d76ad43ceed15cf92c014546cf` |
+| **Branch tip SHA** | `21de89de86b9ed6be275957b6958d79f4c922e93` |
 | **Resolution** | **1366×768** (PC landscape) for all PNGs |
 | **Engine** | Godot 4.3.stable.official · `DISPLAY=:1` · `--display-driver x11` · `--rendering-driver opengl3` |
 | **Capture script** | `res://scripts/core/capture_shop_blacksmith_visual_qa.gd` |
