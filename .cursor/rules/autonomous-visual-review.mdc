@@ -5,6 +5,7 @@ alwaysApply: true
 
 autonomous-visual-review:
 
+- Complements `00_guildmaster_core.mdc`, `10_quality_standard.mdc`, and `30_development_workflow.mdc`. Visual PASS ≠ FEATURE PASS ≠ APPROVED (see `docs/standards/GUILDMASTER_QUALITY_STANDARD.md`).
 - After any UI/layout/visual change: implement → run the game → capture full-screen PNGs → hand off to an **independent** visual QA agent/session → fix from its numbered defect list → recapture → repeat until QA clears or you are blocked.
 - **Never** claim visual PASS from your own eye, automation, pixel heuristics, or regression scripts alone. Automated suites are evidence only; independent QA owns visual PASS/FAIL.
 - Guild Hall (and other landscape hall checks): verify **844×390** and **1366×768** only. Portrait compact layouts are out of scope unless the task explicitly asks.

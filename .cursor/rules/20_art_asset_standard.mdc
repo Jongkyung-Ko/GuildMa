@@ -1,0 +1,18 @@
+---
+description: Art/asset gates for icons, sprites, and item data paths
+globs: assets/**,data/items.json,**/*icon*,**/*sprite*
+alwaysApply: false
+---
+
+art-asset-standard:
+
+- **Direction:** High-quality painted / modern premium 2D fantasy (pixel-aware where sheets are pixel). See `docs/standards/GUILDMASTER_ART_BIBLE.md` and `docs/art/STYLE_GUIDE.md`.
+- **Item / icon technical minimums (settled for gates):**
+  - Resolution **≥ 256×256** (goal **≥ 512×512** when producing new hero/core art).
+  - **Transparent PNG** (RGBA or equivalent with real alpha; readable silhouette).
+  - Unique silhouette / materials per unrelated item; unified lighting, perspective, and palette within a set.
+  - Must remain readable when shown at **~64×64** UI size.
+- **Forbidden as finals:** plain shape/ColorRect stand-ins, emoji, OS-font glyphs as icons, undeclared procedural placeholders, identical-byte icon reuse across unrelated items without an explicit shared-asset decision.
+- **Pipeline honesty:** Making art ≠ applying art. Linked `icon` / texture paths in data must resolve. Declared placeholders live in the validator placeholder report — never claim them finished.
+- **Approval:** No art **APPROVED** until human / independent visual review PASS. Automation may FAIL missing paths, size, format, alpha, dup IDs — it must **never** auto-approve style.
+- Cross-check: `docs/standards/GUILDMASTER_QUALITY_STANDARD.md` (Q4 default / Q5 core graphics).

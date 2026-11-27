@@ -9,6 +9,23 @@
 
 Cursor cannot auto-spawn a second cloud agent from Godot or capture scripts. Coordinators (or humans) launch the QA agent against store/artifact PNG paths.
 
+## Permanent standards (read first)
+
+| Doc / rule | Purpose |
+|---|---|
+| `.cursor/rules/00_guildmaster_core.mdc` | Core identity, honesty, design authority |
+| `.cursor/rules/10_quality_standard.mdc` | Q1–Q5 pointer → canonical quality doc |
+| `.cursor/rules/20_art_asset_standard.mdc` | Art/icon gates (glob-scoped) |
+| `.cursor/rules/30_development_workflow.mdc` | Investigate→PR workflow + status vocabulary |
+| `.cursor/rules/autonomous-visual-review.mdc` | Visual loop; no self-PASS; no silent main merge |
+| `.cursor/rules/guild-hall-landscape.mdc` | Hall landscape sizes + capture criteria |
+| `docs/standards/GUILDMASTER_QUALITY_STANDARD.md` | **Canonical Q1–Q5** |
+| `docs/standards/GUILDMASTER_ART_BIBLE.md` | Art bible |
+| `docs/standards/GUILDMASTER_DECISION_LOG.md` | Settled vs UNDECIDED |
+| `docs/standards/GUILDMASTER_PROJECT_STATUS.md` | Phase / quality snapshot |
+
+Statuses stay separate: **FEATURE PASS** · **QUALITY PASS** · **APPROVED**.
+
 ## Mandatory visual loop
 
 1. Implement on a feature branch (`cursor/…`, never silent `main` merges).
@@ -24,6 +41,10 @@ Cursor cannot auto-spawn a second cloud agent from Godot or capture scripts. Coo
 ## Key scripts
 
 ```bash
+# Quality asset/data gates (IDs, paths, resolution, format, alpha, placeholders)
+python3 tools/validate_quality_assets.py
+godot4 --path . --headless -s res://scripts/core/validate_quality_assets.gd
+
 # Full-screen hall audit (844 + 1366, distinct selection states)
 DISPLAY=:1 godot4 --path . --display-driver x11 -s res://scripts/core/capture_guild_hall_audit.gd
 
@@ -37,11 +58,9 @@ DISPLAY=:1 godot4 --path . --display-driver x11 -s res://scripts/core/capture_pr
 DISPLAY=:1 godot4 --path . --display-driver x11 -s res://scripts/core/validate_guild_hall.gd
 ```
 
-## Project rules
+## Cursor Tab / Inline Edit
 
-Always-on Cursor rules live in `.cursor/rules/`:
+Project `.cursor/rules` apply reliably to **Agent** sessions that load them. **Tab completions and Inline Edit are not assumed to load these rules.** Prefer Agent edits for standards-sensitive work, or paste the relevant standard into the prompt.
 
-- `autonomous-visual-review.mdc` — loop, no self-PASS, no main auto-merge, QA limit
-- `guild-hall-landscape.mdc` — sizes and hall criteria
-
-Human-oriented runbook: `docs/autonomous-visual-review.md`
+Human-oriented visual runbook: `docs/autonomous-visual-review.md`  
+Rules setup report: `docs/reviews/permanent_project_rules_setup_report.md`

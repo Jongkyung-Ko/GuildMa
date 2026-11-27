@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Declared unfinished / placeholder runtime assets. Entries here must NOT be claimed as final art. Automation reports this list; it never auto-approves style.",
+  "declared_placeholders": [],
+  "notes": [
+    "Add item ids or res:// paths when shipping temporary art.",
+    "On main tip at permanent-rules setup: item icons are painted PNGs; identical-byte reuse (if any) is reported by validators as soft findings, not as declared placeholders until explicitly listed.",
+    "ColorRect combat/town prototypes called out in docs/art/QUALITY_DIAGNOSIS.md are historical diagnosis — promote to this list only when still present as intentional temporary finals."
+  ]
+}
