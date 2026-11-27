@@ -1,5 +1,5 @@
 validate_shop_category_scroll
-tip_fix_after=pending (this commit)
+tip_fix_after=ba2793f
 engine=Godot 4.3 DISPLAY=:1 x11 opengl3
 content_scale=DISABLED (real 844/1366 content sizes)
 passed=16 failed=0
