@@ -55,8 +55,18 @@ func _run() -> void:
 		await process_frame
 		await _capture("%s_main" % tag)
 
+		# Guildmaster selected — verify tight selection box + throne-center stance.
+		gs.call("select_guild_member", "m_lord")
+		if hall.has_method("_refresh_all"):
+			hall.call("_refresh_all")
+		await process_frame
+		await process_frame
+		await _capture("%s_lord" % tag)
+
 		# Select flank member + open assign to prove controls reachable.
 		gs.call("select_guild_member", "m_dps")
+		if hall.has_method("_refresh_all"):
+			hall.call("_refresh_all")
 		await process_frame
 		await process_frame
 		await _capture("%s_selected" % tag)
