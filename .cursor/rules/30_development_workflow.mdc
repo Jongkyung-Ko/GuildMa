@@ -1,0 +1,25 @@
+---
+description: Mandatory development workflow and status vocabulary
+alwaysApply: true
+---
+
+development-workflow:
+
+1. **Investigate** existing scenes, data, rules, and `docs/standards/GUILDMASTER_PROJECT_STATUS.md`.
+2. **Scope** the smallest change that satisfies the ask; list out-of-scope explicitly.
+3. **Rules** — apply `.cursor/rules/*`, GDD, decision log; stop if the ask conflicts with settled design.
+4. **Plan** briefly (files, risks, tests) before large edits.
+5. **Implement** only the approved scope on a feature branch (`cursor/…`); never silent push to `main`.
+6. **Auto tests** — run relevant `validate_*.gd` / `tools/validate_quality_assets.py`; quote real output.
+7. **Godot run** with a real display when UI/visual; headless null captures are invalid QA evidence.
+8. **Screenshots** for UI/layout/art (Guild Hall: **844×390** + **1366×768** per `guild-hall-landscape.mdc`).
+9. **Quality grade** axes Q1–Q5 per `docs/standards/GUILDMASTER_QUALITY_STANDARD.md`.
+10. **Report** changed files, tests, open issues; hand visual captures to **independent** QA when required (`autonomous-visual-review.mdc`).
+11. **Branch / PR** — open PR; **merge only after explicit approval** (user/coordinator). Do not auto-merge.
+
+Status vocabulary (keep separate):
+- **FEATURE PASS** — scoped behavior works / automated functional checks green.
+- **QUALITY PASS** — meets graded bar including required visual review for UI/art.
+- **APPROVED** — human/owner sign-off to ship or merge when that was requested.
+
+Cursor Tab / Inline Edit do **not** reliably load project rules; agents and full-file edits must still follow these rules consciously.

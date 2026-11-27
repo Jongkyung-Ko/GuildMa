@@ -1,0 +1,18 @@
+---
+description: Q1–Q5 quality grades; canonical doc is the single source of truth
+alwaysApply: true
+---
+
+quality-standard:
+
+- **Canonical source of truth:** `docs/standards/GUILDMASTER_QUALITY_STANDARD.md` (do not redefine Q1–Q5 elsewhere; update that file instead).
+- **Scale (summary):**
+  - **Q1** — Prototype/spike only. Never ship.
+  - **Q2** — Functional draft; placeholders OK; not APPROVED.
+  - **Q3** — Feature-complete for testing; auto tests may PASS; human visual review still required before APPROVED.
+  - **Q4** — **Default bar for final content.** No undeclared placeholders; no missing image paths; no critical UI overlap; human visual review PASS required for APPROVED.
+  - **Q5** — **Target for core graphics** (hero items, key characters, signature UI, landmarks); independent visual QA PASS.
+- Grade axes separately when useful: Function · Graphics · UI/UX · Data · Stability.
+- Keep three statuses distinct: **FEATURE PASS** · **QUALITY PASS** (incl. visual) · **APPROVED**.
+- Below-bar work must not be marked APPROVED. Automated suites never auto-approve visual style.
+- Run asset/data gates when touching items/icons/sprites: `python3 tools/validate_quality_assets.py` and/or `godot4 --path . --headless -s res://scripts/core/validate_quality_assets.gd`.

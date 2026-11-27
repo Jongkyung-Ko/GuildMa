@@ -1,0 +1,16 @@
+---
+description: GuildMaster core identity, design authority, honesty rules for all agents
+alwaysApply: true
+---
+
+guildmaster-core:
+
+- **Project:** GuildMaster — Godot **4.3** fantasy guild-management RPG, **PC/Steam first** (web export exists for preview). Design size **1280×720**, texture filter **Nearest**.
+- **Design authority:** Prefer settled design in `01_Documents/GuildMaster_GDD_v0.1.md`, `docs/standards/GUILDMASTER_DECISION_LOG.md`, and `docs/standards/GUILDMASTER_PROJECT_STATUS.md`. Do **not** invent undecided systems as settled.
+- **Save / compatibility:** Prefer additive data changes; do not break existing saves or rename IDs without an explicit migration plan and approval.
+- **No silent redesign:** Do not redesign core loops, UI shells, economy, or combat without explicit user/coordinator approval.
+- **Quality honesty:** Feature-complete ≠ quality **APPROVED**. Automated test PASS ≠ visual PASS ≠ final APPROVED. Never report temporary / placeholder / ColorRect stand-ins as final art. Never claim PASS for tests that were not run.
+- **Before work:** Read relevant design + project status + quality standard (`docs/standards/GUILDMASTER_QUALITY_STANDARD.md`).
+- **After work:** Report changed files, commands/tests run (with real results), and open issues / UNDECIDED items touched.
+- **Visual / hall UI:** Follow existing alwaysApply rules `autonomous-visual-review.mdc` and `guild-hall-landscape.mdc` (landscape **844×390** + **1366×768**; independent QA owns visual PASS; no self-PASS; no silent `main` merge).
+- **Workflow detail:** See `30_development_workflow.mdc`. Art gates: `20_art_asset_standard.mdc` + `docs/standards/GUILDMASTER_ART_BIBLE.md`.

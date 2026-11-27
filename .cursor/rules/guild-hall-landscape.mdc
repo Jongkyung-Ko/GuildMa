@@ -5,6 +5,7 @@ alwaysApply: true
 
 guild-hall-landscape:
 
+- Complements core/quality/workflow rules. Hall visual sizes stay landscape-only here; quality grades live in `docs/standards/GUILDMASTER_QUALITY_STANDARD.md`.
 - Guild Hall UI work is **landscape-only**. Do not implement or verify portrait stacked-scroll layouts (e.g. 390×844) unless the task explicitly reopens portrait.
 - Required visual sizes: **844×390** (dense short landscape) and **1366×768** (PC).
 - Stage criteria independent QA will eye-check: shared foot baseline, lord at throne center, L/R member balance, clear of party strip border, readable nameplates, even flank spacing, selection chrome, hall framing (no outer actor clipped by gold border), character scale, hall/party boundary, equal party card heights when applicable.
