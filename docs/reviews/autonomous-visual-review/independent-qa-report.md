@@ -46,8 +46,8 @@ Filenames per phase: `mobile_landscape_844x390_{main,lord_selected,member_select
 
 | Check | Result | Log |
 |---|---|---|
-| `validate_guild_hall.gd` | **PASS** | `docs/reviews/autonomous-visual-review/logs/validate_guild_hall.log` |
-| `capture_pr16_regression.gd` | **PASS** | `docs/reviews/autonomous-visual-review/logs/capture_pr16_regression.log` |
+| `validate_guild_hall.gd` | **PASS** | `docs/reviews/autonomous-visual-review/logs/validate_guild_hall.txt` |
+| `capture_pr16_regression.gd` | **PASS** | `docs/reviews/autonomous-visual-review/logs/capture_pr16_regression.txt` |
 | Regression PNGs | saved | `docs/reviews/autonomous-visual-review/captures/pr16-regression/` |
 
 ## Scope notes
