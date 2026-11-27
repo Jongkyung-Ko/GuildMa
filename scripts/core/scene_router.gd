@@ -55,6 +55,7 @@ func go_combat(_hunt_id: String = "phase_2_1_test") -> void:
 	get_tree().root.set_meta("hunt_id", "")
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
+	get_tree().root.set_meta("special_encounter_id", "")
 	if AudioManager:
 		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)
@@ -70,6 +71,7 @@ func go_hunt(hunt_id: String = "beginner_forest", force_new: bool = false) -> vo
 	get_tree().root.set_meta("combat_hunt_id", hunt_id)
 	get_tree().root.set_meta("dungeon_id", "")
 	get_tree().root.set_meta("dungeon_floor", 0)
+	get_tree().root.set_meta("special_encounter_id", "")
 	# Fresh town→hunt (or re-entry): restart hunt MP3 from the beginning.
 	if AudioManager:
 		AudioManager.on_enter_combat(true)
@@ -94,7 +96,21 @@ func go_dungeon_combat(dungeon_id: String, floor: int) -> void:
 	get_tree().root.set_meta("dungeon_id", dungeon_id)
 	get_tree().root.set_meta("dungeon_floor", floor)
 	get_tree().root.set_meta("hunt_id", "")
+	get_tree().root.set_meta("special_encounter_id", "")
 	get_tree().root.set_meta("combat_hunt_id", "dungeon_%s_f%d" % [dungeon_id, floor])
+	if AudioManager:
+		AudioManager.on_enter_combat(true)
+	get_tree().change_scene_to_file(COMBAT)
+
+
+## Named special boss encounter (Vorak / Morgana). Not a hunt maze room and not a dungeon floor.
+func go_special_encounter(encounter_id: String) -> void:
+	current_facility = ""
+	get_tree().root.set_meta("special_encounter_id", encounter_id)
+	get_tree().root.set_meta("hunt_id", "")
+	get_tree().root.set_meta("dungeon_id", "")
+	get_tree().root.set_meta("dungeon_floor", 0)
+	get_tree().root.set_meta("combat_hunt_id", "special_%s" % encounter_id)
 	if AudioManager:
 		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)

@@ -289,25 +289,53 @@ static func _discover_adjacent(map: Dictionary, room_id: String) -> void:
 
 
 static func _monsters_for(hunt: Dictionary, rtype: String, rng: RandomNumberGenerator) -> Array:
+	## Room encounter lists. Total living pressure for a hunt tier is concurrent_min/max;
+	## combat waves fill up to max_live while draining this budget.
 	var pool: Array = hunt.get("monster_pool", ["wolf"]).duplicate()
 	var elite: Array = hunt.get("elite_pool", pool).duplicate()
+	if pool.is_empty():
+		pool = ["wolf"]
+	if elite.is_empty():
+		elite = pool.duplicate()
+	var cmin := int(hunt.get("concurrent_min", 8))
+	var cmax := int(hunt.get("concurrent_max", maxi(cmin, 12)))
+	if cmax < cmin:
+		cmax = cmin
+	var diff: Dictionary = hunt.get("difficulty", {})
+	var elite_chance := float(diff.get("elite_chance", 0.1))
+	var frac_table := {
+		"start": 0.35,
+		"normal": 0.55,
+		"elite": 0.75,
+		"treasure": 0.4,
+		"boss": 0.0,
+	}
 	match rtype:
-		"start":
-			return [str(pool[0])]
 		"boss":
+			# Named hunt-goal boss only — never dump a full concurrent pack here.
 			return [str(hunt.get("boss_enemy", pool[0]))]
+		"start":
+			pass
 		"elite":
-			var a := str(elite[rng.randi_range(0, elite.size() - 1)])
-			var b := str(elite[rng.randi_range(0, elite.size() - 1)])
-			return [a, b, a]
+			pass
 		"treasure":
-			return [str(pool[rng.randi_range(0, pool.size() - 1)])]
+			pass
 		_:
-			var n := rng.randi_range(2, 3)
-			var out: Array = []
-			for _i in n:
-				out.append(str(pool[rng.randi_range(0, pool.size() - 1)]))
-			return out
+			rtype = "normal"
+	var frac := float(frac_table.get(rtype, 0.55))
+	var target := int(round(lerpf(float(cmin), float(cmax), frac)))
+	# Keep room lists bounded so save JSON stays modest; combat waves still respect concurrent cap.
+	target = clampi(target, 1, mini(cmax, 24))
+	if rtype == "start":
+		target = clampi(target, 1, maxi(3, cmin / 2))
+	var out: Array = []
+	for _i in target:
+		var use_elite := rtype == "elite" or rng.randf() < elite_chance
+		if use_elite and elite.size() > 0:
+			out.append(str(elite[rng.randi_range(0, elite.size() - 1)]))
+		else:
+			out.append(str(pool[rng.randi_range(0, pool.size() - 1)]))
+	return out
 
 
 static func _area_type_label(rtype: String) -> String:

@@ -1,0 +1,794 @@
+{
+  "version": 1,
+  "phase_thresholds": [0.7, 0.3],
+  "notes": "Skill display names are editable data. 3020.jpg boss sheet missing at ship — sprites use placeholders (tint + fallback monster frames).",
+  "bosses": [
+    {
+      "id": "fenrir",
+      "enemy_id": "boss_fenrir",
+      "name": "펜리르",
+      "name_en": "Fenrir",
+      "sprite": "wolf",
+      "placeholder_art": true,
+      "scale": 1.55,
+      "hp": 520,
+      "atk": 18,
+      "def": 6,
+      "move": 120,
+      "aspd": 1.05,
+      "aggro_range": 1300,
+      "attack_range": 56,
+      "color": [0.55, 0.72, 1.0, 1.0],
+      "spawn": {
+        "kind": "hunt_goal",
+        "hunt_id": "beginner_forest",
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "추적",
+          "skills": ["fenrir_bite", "fenrir_howl"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "광기",
+          "skills": ["fenrir_bite", "fenrir_pack_rush", "fenrir_frost_fang"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "달빛 폭주",
+          "skills": ["fenrir_lunar_frenzy", "fenrir_pack_rush", "fenrir_frost_fang"]
+        }
+      ],
+      "skills": {
+        "fenrir_bite": {
+          "name": "물어뜯기",
+          "cooldown": 2.2,
+          "damage_mult": 1.0,
+          "kind": "melee",
+          "telegraph": 0.35
+        },
+        "fenrir_howl": {
+          "name": "위협의 울음",
+          "cooldown": 8.0,
+          "damage_mult": 0.35,
+          "kind": "aoe_near",
+          "radius": 140,
+          "self_buff_aspd": 0.15,
+          "duration": 4.0,
+          "telegraph": 0.5
+        },
+        "fenrir_pack_rush": {
+          "name": "무리 돌진",
+          "cooldown": 10.0,
+          "damage_mult": 1.35,
+          "kind": "dash",
+          "telegraph": 0.55
+        },
+        "fenrir_frost_fang": {
+          "name": "서리 송곳니",
+          "cooldown": 7.5,
+          "damage_mult": 1.2,
+          "kind": "melee",
+          "slow_mult": 0.7,
+          "slow_duration": 2.5,
+          "telegraph": 0.4
+        },
+        "fenrir_lunar_frenzy": {
+          "name": "월광 광란",
+          "cooldown": 14.0,
+          "damage_mult": 1.6,
+          "kind": "aoe_near",
+          "radius": 180,
+          "telegraph": 0.7
+        }
+      },
+      "rewards": {
+        "gold_min": 80,
+        "gold_max": 120,
+        "exp": 120,
+        "materials": [
+          {"id": "hide_wolf", "qty": 2},
+          {"id": "crystal_ice", "qty": 1},
+          {"id": "enhance_stone", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "malkav",
+      "enemy_id": "boss_malkav",
+      "name": "말카브",
+      "name_en": "Malkav",
+      "sprite": "goblin",
+      "placeholder_art": true,
+      "scale": 1.45,
+      "hp": 640,
+      "atk": 20,
+      "def": 7,
+      "move": 105,
+      "aspd": 1.1,
+      "aggro_range": 1250,
+      "attack_range": 52,
+      "color": [0.75, 0.35, 0.85, 1.0],
+      "spawn": {
+        "kind": "hunt_goal",
+        "hunt_id": "blue_meadow",
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "환영",
+          "skills": ["malkav_slash", "malkav_mirage"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "광소",
+          "skills": ["malkav_slash", "malkav_chaos_bolt", "malkav_mirage"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "붕괴",
+          "skills": ["malkav_madness", "malkav_chaos_bolt", "malkav_slash"]
+        }
+      ],
+      "skills": {
+        "malkav_slash": {
+          "name": "광인의 일격",
+          "cooldown": 2.0,
+          "damage_mult": 1.05,
+          "kind": "melee",
+          "telegraph": 0.3
+        },
+        "malkav_mirage": {
+          "name": "환영 분신",
+          "cooldown": 11.0,
+          "damage_mult": 0.5,
+          "kind": "self_buff",
+          "self_buff_aspd": 0.2,
+          "duration": 5.0,
+          "telegraph": 0.4
+        },
+        "malkav_chaos_bolt": {
+          "name": "혼돈 화살",
+          "cooldown": 6.5,
+          "damage_mult": 1.25,
+          "kind": "ranged",
+          "telegraph": 0.45
+        },
+        "malkav_madness": {
+          "name": "광기 폭발",
+          "cooldown": 13.0,
+          "damage_mult": 1.7,
+          "kind": "aoe_near",
+          "radius": 160,
+          "telegraph": 0.65
+        }
+      },
+      "rewards": {
+        "gold_min": 110,
+        "gold_max": 160,
+        "exp": 160,
+        "materials": [
+          {"id": "crystal_shadow", "qty": 1},
+          {"id": "cloth_silk", "qty": 1},
+          {"id": "special_guild_token", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "malachi",
+      "enemy_id": "boss_malachi",
+      "name": "말라키",
+      "name_en": "Malachi",
+      "sprite": "goblin",
+      "placeholder_art": true,
+      "scale": 1.5,
+      "hp": 780,
+      "atk": 24,
+      "def": 9,
+      "move": 95,
+      "aspd": 0.95,
+      "aggro_range": 1300,
+      "attack_range": 58,
+      "color": [0.95, 0.75, 0.25, 1.0],
+      "spawn": {
+        "kind": "hunt_goal",
+        "hunt_id": "twilight_ruins",
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "성역",
+          "skills": ["malachi_smite", "malachi_ward"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "심판",
+          "skills": ["malachi_smite", "malachi_judgment", "malachi_ward"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "파멸 선고",
+          "skills": ["malachi_verdict", "malachi_judgment", "malachi_smite"]
+        }
+      ],
+      "skills": {
+        "malachi_smite": {
+          "name": "성역 강타",
+          "cooldown": 2.4,
+          "damage_mult": 1.1,
+          "kind": "melee",
+          "telegraph": 0.4
+        },
+        "malachi_ward": {
+          "name": "수호의 방벽",
+          "cooldown": 12.0,
+          "damage_mult": 0.0,
+          "kind": "self_buff",
+          "shield_frac": 0.12,
+          "duration": 5.0,
+          "telegraph": 0.35
+        },
+        "malachi_judgment": {
+          "name": "심판의 빛",
+          "cooldown": 8.0,
+          "damage_mult": 1.4,
+          "kind": "ranged",
+          "telegraph": 0.55
+        },
+        "malachi_verdict": {
+          "name": "파멸 선고",
+          "cooldown": 15.0,
+          "damage_mult": 1.85,
+          "kind": "aoe_near",
+          "radius": 170,
+          "telegraph": 0.75
+        }
+      },
+      "rewards": {
+        "gold_min": 140,
+        "gold_max": 200,
+        "exp": 210,
+        "materials": [
+          {"id": "crystal_light", "qty": 2},
+          {"id": "ore_silver", "qty": 1},
+          {"id": "enhance_stone", "qty": 2}
+        ]
+      }
+    },
+    {
+      "id": "gorgon",
+      "enemy_id": "boss_gorgon",
+      "name": "고르곤",
+      "name_en": "Gorgon",
+      "sprite": "slime",
+      "placeholder_art": true,
+      "scale": 1.6,
+      "hp": 900,
+      "atk": 22,
+      "def": 11,
+      "move": 80,
+      "aspd": 0.9,
+      "aggro_range": 1200,
+      "attack_range": 64,
+      "color": [0.35, 0.85, 0.45, 1.0],
+      "spawn": {
+        "kind": "hunt_goal",
+        "hunt_id": "cursed_marsh",
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "석화",
+          "skills": ["gorgon_lash", "gorgon_gaze"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "독안개",
+          "skills": ["gorgon_lash", "gorgon_venom", "gorgon_gaze"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "메두사 진노",
+          "skills": ["gorgon_petrify", "gorgon_venom", "gorgon_lash"]
+        }
+      ],
+      "skills": {
+        "gorgon_lash": {
+          "name": "뱀채찍",
+          "cooldown": 2.3,
+          "damage_mult": 1.0,
+          "kind": "melee",
+          "telegraph": 0.35
+        },
+        "gorgon_gaze": {
+          "name": "석화의 시선",
+          "cooldown": 9.0,
+          "damage_mult": 0.6,
+          "kind": "ranged",
+          "slow_mult": 0.45,
+          "slow_duration": 2.0,
+          "telegraph": 0.6
+        },
+        "gorgon_venom": {
+          "name": "독안개",
+          "cooldown": 7.0,
+          "damage_mult": 1.15,
+          "kind": "aoe_near",
+          "radius": 150,
+          "telegraph": 0.5
+        },
+        "gorgon_petrify": {
+          "name": "완전 석화",
+          "cooldown": 16.0,
+          "damage_mult": 1.9,
+          "kind": "aoe_near",
+          "radius": 190,
+          "slow_mult": 0.3,
+          "slow_duration": 3.0,
+          "telegraph": 0.8
+        }
+      },
+      "rewards": {
+        "gold_min": 180,
+        "gold_max": 250,
+        "exp": 280,
+        "materials": [
+          {"id": "crystal_nature", "qty": 2},
+          {"id": "powder_grind", "qty": 2},
+          {"id": "special_old_map", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "lilith",
+      "enemy_id": "boss_lilith",
+      "name": "릴리스",
+      "name_en": "Lilith",
+      "sprite": "wolf",
+      "placeholder_art": true,
+      "scale": 1.65,
+      "hp": 1100,
+      "atk": 28,
+      "def": 10,
+      "move": 110,
+      "aspd": 1.15,
+      "aggro_range": 1400,
+      "attack_range": 70,
+      "color": [0.85, 0.2, 0.45, 1.0],
+      "spawn": {
+        "kind": "hunt_goal",
+        "hunt_id": "abyss_border",
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "유혹",
+          "skills": ["lilith_claw", "lilith_charm"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "흡혈",
+          "skills": ["lilith_claw", "lilith_drain", "lilith_charm"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "심연 여왕",
+          "skills": ["lilith_abyss_song", "lilith_drain", "lilith_claw"]
+        }
+      ],
+      "skills": {
+        "lilith_claw": {
+          "name": "심연의 발톱",
+          "cooldown": 2.1,
+          "damage_mult": 1.1,
+          "kind": "melee",
+          "telegraph": 0.3
+        },
+        "lilith_charm": {
+          "name": "유혹의 속삭임",
+          "cooldown": 10.0,
+          "damage_mult": 0.4,
+          "kind": "ranged",
+          "slow_mult": 0.6,
+          "slow_duration": 2.5,
+          "telegraph": 0.45
+        },
+        "lilith_drain": {
+          "name": "생명 흡수",
+          "cooldown": 8.0,
+          "damage_mult": 1.3,
+          "kind": "melee",
+          "lifesteal": 0.4,
+          "telegraph": 0.5
+        },
+        "lilith_abyss_song": {
+          "name": "심연의 노래",
+          "cooldown": 14.0,
+          "damage_mult": 1.75,
+          "kind": "aoe_near",
+          "radius": 200,
+          "telegraph": 0.7
+        }
+      },
+      "rewards": {
+        "gold_min": 240,
+        "gold_max": 320,
+        "exp": 360,
+        "materials": [
+          {"id": "crystal_shadow", "qty": 2},
+          {"id": "crystal_fire", "qty": 1},
+          {"id": "special_memory_shard", "qty": 1},
+          {"id": "ore_mithril", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "bone_golem",
+      "enemy_id": "boss_bone_golem",
+      "name": "본 골렘",
+      "name_en": "Bone Golem",
+      "sprite": "goblin",
+      "placeholder_art": true,
+      "scale": 1.8,
+      "hp": 1400,
+      "atk": 26,
+      "def": 16,
+      "move": 70,
+      "aspd": 0.75,
+      "aggro_range": 1100,
+      "attack_range": 60,
+      "color": [0.9, 0.88, 0.78, 1.0],
+      "spawn": {
+        "kind": "dungeon_floor",
+        "dungeon_id": "shadow_crypt",
+        "floor": 5,
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "중갑",
+          "skills": ["golem_slam", "golem_bone_wall"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "분쇄",
+          "skills": ["golem_slam", "golem_bone_rain", "golem_bone_wall"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "붕괴",
+          "skills": ["golem_collapse", "golem_bone_rain", "golem_slam"]
+        }
+      ],
+      "skills": {
+        "golem_slam": {
+          "name": "뼈 강타",
+          "cooldown": 2.8,
+          "damage_mult": 1.2,
+          "kind": "melee",
+          "telegraph": 0.5
+        },
+        "golem_bone_wall": {
+          "name": "뼈의 방벽",
+          "cooldown": 11.0,
+          "damage_mult": 0.0,
+          "kind": "self_buff",
+          "shield_frac": 0.15,
+          "duration": 6.0,
+          "telegraph": 0.4
+        },
+        "golem_bone_rain": {
+          "name": "뼈비",
+          "cooldown": 9.0,
+          "damage_mult": 1.35,
+          "kind": "aoe_near",
+          "radius": 160,
+          "telegraph": 0.6
+        },
+        "golem_collapse": {
+          "name": "골격 붕괴",
+          "cooldown": 16.0,
+          "damage_mult": 2.0,
+          "kind": "aoe_near",
+          "radius": 210,
+          "telegraph": 0.85
+        }
+      },
+      "rewards": {
+        "gold_min": 200,
+        "gold_max": 280,
+        "exp": 300,
+        "materials": [
+          {"id": "part_gear", "qty": 2},
+          {"id": "ore_iron", "qty": 2},
+          {"id": "special_dungeon_key", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "behemoth",
+      "enemy_id": "boss_behemoth",
+      "name": "베히모스",
+      "name_en": "Behemoth",
+      "sprite": "wolf",
+      "placeholder_art": true,
+      "scale": 2.0,
+      "hp": 1800,
+      "atk": 32,
+      "def": 14,
+      "move": 85,
+      "aspd": 0.85,
+      "aggro_range": 1350,
+      "attack_range": 72,
+      "color": [0.65, 0.4, 0.25, 1.0],
+      "spawn": {
+        "kind": "dungeon_floor",
+        "dungeon_id": "shadow_crypt",
+        "floor": 10,
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "육중",
+          "skills": ["behemoth_stomp", "behemoth_roar"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "돌진",
+          "skills": ["behemoth_stomp", "behemoth_charge", "behemoth_roar"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "대지 분쇄",
+          "skills": ["behemoth_quake", "behemoth_charge", "behemoth_stomp"]
+        }
+      ],
+      "skills": {
+        "behemoth_stomp": {
+          "name": "발구르기",
+          "cooldown": 2.6,
+          "damage_mult": 1.15,
+          "kind": "melee",
+          "telegraph": 0.45
+        },
+        "behemoth_roar": {
+          "name": "공포의 포효",
+          "cooldown": 10.0,
+          "damage_mult": 0.5,
+          "kind": "aoe_near",
+          "radius": 180,
+          "slow_mult": 0.65,
+          "slow_duration": 2.0,
+          "telegraph": 0.5
+        },
+        "behemoth_charge": {
+          "name": "거체 돌진",
+          "cooldown": 9.0,
+          "damage_mult": 1.5,
+          "kind": "dash",
+          "telegraph": 0.6
+        },
+        "behemoth_quake": {
+          "name": "대지 분쇄",
+          "cooldown": 15.0,
+          "damage_mult": 2.1,
+          "kind": "aoe_near",
+          "radius": 220,
+          "telegraph": 0.9
+        }
+      },
+      "rewards": {
+        "gold_min": 320,
+        "gold_max": 420,
+        "exp": 450,
+        "materials": [
+          {"id": "hide_boar", "qty": 3},
+          {"id": "ore_gold", "qty": 1},
+          {"id": "part_core", "qty": 1},
+          {"id": "special_seal_royal", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "vorak",
+      "enemy_id": "boss_vorak",
+      "name": "보락",
+      "name_en": "Vorak",
+      "sprite": "slime",
+      "placeholder_art": true,
+      "scale": 1.7,
+      "hp": 1250,
+      "atk": 30,
+      "def": 9,
+      "move": 125,
+      "aspd": 1.2,
+      "aggro_range": 1450,
+      "attack_range": 66,
+      "color": [0.45, 0.55, 1.0, 1.0],
+      "spawn": {
+        "kind": "special_encounter",
+        "encounter_id": "vorak_rift",
+        "requires_hunt_tier_min": 4,
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "균열",
+          "skills": ["vorak_cut", "vorak_rift_step"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "공허",
+          "skills": ["vorak_cut", "vorak_void_lance", "vorak_rift_step"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "균열 폭풍",
+          "skills": ["vorak_storm", "vorak_void_lance", "vorak_cut"]
+        }
+      ],
+      "skills": {
+        "vorak_cut": {
+          "name": "균열 베기",
+          "cooldown": 2.0,
+          "damage_mult": 1.1,
+          "kind": "melee",
+          "telegraph": 0.3
+        },
+        "vorak_rift_step": {
+          "name": "균열 도약",
+          "cooldown": 8.5,
+          "damage_mult": 1.25,
+          "kind": "dash",
+          "telegraph": 0.4
+        },
+        "vorak_void_lance": {
+          "name": "공허 창",
+          "cooldown": 7.0,
+          "damage_mult": 1.4,
+          "kind": "ranged",
+          "telegraph": 0.5
+        },
+        "vorak_storm": {
+          "name": "균열 폭풍",
+          "cooldown": 14.0,
+          "damage_mult": 1.85,
+          "kind": "aoe_near",
+          "radius": 190,
+          "telegraph": 0.7
+        }
+      },
+      "rewards": {
+        "gold_min": 260,
+        "gold_max": 340,
+        "exp": 380,
+        "materials": [
+          {"id": "crystal_shadow", "qty": 2},
+          {"id": "special_memory_shard", "qty": 1},
+          {"id": "part_core", "qty": 1}
+        ]
+      }
+    },
+    {
+      "id": "morgana",
+      "enemy_id": "boss_morgana",
+      "name": "모르가나",
+      "name_en": "Morgana",
+      "sprite": "goblin",
+      "placeholder_art": true,
+      "scale": 1.6,
+      "hp": 1600,
+      "atk": 34,
+      "def": 12,
+      "move": 100,
+      "aspd": 1.05,
+      "aggro_range": 1500,
+      "attack_range": 80,
+      "color": [0.55, 0.25, 0.75, 1.0],
+      "spawn": {
+        "kind": "special_encounter",
+        "encounter_id": "morgana_sanctum",
+        "requires_boss_cleared": ["lilith", "behemoth"],
+        "exclusive": true
+      },
+      "phases": [
+        {
+          "id": "p1",
+          "hp_ratio_min": 0.7,
+          "label": "저주",
+          "skills": ["morgana_bolt", "morgana_hex"]
+        },
+        {
+          "id": "p2",
+          "hp_ratio_min": 0.3,
+          "label": "마법진",
+          "skills": ["morgana_bolt", "morgana_circle", "morgana_hex"]
+        },
+        {
+          "id": "p3",
+          "hp_ratio_min": 0.0,
+          "label": "최후의 주문",
+          "skills": ["morgana_finale", "morgana_circle", "morgana_bolt"]
+        }
+      ],
+      "skills": {
+        "morgana_bolt": {
+          "name": "저주 화살",
+          "cooldown": 2.2,
+          "damage_mult": 1.15,
+          "kind": "ranged",
+          "telegraph": 0.35
+        },
+        "morgana_hex": {
+          "name": "속박의 저주",
+          "cooldown": 9.0,
+          "damage_mult": 0.7,
+          "kind": "ranged",
+          "slow_mult": 0.5,
+          "slow_duration": 3.0,
+          "telegraph": 0.45
+        },
+        "morgana_circle": {
+          "name": "마법진 전개",
+          "cooldown": 10.0,
+          "damage_mult": 1.45,
+          "kind": "aoe_near",
+          "radius": 175,
+          "telegraph": 0.65
+        },
+        "morgana_finale": {
+          "name": "최후의 주문",
+          "cooldown": 16.0,
+          "damage_mult": 2.2,
+          "kind": "aoe_near",
+          "radius": 230,
+          "telegraph": 0.95
+        }
+      },
+      "rewards": {
+        "gold_min": 400,
+        "gold_max": 520,
+        "exp": 560,
+        "materials": [
+          {"id": "crystal_fire", "qty": 2},
+          {"id": "crystal_shadow", "qty": 2},
+          {"id": "special_blessing", "qty": 1},
+          {"id": "ore_mithril", "qty": 2}
+        ]
+      }
+    }
+  ]
+}

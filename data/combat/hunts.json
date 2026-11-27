@@ -1,26 +1,52 @@
 {
-  "version": 1,
+  "version": 2,
   "hunts": [
     {
       "id": "beginner_forest",
       "name": "초보자의 숲",
       "region": "푸른 숲길",
       "blurb": "갈림길이 많은 초보 사냥터. 연결된 통로로만 이동한다.",
+      "tier": 1,
       "rec_level": 1,
       "rec_level_max": 5,
       "grid": [5, 5],
       "room_count": 14,
       "loop_edges": 3,
       "example_seed": 42,
+      "concurrent_min": 8,
+      "concurrent_max": 12,
+      "difficulty": {
+        "hp_mult": 1.0,
+        "atk_mult": 1.0,
+        "def_mult": 1.0,
+        "aspd_mult": 1.0,
+        "aggro_mult": 1.0,
+        "elite_chance": 0.08,
+        "reward_gold_mult": 1.0,
+        "reward_exp_mult": 1.0
+      },
+      "respawn": {
+        "enabled": true,
+        "delay_sec": 4.0,
+        "wave_fill": true
+      },
       "monster_pool": ["wolf", "slime", "goblin"],
-      "elite_pool": ["wolf", "goblin"],
-      "boss_enemy": "wolf",
+      "elite_pool": ["elite_wolf", "elite_goblin"],
+      "boss_id": "fenrir",
+      "boss_enemy": "boss_fenrir",
+      "reward_table": {
+        "gold_per_kill_min": 3,
+        "gold_per_kill_max": 8,
+        "exp_per_kill": 10,
+        "material_chance": 0.18,
+        "materials": ["leather_scrap", "hide_wolf", "wood_oak"]
+      },
       "room_names": {
         "start": "숲 입구",
         "normal": ["동쪽 숲길", "서쪽 덤불", "이끼 계곡", "고목 광장", "개울가", "안개 오솔길", "버섯 군락", "쓰러진 다리"],
         "elite": ["포식자의 굴", "가시 덤불"],
         "treasure": ["숨겨진 공터", "낡은 보물 상자터"],
-        "boss": "숲의 심처"
+        "boss": "펜리르의 둥지"
       }
     },
     {
@@ -28,21 +54,191 @@
       "name": "푸른 초원",
       "region": "초원 지대",
       "blurb": "넓은 초원 미로. 막다른 길과 합류 지점이 섞여 있다.",
+      "tier": 2,
       "rec_level": 3,
       "rec_level_max": 8,
       "grid": [5, 5],
       "room_count": 15,
       "loop_edges": 4,
       "example_seed": 77,
-      "monster_pool": ["slime", "wolf", "goblin"],
-      "elite_pool": ["goblin", "wolf"],
-      "boss_enemy": "goblin",
+      "concurrent_min": 12,
+      "concurrent_max": 16,
+      "difficulty": {
+        "hp_mult": 1.25,
+        "atk_mult": 1.15,
+        "def_mult": 1.1,
+        "aspd_mult": 1.05,
+        "aggro_mult": 1.1,
+        "elite_chance": 0.12,
+        "reward_gold_mult": 1.25,
+        "reward_exp_mult": 1.2
+      },
+      "respawn": {
+        "enabled": true,
+        "delay_sec": 3.5,
+        "wave_fill": true
+      },
+      "monster_pool": ["slime", "wolf", "goblin", "boar"],
+      "elite_pool": ["elite_goblin", "elite_wolf", "elite_boar"],
+      "boss_id": "malkav",
+      "boss_enemy": "boss_malkav",
+      "reward_table": {
+        "gold_per_kill_min": 5,
+        "gold_per_kill_max": 12,
+        "exp_per_kill": 14,
+        "material_chance": 0.2,
+        "materials": ["hide_boar", "cloth_linen", "ore_copper"]
+      },
       "room_names": {
         "start": "초원 입구",
         "normal": ["바람 언덕", "꽃밭 오솔길", "돌담 길", "연못가", "건초 언덕", "울타리 안", "개척로", "목초지"],
         "elite": ["늑대 무리 터", "도적 야영지"],
         "treasure": ["버려진 마차", "비밀 오아시스"],
-        "boss": "초원 군락 중심"
+        "boss": "말카브의 야영지"
+      }
+    },
+    {
+      "id": "twilight_ruins",
+      "name": "황혼의 폐허",
+      "region": "잊힌 성채",
+      "blurb": "무너진 성벽 사이로 정예 기사가 순찰한다. 동시 출현이 늘어난다.",
+      "tier": 3,
+      "rec_level": 6,
+      "rec_level_max": 12,
+      "grid": [6, 5],
+      "room_count": 16,
+      "loop_edges": 5,
+      "example_seed": 113,
+      "concurrent_min": 14,
+      "concurrent_max": 20,
+      "difficulty": {
+        "hp_mult": 1.55,
+        "atk_mult": 1.35,
+        "def_mult": 1.25,
+        "aspd_mult": 1.1,
+        "aggro_mult": 1.2,
+        "elite_chance": 0.18,
+        "reward_gold_mult": 1.55,
+        "reward_exp_mult": 1.45
+      },
+      "respawn": {
+        "enabled": true,
+        "delay_sec": 3.0,
+        "wave_fill": true
+      },
+      "monster_pool": ["goblin", "skeleton", "wolf", "boar"],
+      "elite_pool": ["elite_skeleton", "elite_goblin", "elite_boar"],
+      "boss_id": "malachi",
+      "boss_enemy": "boss_malachi",
+      "reward_table": {
+        "gold_per_kill_min": 8,
+        "gold_per_kill_max": 16,
+        "exp_per_kill": 20,
+        "material_chance": 0.22,
+        "materials": ["ore_iron", "part_nail", "crystal_light"]
+      },
+      "room_names": {
+        "start": "무너진 정문",
+        "normal": ["돌계단 회랑", "낡은 병영", "성벽 틈", "우물 광장", "기도실 잔해", "무기고 터", "안뜰", "망루 밑"],
+        "elite": ["기사단 훈련장", "저주받은 예배당"],
+        "treasure": ["봉인된 금고", "숨겨진 납골당"],
+        "boss": "말라키의 제단"
+      }
+    },
+    {
+      "id": "cursed_marsh",
+      "name": "저주받은 습지",
+      "region": "독안개 늪",
+      "blurb": "시야가 짧은 습지. 독과 속박이 섞인 고급 사냥터.",
+      "tier": 4,
+      "rec_level": 10,
+      "rec_level_max": 16,
+      "grid": [6, 6],
+      "room_count": 18,
+      "loop_edges": 6,
+      "example_seed": 209,
+      "concurrent_min": 18,
+      "concurrent_max": 24,
+      "difficulty": {
+        "hp_mult": 1.9,
+        "atk_mult": 1.55,
+        "def_mult": 1.4,
+        "aspd_mult": 1.15,
+        "aggro_mult": 1.3,
+        "elite_chance": 0.24,
+        "reward_gold_mult": 1.9,
+        "reward_exp_mult": 1.75
+      },
+      "respawn": {
+        "enabled": true,
+        "delay_sec": 2.6,
+        "wave_fill": true
+      },
+      "monster_pool": ["slime", "skeleton", "wraith", "boar"],
+      "elite_pool": ["elite_wraith", "elite_skeleton", "elite_slime"],
+      "boss_id": "gorgon",
+      "boss_enemy": "boss_gorgon",
+      "reward_table": {
+        "gold_per_kill_min": 12,
+        "gold_per_kill_max": 22,
+        "exp_per_kill": 28,
+        "material_chance": 0.25,
+        "materials": ["crystal_nature", "crystal_shadow", "powder_grind", "thread_sinew"]
+      },
+      "room_names": {
+        "start": "습지 가장자리",
+        "normal": ["독안개 길", "썩은 다리", "이끼 수렁", "버드나무 군락", "가시 늪", "검은 연못", "뼈무더기 둔덕", "안개 협로"],
+        "elite": ["석화 둥지", "원령의 제단"],
+        "treasure": ["가라앉은 궤짝", "이교도 보관소"],
+        "boss": "고르곤의 눈"
+      }
+    },
+    {
+      "id": "abyss_border",
+      "name": "심연의 경계",
+      "region": "심층 균열",
+      "blurb": "가장 깊은 사냥터. 동시 스폰이 최대치에 달하며 정예가 흔하다.",
+      "tier": 5,
+      "rec_level": 14,
+      "rec_level_max": 20,
+      "grid": [7, 6],
+      "room_count": 20,
+      "loop_edges": 7,
+      "example_seed": 333,
+      "concurrent_min": 24,
+      "concurrent_max": 30,
+      "difficulty": {
+        "hp_mult": 2.4,
+        "atk_mult": 1.85,
+        "def_mult": 1.65,
+        "aspd_mult": 1.2,
+        "aggro_mult": 1.45,
+        "elite_chance": 0.32,
+        "reward_gold_mult": 2.4,
+        "reward_exp_mult": 2.2
+      },
+      "respawn": {
+        "enabled": true,
+        "delay_sec": 2.2,
+        "wave_fill": true
+      },
+      "monster_pool": ["wraith", "skeleton", "demonling", "wolf"],
+      "elite_pool": ["elite_wraith", "elite_demonling", "elite_skeleton"],
+      "boss_id": "lilith",
+      "boss_enemy": "boss_lilith",
+      "reward_table": {
+        "gold_per_kill_min": 16,
+        "gold_per_kill_max": 30,
+        "exp_per_kill": 40,
+        "material_chance": 0.28,
+        "materials": ["ore_mithril", "crystal_fire", "crystal_shadow", "part_core", "special_memory_shard"]
+      },
+      "room_names": {
+        "start": "균열 입구",
+        "normal": ["흑요석 통로", "심층 교량", "공허 회랑", "핏빛 석실", "균열 가장자리", "메아리 동굴", "그림자 계단", "봉인 잔해"],
+        "elite": ["악마의 전초", "공허 감시탑"],
+        "treasure": ["심층 금고", "별빛 제단"],
+        "boss": "릴리스의 옥좌"
       }
     }
   ]

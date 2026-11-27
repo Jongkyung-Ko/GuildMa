@@ -9,13 +9,15 @@
       "boss_floors": {
         "5": {
           "type": "mid",
-          "enemy_id": "boss_crypt_warden",
-          "label": "중층 보스"
+          "enemy_id": "boss_bone_golem",
+          "boss_id": "bone_golem",
+          "label": "중층 보스 · 본 골렘"
         },
         "10": {
           "type": "final",
-          "enemy_id": "boss_crypt_lord",
-          "label": "최종 보스"
+          "enemy_id": "boss_behemoth",
+          "boss_id": "behemoth",
+          "label": "최종 보스 · 베히모스"
         }
       },
       "floors": {
@@ -42,8 +44,9 @@
         "5": {
           "name": "중층 감시실",
           "difficulty": 4,
-          "enemies": ["boss_crypt_warden"],
-          "boss": "mid"
+          "enemies": ["boss_bone_golem"],
+          "boss": "mid",
+          "boss_id": "bone_golem"
         },
         "6": {
           "name": "금이 간 회랑",
@@ -68,8 +71,9 @@
         "10": {
           "name": "군주의 묘실",
           "difficulty": 7,
-          "enemies": ["boss_crypt_lord"],
-          "boss": "final"
+          "enemies": ["boss_behemoth"],
+          "boss": "final",
+          "boss_id": "behemoth"
         },
         "11": {
           "name": "심층 잔해",

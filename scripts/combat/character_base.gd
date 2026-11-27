@@ -77,6 +77,11 @@ var attacks_landed: int = 0
 var projectiles_fired: int = 0
 var damage_hits: int = 0
 var heals_landed: int = 0
+var _enemy_tint: Color = Color(1, 1, 1, 1)
+var _move_slow_t: float = 0.0
+var _move_slow_mult: float = 1.0
+var _base_move_speed: float = 100.0
+var enemy_tier: String = "normal"
 
 
 func _ready() -> void:
@@ -126,11 +131,13 @@ func setup_from_enemy(data: Dictionary) -> void:
 	display_name = str(data.get("name", "적"))
 	job = "enemy"
 	enemy_kind = str(data.get("sprite", data.get("id", "wolf")))
+	enemy_tier = str(data.get("tier", "normal"))
 	hp_max = float(data.get("hp", 60))
 	hp = hp_max
 	atk = float(data.get("atk", 8))
 	defense = float(data.get("def", 2))
 	move_speed = float(data.get("move", 100)) * 1.35
+	_base_move_speed = move_speed
 	var aspd: float = float(data.get("aspd", 1.0))
 	attack_interval = clampf(1.15 / maxf(0.5, aspd), 0.7, 1.6)
 	# Floor attack_range so chase slot (preferred_radius) can sit inside swing reach.
@@ -138,9 +145,20 @@ func setup_from_enemy(data: Dictionary) -> void:
 	aggro_range = float(data.get("aggro_range", 900))
 	preferred_radius = attack_range * 0.72
 	preferred_angle = 0.0
+	_enemy_tint = Color(1, 1, 1, 1)
+	var c = data.get("color", null)
+	if typeof(c) == TYPE_ARRAY and c.size() >= 3:
+		var a := float(c[3]) if c.size() > 3 else 1.0
+		_enemy_tint = Color(float(c[0]), float(c[1]), float(c[2]), a)
 	_apply_role_offsets()
 	if is_inside_tree():
 		_refresh_visuals()
+
+
+func apply_move_slow(mult: float, duration: float) -> void:
+	_move_slow_mult = clampf(mult, 0.2, 1.0)
+	_move_slow_t = maxf(_move_slow_t, duration)
+	move_speed = maxf(40.0, _base_move_speed * _move_slow_mult)
 
 
 func _job_interval(j: String, balance: Dictionary) -> float:
@@ -298,6 +316,7 @@ func _refresh_visuals() -> void:
 		# Monsters keep centered art; approximate foot under mid-canvas.
 		_sprite_pivot = Vector2(48, 72)
 		_face_right = false
+		_sprite.modulate = _enemy_tint
 	_apply_sprite_pivot()
 	_apply_facing()
 	_set_anim_state(AnimState.IDLE)
@@ -499,7 +518,12 @@ func _physics_process(delta: float) -> void:
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		if _sprite and _flash_t <= 0.0 and _anim_state != AnimState.HIT:
-			_sprite.modulate = Color(1, 1, 1, 1)
+			_sprite.modulate = _enemy_tint if team == Team.ENEMY else Color(1, 1, 1, 1)
+	if _move_slow_t > 0.0:
+		_move_slow_t -= delta
+		if _move_slow_t <= 0.0:
+			_move_slow_mult = 1.0
+			move_speed = _base_move_speed
 	if _hit_lock_t > 0.0:
 		_hit_lock_t -= delta
 

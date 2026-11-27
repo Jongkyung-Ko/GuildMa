@@ -509,6 +509,32 @@ func _build_gate() -> void:
 	dun_row.add_child(dun_btn)
 	_content.add_child(dun_row)
 
+	_content.add_child(UIStyle.label("특수 보스 조우 (단독)", 15, UIStyle.GOLD_BRIGHT))
+	for enc in [
+		{"id": "vorak_rift", "label": "보락 — 균열 조우"},
+		{"id": "morgana_sanctum", "label": "모르가나 — 성소"},
+	]:
+		var erow := HBoxContainer.new()
+		erow.add_theme_constant_override("separation", 8)
+		var el := UIStyle.label(str(enc["label"]), 14)
+		el.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		el.clip_text = true
+		erow.add_child(el)
+		var ebtn := Button.new()
+		ebtn.text = "도전"
+		ebtn.custom_minimum_size = Vector2(64, 0)
+		UIStyle.apply_button(ebtn)
+		var eid := str(enc["id"])
+		ebtn.pressed.connect(func():
+			var gate: Dictionary = GameState.can_start_special_encounter(eid)
+			if not bool(gate.get("ok", false)):
+				GameState.emit_message(str(gate.get("reason", "아직 도전할 수 없습니다.")), true)
+				return
+			SceneRouter.go_special_encounter(eid)
+		)
+		erow.add_child(ebtn)
+		_content.add_child(erow)
+
 	var test_row := HBoxContainer.new()
 	test_row.add_theme_constant_override("separation", 10)
 	var test_lbl := UIStyle.label("전투 시험 (미로 없음)", 15, UIStyle.TEXT_DIM)
