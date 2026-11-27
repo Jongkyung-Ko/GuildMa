@@ -1,4 +1,5 @@
-# PR #20 only — Godot HTML5 preview on branch preview-pr-20.
+# PR #20 only — Godot HTML5 preview.
+# Publishes orphan branch preview-pr-20 + anonymous Vercel temporary URL.
 # Does NOT use github-pages environment and does NOT overwrite main Pages.
 name: pr20-web-preview
 
@@ -80,10 +81,57 @@ jobs:
           print("OK: wasm + html refs + PR20 catalog markers")
           PY
 
-          # Help static hosts that run Jekyll; records deploy SHA for debugging.
           touch "$ROOT/.nojekyll"
           printf '%s\n' "${GITHUB_SHA}" > "$ROOT/PREVIEW_SHA.txt"
           printf '%s\n' "PR #20 preview — do not use as main Pages source" > "$ROOT/README.txt"
+
+      - name: Restore Vercel anonymous deploy state
+        uses: actions/cache@v4
+        with:
+          path: build/web/.vercel
+          key: pr20-vercel-anonymous-v1
+          restore-keys: |
+            pr20-vercel-anonymous-
+
+      - name: Deploy anonymous Vercel temporary preview
+        id: vercel
+        working-directory: build/web
+        run: |
+          set -euo pipefail
+          # Redeploys reuse the same *.tmp.now URL when .vercel/anonymous.json is cached.
+          # Anonymous deploys expire ~60m unless claimed via claim URL in the log.
+          npx --yes vercel@39.1.1 deploy --temporary --yes | tee /tmp/vercel-out.txt
+          python3 <<'PY'
+          import json, pathlib, re
+          text = pathlib.Path("/tmp/vercel-out.txt").read_text(encoding="utf-8", errors="replace")
+          data = None
+          for chunk in reversed(text.strip().splitlines()):
+              chunk = chunk.strip()
+              if chunk.startswith("{") and chunk.endswith("}"):
+                  try:
+                      data = json.loads(chunk)
+                      break
+                  except json.JSONDecodeError:
+                      pass
+          url = None
+          claim = None
+          if isinstance(data, dict):
+              dep = data.get("deployment") or {}
+              url = dep.get("url") or data.get("url")
+              claim = dep.get("claimUrl")
+          if not url:
+              m = re.search(r"https://[a-z0-9-]+\.tmp\.now", text)
+              url = m.group(0) if m else None
+          if not url:
+              raise SystemExit("FAIL: could not parse Vercel preview URL")
+          pathlib.Path("PREVIEW_URL.txt").write_text(url.strip() + "\n", encoding="utf-8")
+          if claim:
+              pathlib.Path("PREVIEW_CLAIM_URL.txt").write_text(claim.strip() + "\n", encoding="utf-8")
+          print(f"PREVIEW_URL={url}")
+          PY
+          URL=$(tr -d '\n' < PREVIEW_URL.txt)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Live preview URL: $URL"
 
       - name: Publish to preview-pr-20 (orphan branch, not Pages)
         uses: peaceiris/actions-gh-pages@v4
@@ -92,4 +140,6 @@ jobs:
           publish_dir: ./build/web
           publish_branch: preview-pr-20
           force_orphan: true
+          # Keep vercel anonymous state out of the public preview branch.
+          exclude_assets: ".vercel"
           commit_message: "chore: PR20 web preview ${{ github.sha }}"
