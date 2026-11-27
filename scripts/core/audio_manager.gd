@@ -343,8 +343,10 @@ func on_enter_title() -> void:
 func on_enter_town() -> void:
 	stop_combat_ambience()
 	_leave_combat_music_mode()
-	# Zone entry (incl. hunt→town): always start town BGM from the beginning.
-	play_bgm("town", true)
+	# Keep town theme position when returning from facilities (shop/blacksmith/etc.).
+	# Hunt/title → town still starts from 0 because the track changes.
+	# Explicit play_bgm("town", true) remains available for forced restarts.
+	play_bgm("town", false)
 
 
 func on_enter_facility() -> void:

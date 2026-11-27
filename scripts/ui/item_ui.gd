@@ -20,7 +20,33 @@ const CATEGORY_LABELS := {
 	"material": "재료",
 }
 
+## Shop top-level filters stay these five; subcategory is display/data only.
 const CATEGORY_ORDER := ["weapon", "armor", "accessory", "consumable", "material"]
+
+const SUBCATEGORY_LABELS := {
+	"weapon_1h": "한손 무기",
+	"weapon_2h": "양손 무기",
+	"weapon_ranged": "원거리",
+	"weapon_magic": "마법 무기",
+	"body": "갑옷",
+	"shield": "방패",
+	"helm": "투구",
+	"gloves": "장갑",
+	"boots": "신발",
+	"ring": "반지",
+	"amulet": "부적",
+	"belt": "벨트",
+	"cloak": "망토",
+	"potion": "물약",
+	"elixir": "영약",
+	"food": "음식",
+	"scroll": "주문서",
+	"ore": "광석",
+	"crystal": "결정",
+	"hide": "가죽/천",
+	"part": "부품",
+	"special": "특수",
+}
 
 const CARD_BG := Color(0.09, 0.08, 0.1, 0.96)
 const CARD_BG_DEEP := Color(0.07, 0.06, 0.08, 0.98)
@@ -51,16 +77,41 @@ static func category_label(category: String) -> String:
 	return CATEGORY_LABELS.get(category, category)
 
 
+static func subcategory_label(subcategory: String) -> String:
+	if subcategory == "":
+		return ""
+	return SUBCATEGORY_LABELS.get(subcategory, subcategory)
+
+
+## Path → Texture2D. Avoids repeat ResourceLoader work across shop category toggles.
+static var _icon_cache: Dictionary = {}
+
+
 static func load_icon(item: Dictionary) -> Texture2D:
 	var path := str(item.get("icon", ""))
+	if path != "" and _icon_cache.has(path):
+		return _icon_cache[path] as Texture2D
 	if path != "" and ResourceLoader.exists(path):
-		return load(path) as Texture2D
+		var tex0: Texture2D = load(path) as Texture2D
+		if tex0:
+			_icon_cache[path] = tex0
+		return tex0
 	var by_id := "res://assets/items/%s.png" % str(item.get("id", ""))
+	if _icon_cache.has(by_id):
+		return _icon_cache[by_id] as Texture2D
 	if ResourceLoader.exists(by_id):
-		return load(by_id) as Texture2D
+		var tex1: Texture2D = load(by_id) as Texture2D
+		if tex1:
+			_icon_cache[by_id] = tex1
+		return tex1
 	var legacy := "res://assets/sprites/items/%s.png" % str(item.get("id", ""))
+	if _icon_cache.has(legacy):
+		return _icon_cache[legacy] as Texture2D
 	if ResourceLoader.exists(legacy):
-		return load(legacy) as Texture2D
+		var tex2: Texture2D = load(legacy) as Texture2D
+		if tex2:
+			_icon_cache[legacy] = tex2
+		return tex2
 	if ResourceLoader.exists("res://assets/items/iron_sword.png"):
 		return load("res://assets/items/iron_sword.png") as Texture2D
 	if ResourceLoader.exists("res://assets/sprites/icons/shop.png"):
@@ -129,17 +180,22 @@ static func make_icon_frame(item: Dictionary, size: float = 72.0, enhance: int =
 
 static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	## Shop/blacksmith selectable card: icon + name + rarity + price/qty.
+	## Taller defaults + autowrap so subtype/status lines are not clipped.
 	var enhance: int = int(opts.get("enhance", 0))
 	var selected: bool = bool(opts.get("selected", false))
 	var price_text: String = str(opts.get("price_text", ""))
 	var sub_text: String = str(opts.get("sub_text", ""))
+	var subtype_text: String = str(opts.get("subtype_text", ""))
+	if subtype_text == "":
+		subtype_text = subcategory_label(str(item.get("subcategory", "")))
 	var icon_size: float = float(opts.get("icon_size", 72))
-	var min_w: float = float(opts.get("min_w", 118))
-	var min_h: float = float(opts.get("min_h", 148))
+	var min_w: float = float(opts.get("min_w", 128))
+	var min_h: float = float(opts.get("min_h", 178))
 
 	var cell := Button.new()
 	cell.flat = true
 	cell.custom_minimum_size = Vector2(min_w, min_h)
+	cell.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(cell)
 	var wrap := PanelContainer.new()
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -148,7 +204,7 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	cell.add_child(wrap)
 	var vb := VBoxContainer.new()
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vb.add_theme_constant_override("separation", 4)
+	vb.add_theme_constant_override("separation", 5)
 	wrap.add_child(vb)
 	var icon_row := CenterContainer.new()
 	icon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -156,12 +212,18 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	vb.add_child(icon_row)
 	var name_l := UIStyle.label(str(item.get("name")), 12, UIStyle.TEXT)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.clip_text = true
-	name_l.custom_minimum_size = Vector2(min_w - 16, 0)
+	name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_l.custom_minimum_size = Vector2(min_w - 18, 28)
 	vb.add_child(name_l)
 	var rar := UIStyle.label(rarity_label(str(item.get("rarity", "common"))), 11, rarity_color(str(item.get("rarity", "common"))))
 	rar.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(rar)
+	if subtype_text != "":
+		var st := UIStyle.label(subtype_text, 11, UIStyle.TEXT_DIM)
+		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		st.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		st.custom_minimum_size = Vector2(min_w - 18, 16)
+		vb.add_child(st)
 	if price_text != "":
 		var pl := UIStyle.label(price_text, 12, UIStyle.GOLD_BRIGHT)
 		pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -169,6 +231,8 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	if sub_text != "":
 		var sl := UIStyle.label(sub_text, 11, UIStyle.TEXT_DIM)
 		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sl.custom_minimum_size = Vector2(min_w - 18, 16)
 		vb.add_child(sl)
 	return cell
 

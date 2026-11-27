@@ -37,6 +37,13 @@ class ShopPanelRoot extends Control:
 	var _cat_buttons: Dictionary = {}
 	var _mode_buy: Button
 	var _mode_sell: Button
+	var _left_panel: PanelContainer
+	var _left_host: Control
+	var _cat_scroll: ScrollContainer
+	## Staged catalog spawn — avoids one-frame 48-card/icon hitch (BGM underrun on web).
+	const GRID_BATCH_SIZE := 4
+	var _grid_gen: int = 0
+	var _grid_queue: Array = []
 
 	func build() -> void:
 		set_anchors_preset(PRESET_FULL_RECT)
@@ -48,13 +55,51 @@ class ShopPanelRoot extends Control:
 		GameState.state_changed.connect(_refresh)
 		_rebuild_layout()
 		resized.connect(_on_resized)
+		if get_viewport():
+			get_viewport().size_changed.connect(_on_resized)
 		_on_resized()
 
+	func _window_size() -> Vector2i:
+		## Physical/window size — reliable for short mobile landscape under stretch modes.
+		return DisplayServer.window_get_size()
+
+	func _is_compact_for(sz: Vector2) -> bool:
+		return sz.x > 0.0 and (sz.x < 720.0 or sz.y > sz.x or sz.y < 480.0)
+
 	func _on_resized() -> void:
-		var compact := size.x > 0 and (size.x < 720 or size.y > size.x or size.y < 480)
+		# Prefer window size so short mobile landscape is detected even when
+		# canvas stretch keeps a taller content viewport / content-driven min size.
+		var win_sz: Vector2 = Vector2(_window_size())
+		var compact := _is_compact_for(win_sz) or _is_compact_for(size)
 		if compact != _compact:
 			_compact = compact
 			_rebuild_layout()
+		else:
+			_fit_left_panel_height()
+
+	func _fit_left_panel_height() -> void:
+		## Category column height = available column height (resize-safe).
+		## compact: clamp via _left_host (min_size alone cannot cap VBox children).
+		## Also cap compact width to the on-screen facility main area — the stacked
+		## ScrollContainer body grows with card min-widths; SIZE_EXPAND_FILL on the
+		## left host would match that overflow width and push Sell past the window.
+		var win_sz: Vector2i = _window_size()
+		# Facility main host ≈ window minus top HUD (76) and bottom pad (40).
+		var host_h: int = maxi(160, win_sz.y - 76 - 40)
+		if size.y > 1.0:
+			host_h = mini(host_h, int(size.y))
+		var avail: int = maxi(160, host_h - 4)
+		if _compact and _left_host != null:
+			# Facility main_host offsets: left 200, right 8 (see facility_screen.gd).
+			var avail_w: int = maxi(220, win_sz.x - 200 - 8)
+			_left_host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			_left_host.custom_minimum_size = Vector2(avail_w, avail)
+			_left_host.set_deferred("size", Vector2(float(avail_w), float(avail)))
+			if _left_panel:
+				_left_panel.clip_contents = true
+		elif not _compact and _left_panel != null:
+			_left_panel.custom_minimum_size = Vector2(230, 0)
+			_left_panel.clip_contents = true
 
 	func _rebuild_layout() -> void:
 		for c in get_children():
@@ -62,53 +107,103 @@ class ShopPanelRoot extends Control:
 				continue
 			c.free()
 		_cat_buttons.clear()
-		var scroll := ScrollContainer.new()
-		scroll.set_anchors_preset(PRESET_FULL_RECT)
-		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		add_child(scroll)
 
-		var body: Control = VBoxContainer.new() if _compact else HBoxContainer.new()
-		body.add_theme_constant_override("separation", 10)
-		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		scroll.add_child(body)
-
-		body.add_child(_build_left_npc())
-		body.add_child(_build_center_grid())
-		body.add_child(_build_detail())
+		# Desktop: no outer scroll — left/center/right each scroll independently.
+		# Compact: outer scroll stacks panels for short landscape / portrait.
+		if _compact:
+			var outer := ScrollContainer.new()
+			outer.set_anchors_preset(PRESET_FULL_RECT)
+			outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			outer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			outer.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			add_child(outer)
+			var body := VBoxContainer.new()
+			body.add_theme_constant_override("separation", 10)
+			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			outer.add_child(body)
+			body.add_child(_build_left_npc())
+			body.add_child(_build_center_grid())
+			body.add_child(_build_detail())
+		else:
+			var body := HBoxContainer.new()
+			body.set_anchors_preset(PRESET_FULL_RECT)
+			body.add_theme_constant_override("separation", 10)
+			body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			add_child(body)
+			body.add_child(_build_left_npc())
+			body.add_child(_build_center_grid())
+			body.add_child(_build_detail())
+		_fit_left_panel_height()
 		_refresh()
 
 	func _build_left_npc() -> Control:
+		## Left column fills available height; only the category list scrolls.
+		## Buy/sell stay pinned under the scroll so the panel bottom never clips them.
+		## Do not change card/catalog/detail layout from here.
 		var panel := PanelContainer.new()
+		_left_panel = panel
+		_left_host = null
 		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false))
 		panel.custom_minimum_size = Vector2(230 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
+		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.size_flags_stretch_ratio = 0.95
-		var vb := VBoxContainer.new()
-		vb.add_theme_constant_override("separation", 8)
-		panel.add_child(vb)
+		panel.clip_contents = true
+		var root_vb := VBoxContainer.new()
+		root_vb.add_theme_constant_override("separation", 8)
+		root_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		root_vb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.add_child(root_vb)
 
-		vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
+		root_vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
 		var portrait := TextureRect.new()
 		portrait.texture = load("res://assets/backgrounds/shop_interior.png")
-		portrait.custom_minimum_size = Vector2(0, 130 if _compact else 230)
+		# Compact short-landscape: keep atmosphere but leave room for pinned Buy/Sell
+		# inside the height-clamped left host (110 + mins overflowed ~270px host).
+		portrait.custom_minimum_size = Vector2(0, 90 if _compact else 150)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		vb.add_child(portrait)
+		portrait.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		root_vb.add_child(portrait)
 
 		_dialogue = UIStyle.label(NPC_LINES[0], 13, UIStyle.TEXT)
 		_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		vb.add_child(_dialogue)
+		_dialogue.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		root_vb.add_child(_dialogue)
+
+		# Category list: take remaining height only (no large min that overflows short viewports).
+		var cat_scroll := ScrollContainer.new()
+		_cat_scroll = cat_scroll
+		cat_scroll.name = "CategoryScroll"
+		cat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		cat_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		# Always show track so short landscape makes scroll affordance obvious; content has right pad.
+		cat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+		# Small floor so the region exists; never force 160/220 which clips on short landscape.
+		cat_scroll.custom_minimum_size = Vector2(0, 64)
+		root_vb.add_child(cat_scroll)
+
+		# Right margin so the vertical scrollbar does not cover category buttons.
+		var pad := MarginContainer.new()
+		pad.add_theme_constant_override("margin_right", 14)
+		pad.add_theme_constant_override("margin_bottom", 6)
+		pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cat_scroll.add_child(pad)
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 8)
+		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pad.add_child(vb)
 
 		vb.add_child(UIStyle.label("카테고리", 13, UIStyle.TEXT_DIM))
 		for cat in ItemUI.CATEGORY_ORDER:
 			var cat_str: String = str(cat)
 			var b := Button.new()
 			b.text = ItemUI.category_label(cat_str)
-			b.custom_minimum_size = Vector2(0, 34 if _compact else 40)
+			b.custom_minimum_size = Vector2(0, 36 if _compact else 42)
 			UIStyle.apply_button(b)
 			var cat_id: String = cat_str
 			b.pressed.connect(func():
@@ -119,12 +214,15 @@ class ShopPanelRoot extends Control:
 			_cat_buttons[cat_str] = b
 			vb.add_child(b)
 
+		# Pin buy/sell under the scroll so the panel bottom never clips the mode row.
 		var mode_row := HBoxContainer.new()
 		mode_row.add_theme_constant_override("separation", 6)
-		vb.add_child(mode_row)
+		mode_row.size_flags_vertical = Control.SIZE_SHRINK_END
+		root_vb.add_child(mode_row)
 		_mode_buy = Button.new()
 		_mode_buy.text = "구매"
 		_mode_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_mode_buy.custom_minimum_size = Vector2(0, 40)
 		UIStyle.apply_button(_mode_buy)
 		_mode_buy.pressed.connect(func():
 			mode = "buy"
@@ -136,6 +234,7 @@ class ShopPanelRoot extends Control:
 		_mode_sell = Button.new()
 		_mode_sell.text = "판매"
 		_mode_sell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_mode_sell.custom_minimum_size = Vector2(0, 40)
 		UIStyle.apply_button(_mode_sell)
 		_mode_sell.pressed.connect(func():
 			mode = "sell"
@@ -144,6 +243,23 @@ class ShopPanelRoot extends Control:
 			_refresh()
 		)
 		mode_row.add_child(_mode_sell)
+
+		if _compact:
+			# Clamp to on-screen facility main area — do NOT EXPAND_FILL to the
+			# card-driven ScrollContainer body width (that pushed Sell off-window).
+			var host := Control.new()
+			_left_host = host
+			host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			host.clip_contents = true
+			var win_sz: Vector2i = _window_size()
+			var avail_w: int = maxi(220, win_sz.x - 200 - 8)
+			var avail_h: int = maxi(160, win_sz.y - 76 - 40 - 4)
+			host.custom_minimum_size = Vector2(avail_w, avail_h)
+			panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			host.add_child(panel)
+			return host
 		return panel
 
 	func _build_center_grid() -> Control:
@@ -168,20 +284,23 @@ class ShopPanelRoot extends Control:
 		_level_chip = UIStyle.label("", 13, UIStyle.TEXT_DIM)
 		top.add_child(_level_chip)
 
+		# Catalog scrolls independently of left categories / right detail.
 		var scroll := ScrollContainer.new()
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.custom_minimum_size = Vector2(0, 240)
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.custom_minimum_size = Vector2(0, 220 if _compact else 360)
 		vb.add_child(scroll)
 		_grid = GridContainer.new()
 		_grid.columns = 3 if _compact else 4
-		_grid.add_theme_constant_override("h_separation", 10)
-		_grid.add_theme_constant_override("v_separation", 10)
+		_grid.add_theme_constant_override("h_separation", 12)
+		_grid.add_theme_constant_override("v_separation", 14)
 		_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.add_child(_grid)
 
 		_feedback = UIStyle.label("", 13, UIStyle.OK)
 		_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_feedback.custom_minimum_size = Vector2(0, 36)
 		vb.add_child(_feedback)
 		return panel
 
@@ -190,10 +309,17 @@ class ShopPanelRoot extends Control:
 		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(true))
 		panel.custom_minimum_size = Vector2(260 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
+		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.size_flags_stretch_ratio = 1.05
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		panel.add_child(scroll)
 		_detail = VBoxContainer.new()
 		_detail.add_theme_constant_override("separation", 8)
-		panel.add_child(_detail)
+		_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(_detail)
 		return panel
 
 	func _style_active_buttons() -> void:
@@ -251,37 +377,85 @@ class ShopPanelRoot extends Control:
 			return
 
 	func _populate_grid() -> void:
+		## Clear immediately, then spawn cards across frames so town BGM does not underrun.
+		## First batch is deferred one frame so facility shell/layout cost does not stack.
+		if _grid == null:
+			return
 		for c in _grid.get_children():
 			c.free()
+		_grid_gen += 1
+		var gen := _grid_gen
+		_grid_queue.clear()
 		if mode == "buy":
 			for item in GameState.items_by_category(category):
-				_grid.add_child(_make_buy_card(item))
+				_grid_queue.append({
+					"kind": "buy",
+					"item": item,
+				})
 		else:
-			var any := false
 			for e in GameState.inventory:
 				var item := GameState.get_item(str(e.get("id", "")))
 				if item.is_empty():
 					continue
 				if str(item.get("category", "")) != category:
 					continue
-				any = true
-				_grid.add_child(_make_sell_card(item, int(e.get("enhance", 0)), int(e.get("qty", 0))))
-			if not any:
+				_grid_queue.append({
+					"kind": "sell",
+					"item": item,
+					"enhance": int(e.get("enhance", 0)),
+					"qty": int(e.get("qty", 0)),
+				})
+			if _grid_queue.is_empty():
 				_grid.add_child(UIStyle.label("이 분류의 보유 아이템이 없습니다.", 13, UIStyle.TEXT_DIM))
+				return
+		_pump_grid(gen, true)
+
+	func _pump_grid(gen: int, defer_first: bool = false) -> void:
+		if gen != _grid_gen or _grid == null or not is_inside_tree():
+			return
+		if defer_first:
+			await get_tree().process_frame
+			if gen != _grid_gen or _grid == null or not is_inside_tree():
+				return
+		var n := 0
+		while n < GRID_BATCH_SIZE and not _grid_queue.is_empty():
+			var entry: Dictionary = _grid_queue.pop_front()
+			if str(entry.get("kind", "")) == "buy":
+				_grid.add_child(_make_buy_card(entry["item"]))
+			else:
+				_grid.add_child(_make_sell_card(
+					entry["item"],
+					int(entry.get("enhance", 0)),
+					int(entry.get("qty", 0))
+				))
+			n += 1
+		if _grid_queue.is_empty():
+			return
+		await get_tree().process_frame
+		if gen != _grid_gen:
+			return
+		_pump_grid(gen, false)
+
+	func _card_opts(extra: Dictionary) -> Dictionary:
+		var opts := {
+			"icon_size": 60 if _compact else 72,
+			"min_w": 112 if _compact else 132,
+			"min_h": 168 if _compact else 188,
+		}
+		for k in extra.keys():
+			opts[k] = extra[k]
+		return opts
 
 	func _make_buy_card(item: Dictionary) -> Control:
 		var id := str(item.get("id", ""))
 		var selected := selected_id == id and selected_enhance == 0
 		var slot := str(item.get("slot", ""))
 		var sub := "장착 가능" if slot != "" else ItemUI.category_label(str(item.get("category")))
-		var cell := ItemUI.make_item_card(item, {
+		var cell := ItemUI.make_item_card(item, _card_opts({
 			"selected": selected,
 			"price_text": "%d G" % int(item.get("price", 0)),
 			"sub_text": sub,
-			"icon_size": 64 if _compact else 76,
-			"min_w": 108 if _compact else 124,
-			"min_h": 138 if _compact else 156,
-		})
+		}))
 		cell.pressed.connect(func():
 			selected_id = id
 			selected_enhance = 0
@@ -296,15 +470,12 @@ class ShopPanelRoot extends Control:
 		var unit := GameState.sell_price_of(id)
 		if enhance > 0:
 			unit = int(round(float(unit) * (1.0 + 0.08 * float(enhance))))
-		var cell := ItemUI.make_item_card(item, {
+		var cell := ItemUI.make_item_card(item, _card_opts({
 			"enhance": enhance,
 			"selected": selected,
 			"price_text": "%d G" % unit,
 			"sub_text": "보유 x%d" % qty,
-			"icon_size": 64 if _compact else 76,
-			"min_w": 108 if _compact else 124,
-			"min_h": 138 if _compact else 156,
-		})
+		}))
 		cell.pressed.connect(func():
 			selected_id = id
 			selected_enhance = enhance
@@ -333,11 +504,16 @@ class ShopPanelRoot extends Control:
 			ItemUI.rarity_label(str(item.get("rarity", "common"))),
 			ItemUI.category_label(str(item.get("category"))),
 		], 13, ItemUI.rarity_color(str(item.get("rarity", "common")))))
+		var sub := ItemUI.subcategory_label(str(item.get("subcategory", "")))
+		if sub != "":
+			meta.add_child(UIStyle.label("세부: %s" % sub, 12, UIStyle.TEXT_DIM))
 		if selected_enhance > 0:
 			meta.add_child(UIStyle.label("강화 +%d" % selected_enhance, 13, UIStyle.GOLD_BRIGHT))
 		var slot := str(item.get("slot", ""))
 		if slot != "":
 			meta.add_child(UIStyle.label("장착 부위: %s" % slot, 12, UIStyle.TEXT_DIM))
+		if str(item.get("balance_status", "")) == "proposed":
+			meta.add_child(UIStyle.label("가격/스탯: 제안(미확정)", 11, Color(0.85, 0.7, 0.35)))
 
 		var desc := UIStyle.label(str(item.get("desc", "")), 13, UIStyle.TEXT_DIM)
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -414,9 +590,25 @@ class ShopPanelRoot extends Control:
 		_refresh()
 
 	func _on_sell_pressed() -> void:
-		var ok := GameState.sell_item(selected_id, 1, selected_enhance)
-		_feedback.text = "판매 완료!" if ok else "판매 실패"
-		_feedback.add_theme_color_override("font_color", UIStyle.OK if ok else UIStyle.DANGER)
-		if ok and GameState.inventory_qty(selected_id, selected_enhance) <= 0:
-			selected_id = ""
+		var item := GameState.get_item(selected_id)
+		var unit2 := GameState.sell_price_of(selected_id)
+		if selected_enhance > 0:
+			unit2 = int(round(float(unit2) * (1.0 + 0.08 * float(selected_enhance))))
+		var sold_id := selected_id
+		var sold_enh := selected_enhance
+		var ok := GameState.sell_item(sold_id, 1, sold_enh)
+		if ok:
+			var remain := GameState.inventory_qty(sold_id, sold_enh)
+			var enh_txt := (" +%d" % sold_enh) if sold_enh > 0 else ""
+			_feedback.text = "판매 성공! %s%s +%d G · 남은 보유 %d · 현재 골드 %d G" % [
+				item.get("name", sold_id), enh_txt, unit2, remain, GameState.gold
+			]
+			_feedback.add_theme_color_override("font_color", UIStyle.OK)
+			_dialogue.text = "잘 팔렸어요! +%d G 획득했습니다." % unit2
+			if remain <= 0:
+				selected_id = ""
+				selected_enhance = 0
+		else:
+			_feedback.text = "판매 실패"
+			_feedback.add_theme_color_override("font_color", UIStyle.DANGER)
 		_refresh()

@@ -1,0 +1,25 @@
+validate_shop_category_scroll
+tip_fix_after=ba2793f
+engine=Godot 4.3 DISPLAY=:1 x11 opengl3
+content_scale=DISABLED (real 844/1366 content sizes)
+passed=16 failed=0
+RESULT=PASS
+
+## Root cause (844 Sell off-screen)
+Compact left host used SIZE_EXPAND_FILL inside a ScrollContainer body widened by
+card min-widths (~1318px). Buy|Sell HBox split that width → Sell at x=874 > 844.
+Fix: compact-only cap left host to facility main width (win-200-8) via SHRINK_BEGIN;
+slightly lower compact portrait (110→90) so pinned Buy/Sell fit host height.
+1366 non-compact path unchanged.
+
+## Assert summary
+1 last category visible: PASS @844 PASS @1366
+2 Buy/Sell visible at max category scroll: PASS @844 PASS @1366
+3 both sizes: covered
+4 scroll reaches usable max: PASS @844 (215/215) PASS @1366 (fit)
+5 last category clickable: PASS @844 PASS @1366
+6 Buy/Sell mode switch: PASS @844 PASS @1366
+filter after category select: PASS @844 PASS @1366
+
+## 844 geometry after fix
+buy=(222,331,305x42) sell=(533,331,305x42) — both inside window 844
