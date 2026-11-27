@@ -82,7 +82,9 @@ jobs:
           PY
 
           touch "$ROOT/.nojekyll"
-          printf '%s\n' "${GITHUB_SHA}" > "$ROOT/PREVIEW_SHA.txt"
+          # pull_request events use merge SHA; prefer PR head for the tip players expect.
+          PREVIEW_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          printf '%s\n' "$PREVIEW_SHA" > "$ROOT/PREVIEW_SHA.txt"
           printf '%s\n' "PR #20 preview — do not use as main Pages source" > "$ROOT/README.txt"
 
       - name: Restore Vercel anonymous deploy state
