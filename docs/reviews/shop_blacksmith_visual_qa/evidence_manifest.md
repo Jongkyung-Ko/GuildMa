@@ -6,13 +6,14 @@
 | **Branch** | `cursor/item-catalog-160-3dd7` |
 | **Prior FAIL cycle tip** | ChatGPT visual QA **FAIL** on first evidence set (`06a6e4a`) |
 | **Fix cycle** | P1 card/scroll + local enhance FX + P2 sell feedback; evidence PNGs **overwritten in place** (not deleted) |
-| **Evidence + fix commit** | `deee2504c01056658de99f693d2abac8e9c20550` |
-| **Resolution** | **1366×768** (required). Compact layout path covers **844×390** (`size.y < 480` → stacked + scrolls). |
+| **Prior UI fix commit** | `deee2504c01056658de99f693d2abac8e9c20550` |
+| **Category-scroll fix commit** | _(this push)_ |
+| **Resolution** | **1366×768** + short mobile landscape **844×390** proof |
 | **Engine** | Godot 4.3.stable.official · `DISPLAY=:1` · x11 · opengl3 |
-| **Capture script** | `res://scripts/core/capture_shop_blacksmith_visual_qa.gd` |
-| **Validate** | `validate_shop_blacksmith.gd` → **PASS (0 fails)** after fixes |
+| **Capture scripts** | `capture_shop_blacksmith_visual_qa.gd`, `capture_shop_category_scroll.gd` |
+| **Validate** | `validate_shop_blacksmith.gd` → **PASS (0 fails)** after category-scroll fix |
 | **Real-run flag** | **YES** |
-| **Visual PASS claim** | **No** — awaiting ChatGPT re-review. Do not treat this upload as PASS. |
+| **Visual PASS claim** | **No** — fix + proof only; ChatGPT owns re-review |
 | **Do not delete** | Keep evidence until ChatGPT confirms review complete |
 
 ## Fixes addressed (ChatGPT FAIL → this cycle)
@@ -22,6 +23,13 @@
 - Subcategory line on cards
 - Desktop: **no outer body scroll**; catalog ScrollContainer independent; left category column has its own scroll so all 5 cats + buy/sell reachable
 - Shorter atmosphere portrait so categories fit at 1366×768 / short landscape
+
+### Follow-up — left category panel clip (live FAIL)
+- Category column height tracks **available height** (window-aware; resize-safe)
+- Independent `CategoryScroll` (SHOW_ALWAYS) with **right pad** so scrollbar does not cover buttons
+- Buy/sell **pinned under** the scroll (not clipped at panel bottom)
+- Short landscape clamps left host height so content cannot grow past the viewport
+- **Did not** change card size/gaps, catalog scroll, detail panel, buy/sell logic, colors/borders/fonts/icons
 
 ### P1B — Blacksmith success/fail FX
 - Removed full-screen `ColorRect` wash
@@ -67,6 +75,21 @@ DISPLAY=:1 godot4 --path . --headless -s res://scripts/core/validate_shop_blacks
 | `evidence/blacksmith_stat_compare.png` | Stat compare | same center panel |
 | `evidence/blacksmith_upgrade_success.png` | Success | **local** gold FX, no full-screen wash |
 | `evidence/blacksmith_upgrade_fail.png` | Fail | **local** red FX; steel +9 keep |
+
+## Category-scroll proof (added; prior evidence kept)
+
+| Path | Size | Notes |
+|---|---|---|
+| `evidence/shop_category_scroll_before_ref_1366x768.png` | 1366×768 | Before-ref copy of prior `shop_weapon` |
+| `evidence/shop_category_scroll_844x390.png` | 844×390 | Short landscape; category scroll top |
+| `evidence/shop_category_scroll_bottom_844x390.png` | 844×390 | Scrolled to last category |
+| `evidence/shop_category_scroll_1366x768.png` | 1366×768 | Desktop; category scrollbar + pinned buy/sell |
+| `evidence/shop_category_scroll_bottom_1366x768.png` | 1366×768 | Category list scrolled to bottom |
+
+```bash
+DISPLAY=:1 godot4 --path . --display-driver x11 --rendering-driver opengl3 \
+  -s res://scripts/core/capture_shop_category_scroll.gd
+```
 
 ## Post-review delete (only after ChatGPT confirms)
 

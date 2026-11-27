@@ -37,6 +37,9 @@ class ShopPanelRoot extends Control:
 	var _cat_buttons: Dictionary = {}
 	var _mode_buy: Button
 	var _mode_sell: Button
+	var _left_panel: PanelContainer
+	var _left_host: Control
+	var _cat_scroll: ScrollContainer
 
 	func build() -> void:
 		set_anchors_preset(PRESET_FULL_RECT)
@@ -48,13 +51,43 @@ class ShopPanelRoot extends Control:
 		GameState.state_changed.connect(_refresh)
 		_rebuild_layout()
 		resized.connect(_on_resized)
+		if get_viewport():
+			get_viewport().size_changed.connect(_on_resized)
 		_on_resized()
 
+	func _window_size() -> Vector2i:
+		## Physical/window size — reliable for short mobile landscape under stretch modes.
+		return DisplayServer.window_get_size()
+
+	func _is_compact_for(sz: Vector2) -> bool:
+		return sz.x > 0.0 and (sz.x < 720.0 or sz.y > sz.x or sz.y < 480.0)
+
 	func _on_resized() -> void:
-		var compact := size.x > 0 and (size.x < 720 or size.y > size.x or size.y < 480)
+		# Prefer window size so short mobile landscape is detected even when
+		# canvas stretch keeps a taller content viewport / content-driven min size.
+		var win_sz: Vector2 = Vector2(_window_size())
+		var compact := _is_compact_for(win_sz) or _is_compact_for(size)
 		if compact != _compact:
 			_compact = compact
 			_rebuild_layout()
+		else:
+			_fit_left_panel_height()
+
+	func _fit_left_panel_height() -> void:
+		## Category column height = available column height (resize-safe).
+		## compact: clamp via _left_host (min_size alone cannot cap VBox children).
+		var win_sz: Vector2i = _window_size()
+		# Facility main host ≈ window minus top HUD (76) and bottom pad (40).
+		var host_h: int = maxi(160, win_sz.y - 76 - 40)
+		if size.y > 1.0:
+			host_h = mini(host_h, int(size.y))
+		var avail: int = maxi(160, host_h - 4)
+		if _compact and _left_host != null:
+			_left_host.custom_minimum_size = Vector2(0, avail)
+			_left_host.set_deferred("size", Vector2(maxi(_left_host.size.x, 1.0), float(avail)))
+		elif not _compact and _left_panel != null:
+			_left_panel.custom_minimum_size = Vector2(230, 0)
+			_left_panel.clip_contents = true
 
 	func _rebuild_layout() -> void:
 		for c in get_children():
@@ -90,44 +123,67 @@ class ShopPanelRoot extends Control:
 			body.add_child(_build_left_npc())
 			body.add_child(_build_center_grid())
 			body.add_child(_build_detail())
+		_fit_left_panel_height()
 		_refresh()
 
 	func _build_left_npc() -> Control:
+		## Left column fills available height; only the category list scrolls.
+		## Buy/sell stay pinned under the scroll so the panel bottom never clips them.
+		## Do not change card/catalog/detail layout from here.
 		var panel := PanelContainer.new()
+		_left_panel = panel
+		_left_host = null
 		panel.add_theme_stylebox_override("panel", ItemUI.deep_panel_style(false))
 		panel.custom_minimum_size = Vector2(230 if not _compact else 0, 0)
 		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if _compact else Control.SIZE_FILL
 		panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.size_flags_stretch_ratio = 0.95
+		panel.clip_contents = true
 		var root_vb := VBoxContainer.new()
 		root_vb.add_theme_constant_override("separation", 8)
+		root_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		root_vb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		panel.add_child(root_vb)
 
 		root_vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
 		var portrait := TextureRect.new()
 		portrait.texture = load("res://assets/backgrounds/shop_interior.png")
-		# Shorter atmosphere so category buttons stay reachable at 1366×768 / 844×390.
+		# Keep existing atmosphere heights — only the category region flexes/scrolls.
 		portrait.custom_minimum_size = Vector2(0, 110 if _compact else 150)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		portrait.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		root_vb.add_child(portrait)
 
 		_dialogue = UIStyle.label(NPC_LINES[0], 13, UIStyle.TEXT)
 		_dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_dialogue.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		root_vb.add_child(_dialogue)
 
-		# Independent scroll for categories + buy/sell so every button is reachable.
+		# Category list: take remaining height only (no large min that overflows short viewports).
 		var cat_scroll := ScrollContainer.new()
+		_cat_scroll = cat_scroll
+		cat_scroll.name = "CategoryScroll"
 		cat_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cat_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cat_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		cat_scroll.custom_minimum_size = Vector2(0, 160 if _compact else 220)
+		# Always show track so short landscape makes scroll affordance obvious; content has right pad.
+		cat_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+		# Small floor so the region exists; never force 160/220 which clips on short landscape.
+		cat_scroll.custom_minimum_size = Vector2(0, 64)
 		root_vb.add_child(cat_scroll)
+
+		# Right margin so the vertical scrollbar does not cover category buttons.
+		var pad := MarginContainer.new()
+		pad.add_theme_constant_override("margin_right", 14)
+		pad.add_theme_constant_override("margin_bottom", 6)
+		pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cat_scroll.add_child(pad)
 		var vb := VBoxContainer.new()
 		vb.add_theme_constant_override("separation", 8)
 		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		cat_scroll.add_child(vb)
+		pad.add_child(vb)
 
 		vb.add_child(UIStyle.label("카테고리", 13, UIStyle.TEXT_DIM))
 		for cat in ItemUI.CATEGORY_ORDER:
@@ -145,9 +201,11 @@ class ShopPanelRoot extends Control:
 			_cat_buttons[cat_str] = b
 			vb.add_child(b)
 
+		# Pin buy/sell under the scroll so the panel bottom never clips the mode row.
 		var mode_row := HBoxContainer.new()
 		mode_row.add_theme_constant_override("separation", 6)
-		vb.add_child(mode_row)
+		mode_row.size_flags_vertical = Control.SIZE_SHRINK_END
+		root_vb.add_child(mode_row)
 		_mode_buy = Button.new()
 		_mode_buy.text = "구매"
 		_mode_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -172,6 +230,19 @@ class ShopPanelRoot extends Control:
 			_refresh()
 		)
 		mode_row.add_child(_mode_sell)
+
+		if _compact:
+			# Clamp height to available viewport — VBox-in-Scroll would otherwise grow with content.
+			var host := Control.new()
+			_left_host = host
+			host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			host.clip_contents = true
+			host.custom_minimum_size = Vector2(0, maxi(160, int(size.y) - 4))
+			panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			host.add_child(panel)
+			return host
 		return panel
 
 	func _build_center_grid() -> Control:
