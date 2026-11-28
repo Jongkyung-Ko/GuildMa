@@ -22,3 +22,4 @@ export_presets.cfg
 
 # CI / local Godot web export output (do not commit; Pages deploys from Actions artifact)
 build/
+*.orig.png
