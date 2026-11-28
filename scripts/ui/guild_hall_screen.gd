@@ -285,6 +285,8 @@ func _apply_responsive_layout() -> void:
 	_top_bar.offset_right = -pad
 	_top_bar.offset_top = pad
 	_top_bar.offset_bottom = pad + top_h
+	_top_bar.clip_contents = true
+	_top_bar.custom_minimum_size = Vector2(0, top_h)
 	_town_btn.text = "마을로" if _dense else "마을로 돌아가기"
 
 	_toast.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
@@ -306,7 +308,9 @@ func _apply_responsive_layout() -> void:
 	_body_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	_body_scroll.offset_left = pad
 	_body_scroll.offset_right = -pad
-	_body_scroll.offset_top = pad + top_h + 4.0
+	# Clear the top bar fully (content can grow past top_h without clip alone).
+	var top_clear := maxf(top_h, _top_bar.size.y if _top_bar.size.y > 0.0 else top_h)
+	_body_scroll.offset_top = pad + top_clear + 4.0
 	_body_scroll.offset_bottom = -(pad + foot_h + toast_h + 4.0)
 	var body_h := _body_scroll.size.y if _body_scroll.size.y > 8.0 else h - top_h - foot_h - toast_h - 24.0
 	_layout_wide(w - pad * 2.0, body_h)
@@ -322,7 +326,9 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	_ensure_nav_orientation(false)
 	_ensure_party_orientation(false)
 	# Minimize left chrome; keep detail wide enough to read ATK/DEF rows.
-	var nav_w := 96.0 if _dense else 112.0
+	# When formation is open, use the same narrow nav as `_fit_formation`.
+	var formation_open := _formation != null and is_instance_valid(_formation) and _formation.visible
+	var nav_w := (80.0 if _dense else 88.0) if formation_open else (96.0 if _dense else 112.0)
 	var detail_w := 248.0 if _dense else 268.0
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
@@ -330,11 +336,29 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var party_h := 132.0 if _dense else 156.0
 	var hall_h := maxf(200.0 if _dense else 240.0, content_h - party_h - gap)
 
+	var nav_host := _body_host.get_node_or_null("NavHost") as Control
 	var nav_scroll := _body_host.get_node_or_null("NavScroll") as ScrollContainer
-	if nav_scroll:
+	if nav_host == null and nav_scroll == null:
+		var maybe_host := _body_host.get_node_or_null("NavHost")
+		if maybe_host:
+			nav_scroll = maybe_host.get_node_or_null("NavScroll") as ScrollContainer
+	if formation_open:
+		nav_host = _ensure_nav_host()
+		nav_host.position = Vector2(0, 0)
+		nav_host.size = Vector2(nav_w, content_h)
+		nav_host.custom_minimum_size = Vector2(nav_w, content_h)
+		nav_host.clip_contents = true
+		nav_scroll = nav_host.get_node_or_null("NavScroll") as ScrollContainer
+		if nav_scroll:
+			nav_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	elif nav_scroll:
 		nav_scroll.position = Vector2(0, 0)
 		nav_scroll.size = Vector2(nav_w, content_h)
 		nav_scroll.custom_minimum_size = Vector2(nav_w, content_h)
+	elif nav_host:
+		nav_host.position = Vector2(0, 0)
+		nav_host.size = Vector2(nav_w, content_h)
+		nav_host.custom_minimum_size = Vector2(nav_w, content_h)
 	_nav_box.custom_minimum_size = Vector2(nav_w - 4.0, 0)
 	for mid in _nav_buttons.keys():
 		var b: Button = _nav_buttons[mid]
@@ -1106,31 +1130,80 @@ func _open_formation(kind: String) -> void:
 		_formation.call("restore_view_state", _formation_state)
 	else:
 		_formation.call("setup", kind)
+	# Re-lock shell after rebuild so content min-width cannot spill past the body.
+	_fit_formation()
 
 
 func _fit_formation() -> void:
 	if _formation == null or not is_instance_valid(_formation):
 		return
-	## Narrower nav so formation mid + detail stay fully on-screen.
-	var nav_w := 84.0 if _dense else 96.0
-	var gap := 4.0 if _dense else 6.0
+	## Layout-only: narrow left nav; formation fills remaining body exactly (no overflow).
+	var nav_w := 80.0 if _dense else 88.0
+	var gap := 4.0
 	var area := _body_host.size
 	if area.x < 8.0 or area.y < 8.0:
 		area = Vector2(maxf(size.x - 16.0, 640.0), maxf(size.y - 120.0, 280.0))
-	var nav_scroll := _body_host.get_node_or_null("NavScroll") as ScrollContainer
+	var nav_host := _ensure_nav_host()
+	nav_host.position = Vector2(0, 0)
+	nav_host.size = Vector2(nav_w, area.y)
+	nav_host.custom_minimum_size = Vector2(nav_w, area.y)
+	nav_host.clip_contents = true
+	var nav_scroll := nav_host.get_node_or_null("NavScroll") as ScrollContainer
+	if nav_scroll == null:
+		nav_scroll = _body_host.get_node_or_null("NavScroll") as ScrollContainer
 	if nav_scroll:
-		nav_scroll.size = Vector2(nav_w, area.y)
-		nav_scroll.custom_minimum_size = Vector2(nav_w, area.y)
+		nav_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		nav_scroll.clip_contents = true
 	if _nav_box:
-		_nav_box.custom_minimum_size = Vector2(nav_w - 4.0, 0)
+		_nav_box.custom_minimum_size = Vector2(maxi(1.0, nav_w - 4.0), 0)
+		_nav_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Compact labels so nav stays within the narrow slot.
+	for mid in _nav_buttons.keys():
+		var b: Button = _nav_buttons[mid]
+		if not is_instance_valid(b):
+			continue
+		b.clip_text = true
+		b.custom_minimum_size = Vector2(0, 34 if _dense else 38)
+		match mid:
+			MENU_PARTY:
+				b.text = "편성"
+			MENU_MEMBERS:
+				b.text = "길드원"
+			MENU_STATS:
+				b.text = "능력"
+			MENU_FACILITY:
+				b.text = "시설"
+			_:
+				pass
 	var fpos := Vector2(nav_w + gap, 0)
-	# Leave a 4px safety gutter so detail chrome never paints past the window edge.
-	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap - 4.0), maxf(200.0, area.y))
+	# Keep a few px clear of the body right edge so ornate detail rim is not clipped.
+	var right_pad := 6.0
+	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap - right_pad), maxf(200.0, area.y))
 	_formation.position = fpos
 	_formation.clip_contents = true
+	# Lock panel to body slot (Godot 4.3: min+size+clip; no custom_maximum_size).
 	_formation.custom_minimum_size = fsize
-	_formation.custom_maximum_size = fsize
-	_formation.set_deferred("size", fsize)
+	_formation.size = fsize
+	if _formation.has_method("_apply_shell_size"):
+		_formation.call("_apply_shell_size", fsize)
+
+
+func _ensure_nav_host() -> Control:
+	## Clip host so ScrollContainer content min-width cannot spill into formation.
+	var host := _body_host.get_node_or_null("NavHost") as Control
+	if host != null:
+		return host
+	host = Control.new()
+	host.name = "NavHost"
+	host.clip_contents = true
+	_body_host.add_child(host)
+	_body_host.move_child(host, 0)
+	var nav_scroll := _body_host.get_node_or_null("NavScroll") as ScrollContainer
+	if nav_scroll and nav_scroll.get_parent() == _body_host:
+		_body_host.remove_child(nav_scroll)
+		host.add_child(nav_scroll)
+		nav_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	return host
 
 
 func _hide_formation() -> void:

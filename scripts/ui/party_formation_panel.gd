@@ -290,6 +290,40 @@ func _skill_tex(skill_name: String) -> Texture2D:
 # Layout
 # ---------------------------------------------------------------------------
 
+var _shell_lock: Vector2 = Vector2.ZERO
+
+
+func _apply_shell_size(fsize: Vector2) -> void:
+	## Called by guild hall after fitting — keep inner VBox within the shell.
+	## Godot 4.3 has no custom_maximum_size; lock via min+size+clip.
+	_shell_lock = fsize
+	clip_contents = true
+	custom_minimum_size = fsize
+	size = fsize
+	size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_pin_root_to_shell()
+	call_deferred("_layout_mid_split")
+
+
+func _pin_root_to_shell() -> void:
+	if get_child_count() < 1:
+		return
+	var root := get_child(0) as Control
+	if root == null:
+		return
+	# Anchors only resolve correctly after the node is inside the tree.
+	root.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	root.offset_left = 0
+	root.offset_top = 0
+	root.offset_right = 0
+	root.offset_bottom = 0
+	root.clip_contents = true
+	if _shell_lock != Vector2.ZERO:
+		size = _shell_lock
+		custom_minimum_size = _shell_lock
+
+
 func _rebuild() -> void:
 	for c in get_children():
 		c.free()
@@ -302,40 +336,63 @@ func _rebuild() -> void:
 	_grid = null
 
 	clip_contents = true
+	if _shell_lock != Vector2.ZERO:
+		custom_minimum_size = _shell_lock
+		size = _shell_lock
 	var root := VBoxContainer.new()
-	root.set_anchors_preset(PRESET_FULL_RECT)
+	root.name = "FormationRoot"
 	root.clip_contents = true
 	root.add_theme_constant_override("separation", 3 if _dense else 4)
 	add_child(root)
+	# Must pin after add_child so FULL_RECT binds to this panel's size.
+	_pin_root_to_shell()
 
 	root.add_child(_build_header())
 	var mid := HBoxContainer.new()
 	mid.name = "FormationMid"
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mid.size_flags_stretch_ratio = 1.0
 	mid.clip_contents = true
-	mid.add_theme_constant_override("separation", 4 if _dense else 6)
+	mid.add_theme_constant_override("separation", 6)
 	root.add_child(mid)
 	mid.add_child(_build_member_column())
-	# Dense 844: list-first; detail becomes a slim column that must not push past the window.
 	mid.add_child(_build_detail_column())
 	var party := _build_party_strip()
 	party.size_flags_vertical = Control.SIZE_SHRINK_END
+	party.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(party)
 	call_deferred("_ensure_first_row_uncut")
-	call_deferred("_clamp_detail_width")
+	call_deferred("_layout_mid_split")
+	call_deferred("_pin_root_to_shell")
 
 
 func _build_header() -> Control:
 	## Kit layout 02/05: minimize top chrome — one band for title+kinds+filters.
+	## Control host + HScroll so filter band cannot inflate shell width.
+	var host := Control.new()
+	host.name = "FormationHeader"
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.clip_contents = true
+	host.custom_minimum_size = Vector2(0, 56 if _dense else 64)
 	var panel := _make_stone_panel(false, true)
+	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	host.add_child(panel)
+	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 2)
 	panel.add_child(vb)
 
+	var band_scroll := ScrollContainer.new()
+	band_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	band_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	band_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	band_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	band_scroll.custom_minimum_size = Vector2(0, 28 if _dense else 30)
+	vb.add_child(band_scroll)
 	var band := HBoxContainer.new()
 	band.add_theme_constant_override("separation", 4)
-	vb.add_child(band)
+	band_scroll.add_child(band)
 	band.add_child(UIStyle.label("파티 편성", 13 if not _dense else 12, METAL_GOLD_BRIGHT))
 	_count_label = UIStyle.label("", 11, INK)
 	band.add_child(_count_label)
@@ -401,7 +458,7 @@ func _build_header() -> Control:
 		_filter_buttons[jid] = fb
 	_style_filter_buttons()
 	_update_summary_labels()
-	return panel
+	return host
 
 
 func _member_grid_columns() -> int:
@@ -412,11 +469,20 @@ func _member_grid_columns() -> int:
 
 
 func _build_member_column() -> Control:
-	## Widest column — ornate Aren card lives here as a normal grid cell (not a floating hero).
+	## Widest column — list expands; detail stays a fixed slim column beside it.
+	## Plain Control host breaks card-grid min-width inflation into the mid HBox.
+	var host := Control.new()
+	host.name = "MemberColumn"
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.size_flags_stretch_ratio = 1.0
+	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	host.clip_contents = true
+	host.custom_minimum_size = Vector2(160, 0)
 	var panel := _make_stone_panel()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.size_flags_stretch_ratio = 2.6 if not _dense else 1.0
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.name = "MemberPanel"
+	panel.clip_contents = true
+	host.add_child(panel)
+	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 3)
 	panel.add_child(vb)
@@ -435,7 +501,7 @@ func _build_member_column() -> Control:
 	_grid_scroll.add_child(_grid)
 	_populate_grid()
 	call_deferred("_fit_member_grid_width")
-	return panel
+	return host
 
 
 func _fit_member_grid_width() -> void:
@@ -508,31 +574,49 @@ func _ensure_first_row_uncut() -> void:
 		_grid.queue_sort()
 
 
-func _clamp_detail_width() -> void:
-	## Detail is fixed-width SHRINK_END; only ensure the shell clips.
-	if is_inside_tree():
-		clip_contents = true
+func _layout_mid_split() -> void:
+	## Layout-only: list expands, detail stays a fixed column fully inside the shell.
+	clip_contents = true
+	_pin_root_to_shell()
+	var mid := find_child("FormationMid", true, false) as Control
+	var detail := find_child("DetailColumn", true, false) as Control
+	var members := find_child("MemberColumn", true, false) as Control
+	if mid == null or detail == null:
+		return
+	var avail := size.x if size.x > 64.0 else (_shell_lock.x if _shell_lock.x > 64.0 else 0.0)
+	if avail < 64.0:
+		call_deferred("_layout_mid_split")
+		return
+	var detail_w := 200.0 if not _dense else 150.0
+	detail_w = mini(detail_w, maxf(120.0, avail * 0.28))
+	detail.custom_minimum_size = Vector2(detail_w, 0)
+	detail.size_flags_horizontal = Control.SIZE_SHRINK_END
+	detail.size_flags_stretch_ratio = 0.0
+	if members:
+		members.custom_minimum_size = Vector2(160, 0)
+		members.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		members.size_flags_stretch_ratio = 1.0
+	mid.clip_contents = true
+	mid.custom_minimum_size = Vector2(0, 0)
+	# Keep mid from reporting a content-driven width past the shell.
+	if mid.size.x > avail + 1.0:
+		mid.size = Vector2(avail, mid.size.y)
 
 
 func _build_detail_column() -> Control:
-	## Kit detail chrome; hard-capped so mid+detail never spill past the window.
-	var host := PanelContainer.new()
+	## Kit detail chrome. Width is assigned in `_layout_mid_split` (layout-only).
+	## Control host + anchored panel so detail min-width cannot blow the mid HBox.
+	var host := Control.new()
 	host.name = "DetailColumn"
-	## Fixed slim column — SHRINK_END so it cannot expand mid past the window.
-	var detail_w := 180.0 if not _dense else 140.0
+	var detail_w := 200.0 if not _dense else 150.0
 	host.custom_minimum_size = Vector2(detail_w, 0)
-	host.custom_maximum_size = Vector2(detail_w, 0)
 	host.size_flags_horizontal = Control.SIZE_SHRINK_END
 	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	host.clip_contents = true
-	var empty_sb := StyleBoxEmpty.new()
-	host.add_theme_stylebox_override("panel", empty_sb)
 	var layer := Control.new()
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	layer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layer.custom_minimum_size = Vector2(140, 120)
 	host.add_child(layer)
+	layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var bg := TextureRect.new()
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.texture = _tex(KIT_DETAIL_PANEL)
@@ -560,7 +644,15 @@ func _build_detail_column() -> Control:
 
 func _build_party_strip() -> Control:
 	## Single compact band (title + slots + actions) so mid list keeps a full card row.
+	var host := Control.new()
+	host.name = "PartyStrip"
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.size_flags_vertical = Control.SIZE_SHRINK_END
+	host.clip_contents = true
+	host.custom_minimum_size = Vector2(0, 96 if _dense else 108)
 	var panel := _make_stone_panel(false, true)
+	host.add_child(panel)
+	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 2 if _dense else 3)
 	panel.add_child(vb)
@@ -595,7 +687,7 @@ func _build_party_strip() -> Control:
 	_party_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_child(_party_row)
 	_populate_party_strip()
-	return panel
+	return host
 
 
 func _party_effect_text() -> String:
