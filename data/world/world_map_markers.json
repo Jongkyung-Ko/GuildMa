@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "background": "res://assets/backgrounds/world_map_background.jpg",
+  "home_marker_id": "elderwood",
+  "markers": [
+    {
+      "id": "frostheim",
+      "name": "Frostheim",
+      "name_ko": "프로스트하임",
+      "kind": "village",
+      "region": "north",
+      "region_name": "North · Frostlands",
+      "region_name_ko": "북부 · 프로스트랜드",
+      "pos": [0.30, 0.16],
+      "blurb": "눈덮인 산기슭의 촌락. 빙하 사냥터로 이어진다."
+    },
+    {
+      "id": "stoneguard",
+      "name": "Stoneguard",
+      "name_ko": "스톤가드",
+      "kind": "village",
+      "region": "north",
+      "region_name": "North · Frostlands",
+      "region_name_ko": "북부 · 프로스트랜드",
+      "pos": [0.42, 0.22],
+      "blurb": "절벽 요새 마을. 북부 관문을 지킨다."
+    },
+    {
+      "id": "gravehall",
+      "name": "Gravehall",
+      "name_ko": "그레이브홀",
+      "kind": "village",
+      "region": "north",
+      "region_name": "North · Frostlands",
+      "region_name_ko": "북부 · 프로스트랜드",
+      "pos": [0.62, 0.18],
+      "blurb": "얼어붙은 묘역 인근 취락. 망자의 숨결이 감돈다."
+    },
+    {
+      "id": "icecrown",
+      "name": "Icecrown",
+      "name_ko": "아이스크라운",
+      "kind": "castle",
+      "region": "north",
+      "region_name": "North · Frostlands",
+      "region_name_ko": "북부 · 프로스트랜드",
+      "pos": [0.50, 0.10],
+      "blurb": "북부 지배성. 세 거대 보스가 성을 지킨다.",
+      "bosses": [
+        {"id": "fenrir", "name": "Fenrir", "name_ko": "펜리르"},
+        {"id": "behemoth", "name": "Behemoth", "name_ko": "베히모스"},
+        {"id": "bone_golem", "name": "Bone Golem", "name_ko": "본 골렘"}
+      ]
+    },
+    {
+      "id": "elderwood",
+      "name": "Elderwood",
+      "name_ko": "엘더우드",
+      "kind": "village",
+      "region": "central",
+      "region_name": "Central · Elderwilds",
+      "region_name_ko": "중부 · 엘더와일즈",
+      "pos": [0.22, 0.46],
+      "blurb": "길드의 출발 마을. 세계수 인근의 숲 촌락.",
+      "is_home": true
+    },
+    {
+      "id": "moonshadow",
+      "name": "Moonshadow",
+      "name_ko": "문섀도우",
+      "kind": "village",
+      "region": "central",
+      "region_name": "Central · Elderwilds",
+      "region_name_ko": "중부 · 엘더와일즈",
+      "pos": [0.36, 0.56],
+      "blurb": "달빛 호수 기슭의 마을. 안개 숲으로 이어진다."
+    },
+    {
+      "id": "mistfall",
+      "name": "Mistfall",
+      "name_ko": "미스트폴",
+      "kind": "village",
+      "region": "central",
+      "region_name": "Central · Elderwilds",
+      "region_name_ko": "중부 · 엘더와일즈",
+      "pos": [0.66, 0.50],
+      "blurb": "안개 계곡의 교역 거점."
+    },
+    {
+      "id": "eldria",
+      "name": "Eldria",
+      "name_ko": "엘드리아",
+      "kind": "castle",
+      "region": "central",
+      "region_name": "Central · Elderwilds",
+      "region_name_ko": "중부 · 엘더와일즈",
+      "pos": [0.48, 0.46],
+      "blurb": "중부 왕성. 마녀와 고르곤이 암약한다.",
+      "bosses": [
+        {"id": "gorgon", "name": "Gorgon", "name_ko": "고르곤"},
+        {"id": "lilith", "name": "Lilith", "name_ko": "릴리스"},
+        {"id": "morgana", "name": "Morgana", "name_ko": "모르가나"}
+      ]
+    },
+    {
+      "id": "demonfall",
+      "name": "Demonfall",
+      "name_ko": "데몬폴",
+      "kind": "village",
+      "region": "south",
+      "region_name": "South · Abyss Peaks",
+      "region_name_ko": "남부 · 어비스 픽스",
+      "pos": [0.38, 0.76],
+      "blurb": "용암 계곡의 전초기지."
+    },
+    {
+      "id": "deadcrown",
+      "name": "Deadcrown",
+      "name_ko": "데드크라운",
+      "kind": "village",
+      "region": "south",
+      "region_name": "South · Abyss Peaks",
+      "region_name_ko": "남부 · 어비스 픽스",
+      "pos": [0.70, 0.68],
+      "blurb": "화산 기슭의 잿빛 마을."
+    },
+    {
+      "id": "abyssgate",
+      "name": "Abyssgate",
+      "name_ko": "어비스게이트",
+      "kind": "village",
+      "region": "south",
+      "region_name": "South · Abyss Peaks",
+      "region_name_ko": "남부 · 어비스 픽스",
+      "pos": [0.20, 0.78],
+      "blurb": "수정 동굴과 심연 입구를 잇는 관문 촌락."
+    },
+    {
+      "id": "abysscal",
+      "name": "Abysscal",
+      "name_ko": "어비스칼",
+      "kind": "castle",
+      "region": "south",
+      "region_name": "South · Abyss Peaks",
+      "region_name_ko": "남부 · 어비스 픽스",
+      "pos": [0.54, 0.70],
+      "blurb": "남부 흑성. 심연의 군주들이 군림한다.",
+      "bosses": [
+        {"id": "malkav", "name": "Malkav", "name_ko": "말카브"},
+        {"id": "malachi", "name": "Malachi", "name_ko": "말라키"},
+        {"id": "vorak", "name": "Vorak", "name_ko": "보락"}
+      ]
+    }
+  ]
+}

@@ -41,9 +41,13 @@ const COMBAT_KEYS := [
 const MP3_EXPECT := {
 	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
 	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
-	## Hunting grounds dedicated key (PR14). Legacy "combat" alias kept for play_bgm("combat").
-	"hunt": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	"world_map": "res://assets/audio/music/world_map_bgm.mp3",
+	## Hunting grounds dedicated key. Legacy "combat" alias kept for play_bgm("combat").
+	"hunt": "res://assets/audio/music/hunting_ground_bgm.mp3",
+	"combat": "res://assets/audio/music/hunting_ground_bgm.mp3",
+	"boss": "res://assets/audio/music/boss_battle_bgm.mp3",
+	"combat_boss": "res://assets/audio/music/boss_battle_bgm.mp3",
+	"credits": "res://assets/audio/music/ending_credits_bgm.mp3",
 }
 
 
@@ -336,7 +340,7 @@ func _run() -> void:
 				elite_id = str(rid)
 			elif rt == "normal" and normal_id == "":
 				normal_id = str(rid)
-		# PR14: hunt maze always plays Tobitate MP3 — OGG intensity is dungeon-only.
+		# Hunt maze always plays hunting_ground MP3 — OGG intensity is dungeon-only.
 		root.set_meta("hunt_id", "beginner_forest")
 		root.set_meta("dungeon_id", "")
 		if elite_id == "":
@@ -356,12 +360,12 @@ func _run() -> void:
 				audio.call("get_current_bgm"), audio.call("get_combat_mode"), paths.get(audio.call("get_current_bgm"), "")
 			])
 			if str(audio.call("get_current_bgm")) != "hunt" or str(audio.call("get_combat_mode")) != "hunt":
-				print("FAIL: hunt elite must keep Tobitate (got %s / %s)" % [
+				print("FAIL: hunt elite must keep hunt MP3 (got %s / %s)" % [
 					audio.call("get_current_bgm"), audio.call("get_combat_mode")
 				])
 				failed += 1
 			else:
-				_pass("Hunt elite room → hunt Tobitate MP3 (not combat_metal)")
+				_pass("Hunt elite room → hunt MP3 (not combat_metal)")
 		if normal_id != "":
 			map = gs.call("get_active_hunt_map")
 			map["current_room_id"] = normal_id
@@ -371,7 +375,7 @@ func _run() -> void:
 				failed += 1
 			else:
 				_pass("Normal hunt room not false-elite")
-		# Hunt goal: intensity metadata final, BGM stays Tobitate
+		# Hunt goal: intensity metadata final, BGM stays hunt MP3
 		map = gs.call("get_active_hunt_map")
 		rooms = map.get("rooms", {})
 		var goal_id := ""
@@ -396,13 +400,12 @@ func _run() -> void:
 				audio.call("get_current_bgm"), audio.call("get_combat_mode"), paths.get(audio.call("get_current_bgm"), "")
 			])
 			if str(audio.call("get_current_bgm")) != "hunt" or str(audio.call("get_combat_mode")) != "hunt":
-				print("FAIL: hunt goal must keep Tobitate (got %s / %s)" % [
+				print("FAIL: hunt goal must keep hunt MP3 (got %s / %s)" % [
 					audio.call("get_current_bgm"), audio.call("get_combat_mode")
 				])
 				failed += 1
 			else:
-				_pass("Hunt goal → hunt Tobitate MP3 (not combat_boss)")
-
+				_pass("Hunt goal → hunt MP3 (not combat_boss)")
 	# Pause / resume
 	audio.call("pause_bgm")
 	await process_frame
@@ -454,7 +457,7 @@ func _run() -> void:
 	else:
 		_pass("SFX pool size %d (separate from BGM)" % sfx_count)
 
-	# --- Hunt room travel continuity: Tobitate MP3 must not restart ---
+	# --- Hunt room travel continuity: hunt MP3 must not restart ---
 	root.set_meta("dungeon_id", "")
 	root.set_meta("dungeon_floor", 0)
 	if gs:
@@ -472,7 +475,7 @@ func _run() -> void:
 		])
 		failed += 1
 	else:
-		_pass("Hunt enter → Tobitate (key=hunt)")
+		_pass("Hunt enter → hunt MP3 (key=hunt)")
 	var cont_track := str(audio.call("get_current_bgm"))
 	var cont_mode := str(audio.call("get_combat_mode"))
 	var cont_pos: float = float(audio.call("get_bgm_playback_position"))
@@ -507,7 +510,7 @@ func _run() -> void:
 		else:
 			_pass("ensure_combat_ambience keeps existing ambience stream")
 
-	# Elite room in hunt still keeps Tobitate (no OGG overwrite).
+	# Elite room in hunt still keeps hunt MP3 (no OGG overwrite).
 	if gs:
 		var map2: Dictionary = gs.call("get_active_hunt_map")
 		var rooms2: Dictionary = map2.get("rooms", {})
@@ -522,12 +525,12 @@ func _run() -> void:
 			audio.call("on_enter_combat", false)
 			await _wait_bgm_ready(audio)
 			if str(audio.call("get_combat_mode")) != "hunt" or str(audio.call("get_current_bgm")) != "hunt":
-				print("FAIL: hunt elite hop should keep hunt/Tobitate (got %s / %s)" % [
+				print("FAIL: hunt elite hop should keep hunt MP3 (got %s / %s)" % [
 					str(audio.call("get_combat_mode")), str(audio.call("get_current_bgm"))
 				])
 				failed += 1
 			else:
-				_pass("Hunt elite hop keeps Tobitate (no OGG overwrite)")
+				_pass("Hunt elite hop keeps hunt MP3 (no OGG overwrite)")
 
 	# SFX must not pause/stop/seek BGM.
 	audio.call("on_enter_combat")

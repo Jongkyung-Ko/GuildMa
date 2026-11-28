@@ -14,19 +14,25 @@ const SFX_PATHS := {
 }
 
 const BGM_PATHS := {
-	## Title / town MP3s.
+	## Title / town MP3s (unchanged).
 	"title": "res://assets/audio/music/sovereign_of_the_keep.mp3",
 	"town": "res://assets/audio/music/morning_dew_on_stone.mp3",
-	## Hunting-grounds theme (user-specified). Not used for dungeon OGG shuffle.
-	"hunt": "res://assets/audio/music/tobitate_aoi_sora.mp3",
+	## World map continent theme.
+	"world_map": "res://assets/audio/music/world_map_bgm.mp3",
+	## Hunting-grounds theme. Not used for dungeon OGG shuffle.
+	"hunt": "res://assets/audio/music/hunting_ground_bgm.mp3",
 	## Legacy alias → same hunting MP3 (explicit play_bgm("combat")).
-	"combat": "res://assets/audio/music/tobitate_aoi_sora.mp3",
-	## Dungeon normal-combat OGG shuffle + situational intensity.
+	"combat": "res://assets/audio/music/hunting_ground_bgm.mp3",
+	## Final-boss / boss-battle MP3 (replaces legacy OGG intensity for `combat_boss`).
+	"boss": "res://assets/audio/music/boss_battle_bgm.mp3",
+	"combat_boss": "res://assets/audio/music/boss_battle_bgm.mp3",
+	## Ending / credits — hooks ready; no credits screen exists yet.
+	"credits": "res://assets/audio/music/ending_credits_bgm.mp3",
+	## Dungeon normal-combat OGG shuffle + situational intensity (elite/mid keep OGG).
 	"combat_epic": "res://assets/audio/bgm/03_combat_epic_rock.ogg",
 	"combat_metal": "res://assets/audio/bgm/04_combat_metal_drive.ogg",
 	"combat_heroic": "res://assets/audio/bgm/05_combat_heroic_anthem.ogg",
 	"combat_hunting": "res://assets/audio/bgm/02_hunting_grounds_rock.ogg",
-	"combat_boss": "res://assets/audio/bgm/06_combat_boss_intensity.ogg",
 }
 
 ## Normal combat rotation order (diversity): Epic → Heroic → Metal → Hunting.
@@ -347,6 +353,12 @@ func on_enter_town() -> void:
 	play_bgm("town", true)
 
 
+func on_enter_world_map() -> void:
+	stop_combat_ambience()
+	_leave_combat_music_mode()
+	play_bgm("world_map", true)
+
+
 func on_enter_facility() -> void:
 	# Still in town hub flow — keep town theme position if already playing.
 	stop_combat_ambience()
@@ -354,10 +366,17 @@ func on_enter_facility() -> void:
 	play_bgm("town", false)
 
 
+## Credits / ending — public hook only. No credits scene exists yet (NOT wired).
+func on_enter_credits() -> void:
+	stop_combat_ambience()
+	_leave_combat_music_mode()
+	play_bgm("credits", true)
+
+
 func on_enter_combat(restart_bgm: bool = false) -> void:
 	## restart_bgm=true: town→hunt / dungeon floor entry — start BGM at 0.
 	## restart_bgm=false: hunt internal room travel — keep playback position.
-	## Hunt maze always uses Tobitate MP3; dungeon uses OGG shuffle / F5 / F10.
+	## Hunt maze always uses hunting_ground MP3; dungeon uses OGG shuffle / F5 / F10.
 	if _is_hunt_context():
 		_play_hunt_bgm(restart_bgm)
 		ensure_combat_ambience(restart_bgm)

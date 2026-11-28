@@ -65,10 +65,10 @@ func _run() -> void:
 	print("LOG: hunt enter key=%s mode=%s path=%s" % [hunt_track, hunt_mode, paths.get(hunt_track, "")])
 	if hunt_track != "hunt" or hunt_mode != "hunt":
 		print("FAIL: hunt BGM expected hunt/hunt got %s/%s" % [hunt_track, hunt_mode]); failed += 1
-	elif str(paths.get("hunt", "")).find("tobitate_aoi_sora.mp3") < 0:
-		print("FAIL: hunt path not Tobitate: %s" % str(paths.get("hunt", ""))); failed += 1
+	elif str(paths.get("hunt", "")).find("hunting_ground_bgm.mp3") < 0:
+		print("FAIL: hunt path not hunting_ground_bgm: %s" % str(paths.get("hunt", ""))); failed += 1
 	else:
-		_pass("Hunt combat BGM started (hunt / Tobitate MP3)")
+		_pass("Hunt combat BGM started (hunt / hunting_ground_bgm)")
 	var hunt_pos1: float = float(am.call("get_bgm_playback_position"))
 
 	# 3) Move to an adjacent room (must clear first)
@@ -168,7 +168,7 @@ func _run() -> void:
 	elif re_pos > 5.0:
 		print("FAIL: re-entry combat BGM mid-track (%.3f)" % re_pos); failed += 1
 	else:
-		_pass("Re-entry hunt Tobitate from near start (pos=%.3f)" % re_pos)
+		_pass("Re-entry hunt BGM from near start (pos=%.3f)" % re_pos)
 
 	# 6) Internal continuity still works after re-entry
 	var t_before := str(am.call("get_current_bgm"))
@@ -178,7 +178,7 @@ func _run() -> void:
 	if str(am.call("get_current_bgm")) != t_before:
 		print("FAIL: same-zone refresh changed track unexpectedly"); failed += 1
 	else:
-		_pass("Post-reentry internal refresh keeps Tobitate")
+		_pass("Post-reentry internal refresh keeps hunt BGM")
 	var p_after: float = float(am.call("get_bgm_playback_position"))
 	if p_before > 0.2 and p_after < 0.05:
 		print("FAIL: internal refresh seeked to 0"); failed += 1
