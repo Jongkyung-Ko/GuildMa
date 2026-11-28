@@ -472,9 +472,26 @@ func _build_header() -> Control:
 	return host
 
 
+func _screen_width() -> float:
+	## Prefer the real window/viewport width — not `_dense` chrome flags.
+	var win := get_window()
+	if win != null and win.size.x >= 64:
+		return float(win.size.x)
+	var vp := get_viewport()
+	if vp != null:
+		var vw := vp.get_visible_rect().size.x
+		if vw >= 64.0:
+			return vw
+	if size.x >= 64.0:
+		return size.x
+	return 1280.0
+
+
 func _member_grid_columns() -> int:
-	## PC/1280: always exactly 4 columns. Dense short landscape: 2.
-	if _dense:
+	## Width-based columns (independent of `_dense` chrome packing):
+	## 844×390 → 2, 1280×720 / 1366×768 → 4.
+	var w := _screen_width()
+	if w < 1100.0:
 		return 2
 	return 4
 
@@ -523,19 +540,34 @@ func _build_member_column() -> Control:
 
 
 func _kit_card_base_size() -> Vector2:
-	return Vector2(148.0, 210.0) if _dense else Vector2(168.0, 232.0)
+	## Match card footprint to column mode (2-col compact / 4-col PC).
+	if _member_grid_columns() <= 2:
+		return Vector2(148.0, 210.0)
+	return Vector2(168.0, 232.0)
 
 
 func _uniform_kit_card_size() -> Vector2:
-	## One size for every KitNamecard currently in the grid.
+	## One size for every KitNamecard — prefer shared shrunk size, else width-mode base.
 	var base := _kit_card_base_size()
 	if _grid == null or not is_instance_valid(_grid):
 		return base
+	var seen := Vector2.ZERO
+	var count := 0
 	for c in _grid.get_children():
-		if _is_kit_namecard(c):
-			var sz := (c as Control).custom_minimum_size
-			if sz.x > 8.0 and sz.y > 8.0:
-				return sz
+		if not _is_kit_namecard(c):
+			continue
+		var sz := (c as Control).custom_minimum_size
+		if sz.x <= 8.0 or sz.y <= 8.0:
+			continue
+		if count == 0:
+			seen = sz
+		elif absf(sz.x - seen.x) > 0.5 or absf(sz.y - seen.y) > 0.5:
+			# Mixed sizes → reset to width-mode base.
+			return base
+		count += 1
+	# Keep a uniform shrink from `_ensure_first_row_uncut` when all cards match.
+	if count > 0 and seen.y <= base.y + 0.5:
+		return seen
 	return base
 
 
@@ -552,8 +584,12 @@ func _layout_member_grid() -> void:
 		return
 	var cols := _member_grid_columns()
 	_grid.columns = cols
+	# Always retarget to the width-mode base (or a uniform shrink), then lock all cards.
 	var card_sz := _uniform_kit_card_size()
-	# Lock every card to the same min size (layout owns actual size).
+	# If column mode just flipped, drop stale footprints and use the mode base.
+	var mode_base := _kit_card_base_size()
+	if absf(card_sz.x - mode_base.x) > 24.0:
+		card_sz = mode_base
 	for c in _grid.get_children():
 		if not _is_kit_namecard(c):
 			continue
@@ -655,13 +691,14 @@ func _layout_mid_split() -> void:
 		return
 	var sep := 6.0
 	var detail_w := _target_detail_w if _target_detail_w > 64.0 else avail * (_ratio_detail / (_ratio_list + _ratio_detail))
-	# Reserve enough width for exactly 4 kit cards + gaps in the list pane.
-	var min_list := (4.0 * 168.0 + 3.0 * 10.0 + 24.0) if not _dense else (2.0 * 148.0 + 10.0 + 16.0)
+	# Reserve list width for the width-based column count (4 on PC, 2 on ~844).
+	var cols_for_list := _member_grid_columns()
+	var min_list := (4.0 * 168.0 + 3.0 * 10.0 + 24.0) if cols_for_list >= 4 else (2.0 * 148.0 + 10.0 + 16.0)
 	detail_w = mini(detail_w, maxf(160.0, avail - min_list - sep))
 	if _dense:
 		detail_w = mini(detail_w, avail * 0.34)
 	detail_w = clampf(detail_w, 160.0 if _dense else 220.0, avail * 0.34)
-	var members_w := maxf(min_list if not _dense else 160.0, avail - detail_w - sep)
+	var members_w := maxf(min_list if cols_for_list >= 4 else 160.0, avail - detail_w - sep)
 	_members_lock_w = members_w
 	detail.custom_minimum_size = Vector2(detail_w, 0)
 	detail.size_flags_horizontal = Control.SIZE_SHRINK_END
