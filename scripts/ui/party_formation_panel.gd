@@ -298,40 +298,39 @@ func _rebuild() -> void:
 
 
 func _build_header() -> Control:
+	## Ultra-compact header so the namecard list owns vertical space.
 	var panel := _make_stone_panel(false, true)
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 5)
+	vb.add_theme_constant_override("separation", 3 if _dense else 4)
 	panel.add_child(vb)
 
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 10)
+	top.add_theme_constant_override("separation", 8)
 	vb.add_child(top)
-	top.add_child(UIStyle.label("파티 편성", 17 if not _dense else 14, METAL_GOLD_BRIGHT))
-	_count_label = UIStyle.label("", 13, INK)
+	top.add_child(UIStyle.label("파티 편성", 15 if not _dense else 13, METAL_GOLD_BRIGHT))
+	_count_label = UIStyle.label("", 12, INK)
 	top.add_child(_count_label)
-	_avg_label = UIStyle.label("", 12, INK_DIM)
+	_avg_label = UIStyle.label("", 11, INK_DIM)
 	top.add_child(_avg_label)
+	_comp_label = UIStyle.label("", 10, INK_DIM)
+	top.add_child(_comp_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 	var close_b := Button.new()
 	close_b.text = "닫기"
-	close_b.custom_minimum_size = Vector2(0, 32 if _dense else 36)
+	close_b.custom_minimum_size = Vector2(0, 26 if _dense else 30)
 	_apply_metal_button(close_b)
 	close_b.pressed.connect(func(): closed.emit())
 	top.add_child(close_b)
 
-	_comp_label = UIStyle.label("", 11, INK_DIM)
-	vb.add_child(_comp_label)
-
-	# Kind + sort/filter on one compact band so cards get vertical room.
 	var band := HBoxContainer.new()
-	band.add_theme_constant_override("separation", 6)
+	band.add_theme_constant_override("separation", 4)
 	vb.add_child(band)
 	for kind in GameState.GUILD_PARTY_KINDS:
 		var b := Button.new()
 		b.text = GameState.guild_party_label(str(kind))
-		b.custom_minimum_size = Vector2(0, 28 if _dense else 32)
+		b.custom_minimum_size = Vector2(0, 24 if _dense else 28)
 		_apply_metal_button(b)
 		var k := str(kind)
 		b.pressed.connect(func(): _switch_kind(k))
@@ -367,7 +366,7 @@ func _build_header() -> Control:
 	for job in JOB_FILTERS:
 		var fb := Button.new()
 		fb.text = "전체" if job == "all" else UIStyle.job_name(job)
-		fb.custom_minimum_size = Vector2(0, 28 if _dense else 32)
+		fb.custom_minimum_size = Vector2(0, 24 if _dense else 28)
 		_apply_metal_button(fb)
 		var jid := str(job)
 		fb.pressed.connect(func():
@@ -382,12 +381,10 @@ func _build_header() -> Control:
 
 
 func _member_grid_columns() -> int:
-	## Fill the list pane: dense short landscape still gets 3 cols; PC gets 3–4.
+	## Prefer readable cards over cramming columns. Dense (844) → 2; PC → 3.
 	if _dense:
-		return 3
-	var win := get_window()
-	var w: int = win.size.x if win else 1280
-	return 4 if w >= 1500 else 3
+		return 2
+	return 3
 
 
 func _build_member_column() -> Control:
@@ -487,7 +484,7 @@ func _build_party_strip() -> Control:
 	vb.add_child(actions)
 	var clear_b := Button.new()
 	clear_b.text = "선택 비우기"
-	clear_b.custom_minimum_size = Vector2(0, 36 if not _dense else 32)
+	clear_b.custom_minimum_size = Vector2(0, 28 if _dense else 32)
 	_apply_metal_button(clear_b)
 	clear_b.pressed.connect(func():
 		_draft_ids.clear()
@@ -499,7 +496,7 @@ func _build_party_strip() -> Control:
 	actions.add_child(sp2)
 	var save_b := Button.new()
 	save_b.text = "편성 완료"
-	save_b.custom_minimum_size = Vector2(168 if not _dense else 130, 42 if not _dense else 36)
+	save_b.custom_minimum_size = Vector2(140 if not _dense else 110, 32 if _dense else 36)
 	_apply_metal_button(save_b, true)
 	save_b.pressed.connect(_on_confirm)
 	actions.add_child(save_b)
@@ -572,13 +569,14 @@ func _populate_grid() -> void:
 # ---------------------------------------------------------------------------
 
 func _make_member_card(m: Dictionary) -> Control:
+	## v3: character is the hero. Portrait COVER-fills the top well; stats as 3 chips;
+	## skills locked to bottom ~30%. Dense uses 2-col readable cards (not crushed 3-col).
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
 	var selected := in_draft or focused
-	# Compact enough for dense landscape; expand horizontally to fill grid cells.
-	var card_w := 118.0 if _dense else 150.0
-	var card_h := 178.0 if _dense else 236.0
+	var card_w := 148.0 if _dense else 168.0
+	var card_h := 210.0 if _dense else 258.0
 	var card := Button.new()
 	card.flat = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
@@ -591,7 +589,6 @@ func _make_member_card(m: Dictionary) -> Control:
 	card.add_theme_stylebox_override("pressed", flat_sb)
 	card.add_theme_stylebox_override("focus", flat_sb)
 
-	# Dual-rim frame: outer shell + inner plate (depth without flat yellow boxes).
 	var outer := PanelContainer.new()
 	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outer.set_anchors_preset(PRESET_FULL_RECT)
@@ -608,24 +605,37 @@ func _make_member_card(m: Dictionary) -> Control:
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	wrap.add_child(root)
 
-	# --- Top ~70%: portrait hero + identity + HP/ATK/DEF ---
+	# --- Top ~70% ---
 	var top := VBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_theme_constant_override("separation", 2)
+	top.add_theme_constant_override("separation", 3)
 	top.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	top.size_flags_stretch_ratio = 7.0
 	root.add_child(top)
 
+	# Square portrait stage centered in the card — avoids wide letterbox voids when
+	# the grid stretches cards horizontally. 96×96 cropped art fills this stage.
+	var portrait_side := 108.0 if _dense else 140.0
+	var portrait_row := CenterContainer.new()
+	portrait_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	portrait_row.size_flags_stretch_ratio = 3.4
+	portrait_row.custom_minimum_size = Vector2(0, portrait_side)
+	top.add_child(portrait_row)
 	var portrait_well := PanelContainer.new()
 	portrait_well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_well.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	portrait_well.size_flags_stretch_ratio = 1.6
-	portrait_well.custom_minimum_size = Vector2(0, 58 if _dense else 78)
-	portrait_well.add_theme_stylebox_override("panel", _style_inset())
-	top.add_child(portrait_well)
+	portrait_well.custom_minimum_size = Vector2(portrait_side, portrait_side)
+	var well_sb := _style_inset()
+	well_sb.content_margin_left = 2
+	well_sb.content_margin_right = 2
+	well_sb.content_margin_top = 2
+	well_sb.content_margin_bottom = 2
+	well_sb.bg_color = Color(0.03, 0.025, 0.02, 1)
+	portrait_well.add_theme_stylebox_override("panel", well_sb)
+	portrait_row.add_child(portrait_well)
 	var tr := TextureRect.new()
 	tr.texture = _card_portrait_for(str(m.get("job", "dps")))
-	tr.custom_minimum_size = Vector2(56 if _dense else 84, 56 if _dense else 84)
+	tr.custom_minimum_size = Vector2(portrait_side - 6.0, portrait_side - 6.0)
 	tr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -638,7 +648,7 @@ func _make_member_card(m: Dictionary) -> Control:
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_row.add_theme_constant_override("separation", 4)
 	top.add_child(name_row)
-	var name_l := UIStyle.label(str(m.get("name", "")), 13 if not _dense else 11, METAL_GOLD_BRIGHT)
+	var name_l := UIStyle.label(str(m.get("name", "")), 14 if not _dense else 12, METAL_GOLD_BRIGHT)
 	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_row.add_child(name_l)
 	if in_draft:
@@ -661,26 +671,24 @@ func _make_member_card(m: Dictionary) -> Control:
 
 	top.add_child(UIStyle.label("%s · Lv.%d" % [
 		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
-	], 10 if _dense else 11, INK))
+	], 11 if not _dense else 10, INK))
 
 	var preview := GameState.compute_combat_preview(m)
-	var stats_box := VBoxContainer.new()
-	stats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stats_box.add_theme_constant_override("separation", 1)
-	top.add_child(stats_box)
-	stats_box.add_child(_stat_row("HP", int(preview.get("hp", 0)), STAT_ICON_HP, Color(0.85, 0.35, 0.35)))
-	stats_box.add_child(_stat_row("ATK", int(preview.get("atk", 0)), STAT_ICON_ATK, Color(0.95, 0.75, 0.35)))
-	stats_box.add_child(_stat_row("DEF", int(preview.get("def", 0)), STAT_ICON_DEF, Color(0.45, 0.65, 0.95)))
+	top.add_child(_stat_chip_row(
+		int(preview.get("hp", 0)),
+		int(preview.get("atk", 0)),
+		int(preview.get("def", 0))
+	))
 
 	var div := HSeparator.new()
 	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(div)
 
-	# --- Bottom ~30%: equal 3-col skill icons (fixed floor so portrait stretch cannot crush it) ---
+	# --- Bottom ~30%: skill row (hard floor) ---
 	var skill_zone := VBoxContainer.new()
 	skill_zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skill_zone.size_flags_vertical = Control.SIZE_SHRINK_END
-	skill_zone.custom_minimum_size = Vector2(0, 46.0 if _dense else 58.0)
+	skill_zone.custom_minimum_size = Vector2(0, 52.0 if _dense else 64.0)
 	skill_zone.add_theme_constant_override("separation", 1)
 	root.add_child(skill_zone)
 	skill_zone.add_child(_build_card_skill_grid(m.get("skills", [])))
@@ -697,11 +705,36 @@ func _make_member_card(m: Dictionary) -> Control:
 	return card
 
 
-func _stat_row(label: String, value: int, icon_paths: Array, accent: Color) -> Control:
+func _stat_chip_row(hp: int, atk: int, defv: int) -> Control:
+	## Three equal chips so HP/ATK/DEF read at a glance without eating portrait space.
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", 4)
-	var icon_sz := 12.0 if _dense else 14.0
+	row.add_child(_stat_chip("HP", hp, STAT_ICON_HP, Color(0.85, 0.35, 0.35)))
+	row.add_child(_stat_chip("ATK", atk, STAT_ICON_ATK, Color(0.95, 0.75, 0.35)))
+	row.add_child(_stat_chip("DEF", defv, STAT_ICON_DEF, Color(0.45, 0.65, 0.95)))
+	return row
+
+
+func _stat_chip(label: String, value: int, icon_paths: Array, accent: Color) -> Control:
+	var chip := PanelContainer.new()
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var csb := StyleBoxFlat.new()
+	csb.bg_color = Color(0.06, 0.05, 0.04, 0.92)
+	csb.border_color = Color(accent.r, accent.g, accent.b, 0.55)
+	csb.set_border_width_all(1)
+	csb.set_corner_radius_all(4)
+	csb.content_margin_left = 3
+	csb.content_margin_right = 3
+	csb.content_margin_top = 2
+	csb.content_margin_bottom = 2
+	chip.add_theme_stylebox_override("panel", csb)
+	var hb := HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.add_theme_constant_override("separation", 3)
+	chip.add_child(hb)
+	var icon_sz := 11.0 if _dense else 13.0
 	var icon_tex := _first_tex(icon_paths)
 	if icon_tex:
 		var ir := TextureRect.new()
@@ -711,20 +744,21 @@ func _stat_row(label: String, value: int, icon_paths: Array, accent: Color) -> C
 		ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(ir)
+		hb.add_child(ir)
 	else:
 		var dot := ColorRect.new()
 		dot.color = accent
 		dot.custom_minimum_size = Vector2(icon_sz, icon_sz)
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(dot)
-	row.add_child(UIStyle.label(label, 9 if _dense else 10, INK_DIM))
-	var sp := Control.new()
-	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(sp)
-	row.add_child(UIStyle.label(str(value), 10 if _dense else 11, INK))
-	return row
+		hb.add_child(dot)
+	var meta := VBoxContainer.new()
+	meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.add_theme_constant_override("separation", 0)
+	hb.add_child(meta)
+	meta.add_child(UIStyle.label(label, 8 if _dense else 9, INK_DIM))
+	meta.add_child(UIStyle.label(str(value), 10 if _dense else 11, INK))
+	return chip
 
 
 func _build_card_skill_grid(skills_raw: Variant) -> Control:
@@ -1051,7 +1085,7 @@ func _populate_party_strip() -> void:
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	for i in max_n:
 		var slot := PanelContainer.new()
-		slot.custom_minimum_size = Vector2(96 if _dense else 118, 86 if _dense else 104)
+		slot.custom_minimum_size = Vector2(88 if _dense else 108, 72 if _dense else 90)
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var outer_sb := _style_card_outer(i < _draft_ids.size())
 		outer_sb.content_margin_left = 2
@@ -1086,10 +1120,10 @@ func _populate_party_strip() -> void:
 			head.add_child(xbtn)
 			var tr := TextureRect.new()
 			tr.texture = _card_portrait_for(str(m.get("job", "dps")))
-			tr.custom_minimum_size = Vector2(40 if _dense else 52, 40 if _dense else 52)
+			tr.custom_minimum_size = Vector2(36 if _dense else 44, 36 if _dense else 44)
 			tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			vb.add_child(tr)
 			var nm := UIStyle.label(str(m.get("name", mid)), 11 if not _dense else 10, METAL_GOLD_BRIGHT)
@@ -1202,19 +1236,37 @@ func _style_kind_buttons() -> void:
 			_apply_metal_button(b)
 
 
+## Content crops for 96×96 portraits (measured; trims empty margin without inventing art).
+const PORTRAIT_CROP := {
+	"lord": Rect2(0, 0, 65, 93),
+	"tank": Rect2(0, 7, 96, 87),
+	"dps": Rect2(0, 2, 96, 88),
+	"healer": Rect2(0, 4, 96, 91),
+	"mage": Rect2(0, 0, 96, 93),
+}
+
+
 func _card_portrait_for(job: String) -> Texture2D:
-	## Prefer square 96×96 portraits for cards/slots (presence without upscaling combat sheets).
+	## Square portraits only — combat_00 sheets have huge empty margins and look tiny in cards.
 	var path := "res://assets/sprites/characters/portrait_%s.png" % job
-	var t := _tex(path)
-	if t:
-		return t
-	var sheet := "res://assets/sprites/characters/%s/combat_00.png" % job
-	t = _tex(sheet)
-	if t:
-		return t
-	return _tex("res://assets/sprites/characters/portrait_lord.png")
+	var base := _tex(path)
+	if base == null:
+		base = _tex("res://assets/sprites/characters/portrait_lord.png")
+	if base == null:
+		return null
+	var cache_key := "atlas:%s" % job
+	if _tex_cache.has(cache_key) and _tex_cache[cache_key] != null:
+		return _tex_cache[cache_key]
+	var crop: Rect2 = PORTRAIT_CROP.get(job, Rect2(0, 0, base.get_width(), base.get_height()))
+	crop.size.x = mini(crop.size.x, float(base.get_width()) - crop.position.x)
+	crop.size.y = mini(crop.size.y, float(base.get_height()) - crop.position.y)
+	var atlas := AtlasTexture.new()
+	atlas.atlas = base
+	atlas.region = crop
+	_tex_cache[cache_key] = atlas
+	return atlas
 
 
 func _portrait_for(job: String) -> Texture2D:
-	## Kept for any external callers; same job → same art family as cards.
+	## Same art family as namecards/detail (consistent character identity).
 	return _card_portrait_for(job)
