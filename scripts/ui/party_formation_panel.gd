@@ -50,6 +50,20 @@ const STAT_ICON_HP := ["res://assets/sprites/icons/med.png", "res://assets/items
 const STAT_ICON_ATK := ["res://assets/sprites/icons/train.png", "res://assets/items/blade_zwei.png"]
 const STAT_ICON_DEF := ["res://assets/items/crest_shield.png", "res://assets/sprites/icons/storage.png"]
 
+## Single ornate-frame prototype (approve before bulk). JPG reference had no alpha —
+## white holes converted to RGBA PNG. UV rects measured from assets/ui/namecard/frame_ornate_v1.png.
+const PROTOTYPE_MEMBER_ID := "m_lord"
+const ORNATE_FRAME_PATH := "res://assets/ui/namecard/frame_ornate_v1.png"
+## Normalized rects on the 841×1024 frame: x0,y0,x1,y1
+const ORNATE_PORTRAIT_UV := Rect2(0.128, 0.151, 0.744, 0.425) # pos + size
+const ORNATE_NAME_UV := Rect2(0.12, 0.575, 0.76, 0.090)
+const ORNATE_STATS_UV := Rect2(0.16, 0.662, 0.68, 0.090)
+const ORNATE_SKILL_UVS := [
+	Rect2(0.224, 0.766, 0.140, 0.104),
+	Rect2(0.432, 0.764, 0.139, 0.106),
+	Rect2(0.640, 0.766, 0.136, 0.104),
+]
+
 signal closed
 signal saved(kind: String)
 
@@ -596,8 +610,195 @@ func _populate_grid() -> void:
 	if list.is_empty():
 		_grid.add_child(UIStyle.label("해당 직업 길드원이 없습니다.", 13, INK_DIM))
 		return
+	# Pin the ornate prototype first so the single hero card is visible on first paint.
+	var proto: Dictionary = {}
+	var rest: Array = []
 	for m in list:
+		if str(m.get("id", "")) == PROTOTYPE_MEMBER_ID:
+			proto = m
+		else:
+			rest.append(m)
+	if not proto.is_empty():
+		_grid.add_child(_make_prototype_ornate_card(proto))
+	for m in rest:
 		_grid.add_child(_make_member_card(m))
+
+
+# ---------------------------------------------------------------------------
+# ONE ornate-frame prototype (m_lord) — do not bulk-apply until approved
+# ---------------------------------------------------------------------------
+
+func _make_prototype_ornate_card(m: Dictionary) -> Control:
+	## Vertical RPG namecard using ornate frame chrome. Real GameState member data.
+	## Geometry ~200×295 (~0.68:1). Portrait in frame hole; name/stats mid; 3 skill wells.
+	var mid := str(m.get("id", ""))
+	var in_draft := _draft_ids.has(mid)
+	var focused := mid == _focus_id
+	var selected := in_draft or focused
+	var card_w := 186.0 if _dense else 205.0
+	var card_h := 268.0 if _dense else 300.0
+
+	var card := Button.new()
+	card.name = "OrnatePrototypeCard"
+	card.flat = true
+	card.clip_contents = true
+	card.custom_minimum_size = Vector2(card_w, card_h)
+	# Fixed vertical card — do not EXPAND_FILL or the ornate frame becomes landscape.
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	card.size = Vector2(card_w, card_h)
+	UIStyle.apply_button(card)
+	var flat_sb := StyleBoxEmpty.new()
+	card.add_theme_stylebox_override("normal", flat_sb)
+	card.add_theme_stylebox_override("hover", flat_sb)
+	card.add_theme_stylebox_override("pressed", flat_sb)
+	card.add_theme_stylebox_override("focus", flat_sb)
+
+	# Root fills the button; children use normalized frame UVs.
+	var root := Control.new()
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.set_anchors_preset(PRESET_FULL_RECT)
+	card.add_child(root)
+
+	# Selection glow behind frame (not baked into PNG).
+	if selected:
+		var glow := PanelContainer.new()
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		glow.offset_left = -3
+		glow.offset_top = -3
+		glow.offset_right = 3
+		glow.offset_bottom = 3
+		var gsb := StyleBoxFlat.new()
+		gsb.bg_color = Color(0.85, 0.65, 0.2, 0.18)
+		gsb.set_border_width_all(2)
+		gsb.border_color = METAL_GOLD_BRIGHT
+		gsb.set_corner_radius_all(8)
+		glow.add_theme_stylebox_override("panel", gsb)
+		root.add_child(glow)
+
+	# Portrait behind the ornate chrome (hole is alpha=0).
+	var portrait := TextureRect.new()
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.texture = _card_portrait_for(str(m.get("job", "lord")))
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_ornate_apply_uv(portrait, ORNATE_PORTRAIT_UV)
+	root.add_child(portrait)
+
+	# Ornate frame overlay (RGBA chrome; text/icons are separate Controls).
+	var frame := TextureRect.new()
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.texture = _tex(ORNATE_FRAME_PATH)
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.stretch_mode = TextureRect.STRETCH_SCALE
+	frame.set_anchors_preset(PRESET_FULL_RECT)
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	root.add_child(frame)
+
+	# Mid: name / job / level over the dark plate (not baked into frame).
+	var name_host := Control.new()
+	name_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ornate_apply_uv(name_host, ORNATE_NAME_UV)
+	root.add_child(name_host)
+	var name_col := VBoxContainer.new()
+	name_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_col.set_anchors_preset(PRESET_FULL_RECT)
+	name_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_col.add_theme_constant_override("separation", 1)
+	name_host.add_child(name_col)
+	var name_row := HBoxContainer.new()
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_row.add_theme_constant_override("separation", 6)
+	name_col.add_child(name_row)
+	var name_l := UIStyle.label(str(m.get("name", "")), 15 if not _dense else 13, METAL_GOLD_BRIGHT)
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_row.add_child(name_l)
+	if in_draft:
+		name_row.add_child(UIStyle.label("선택", 9, UIStyle.OK))
+	elif focused:
+		name_row.add_child(UIStyle.label("포커스", 9, METAL_GOLD))
+	var job_l := UIStyle.label("%s · Lv.%d" % [
+		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
+	], 11 if not _dense else 10, INK)
+	job_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_col.add_child(job_l)
+
+	# Stats chips in mid band under the name plate (clipped so they don't cover skill wells).
+	var stats_host := Control.new()
+	stats_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_host.clip_contents = true
+	_ornate_apply_uv(stats_host, ORNATE_STATS_UV)
+	root.add_child(stats_host)
+	var preview := GameState.compute_combat_preview(m)
+	var chips := _stat_chip_row(
+		int(preview.get("hp", 0)),
+		int(preview.get("atk", 0)),
+		int(preview.get("def", 0))
+	)
+	chips.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	stats_host.add_child(chips)
+
+	# Bottom: 3 equal skill squares aligned to frame wells.
+	var skills: Array = m.get("skills", [])
+	for i in 3:
+		var well := Control.new()
+		well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_ornate_apply_uv(well, ORNATE_SKILL_UVS[i])
+		root.add_child(well)
+		var sk := str(skills[i]) if i < skills.size() else ""
+		var cell := CenterContainer.new()
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.set_anchors_preset(PRESET_FULL_RECT)
+		well.add_child(cell)
+		if sk != "":
+			# Icon-only inside the frame well — captions hang past the gold rim and clip.
+			var tex := _skill_tex(sk)
+			if tex:
+				var ir := TextureRect.new()
+				ir.texture = tex
+				ir.custom_minimum_size = Vector2(24 if _dense else 28, 24 if _dense else 28)
+				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				ir.tooltip_text = sk
+				cell.add_child(ir)
+			else:
+				var cap := UIStyle.label(sk.substr(0, 2), 10, INK)
+				cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+				cell.add_child(cap)
+		else:
+			var empty := ColorRect.new()
+			empty.color = Color(0, 0, 0, 0)
+			empty.custom_minimum_size = Vector2(18, 18)
+			empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cell.add_child(empty)
+
+	card.pressed.connect(func():
+		if _focus_id == mid:
+			_toggle_draft(mid)
+		else:
+			_focus_id = mid
+			GameState.select_guild_member(mid)
+			_selected_skill = ""
+		_refresh_lists_only()
+	)
+	return card
+
+
+func _ornate_apply_uv(node: Control, uv: Rect2) -> void:
+	## uv is (x0,y0,w,h) in 0–1 frame space → anchors on parent.
+	node.anchor_left = uv.position.x
+	node.anchor_top = uv.position.y
+	node.anchor_right = uv.position.x + uv.size.x
+	node.anchor_bottom = uv.position.y + uv.size.y
+	node.offset_left = 0
+	node.offset_top = 0
+	node.offset_right = 0
+	node.offset_bottom = 0
 
 
 # ---------------------------------------------------------------------------
