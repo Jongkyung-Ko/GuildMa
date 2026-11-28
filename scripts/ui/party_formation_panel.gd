@@ -382,12 +382,11 @@ func _rebuild() -> void:
 
 
 func _build_header() -> Control:
-	## Two compact rows: party-kind tabs + sort/filter toolbar. No duplicate chrome.
+	## Tabs → party composition summary → sort/filter. Composition lives under tabs only.
 	var host := Control.new()
 	host.name = "FormationHeader"
 	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Tall enough for tabs + filter toolbar; keep HUD+header ≤ ~15% @ 720.
-	host.custom_minimum_size = Vector2(0, 48 if _dense else 52)
+	host.custom_minimum_size = Vector2(0, 60 if _dense else 66)
 	host.clip_contents = false
 	var panel := _make_stone_panel(false, true)
 	host.add_child(panel)
@@ -396,7 +395,7 @@ func _build_header() -> Control:
 	vb.add_theme_constant_override("separation", 2)
 	panel.add_child(vb)
 
-	# Row 1 — party kind tabs + summary + close
+	# Row 1 — party kind tabs + close
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 4)
 	vb.add_child(tabs)
@@ -413,14 +412,6 @@ func _build_header() -> Control:
 	var tab_sp := Control.new()
 	tab_sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.add_child(tab_sp)
-	_count_label = UIStyle.label("", 10, INK)
-	tabs.add_child(_count_label)
-	_avg_label = UIStyle.label("", 9, INK_DIM)
-	tabs.add_child(_avg_label)
-	_comp_label = UIStyle.label("", 9, INK_DIM)
-	# Keep label for summary updates; hide to save chrome.
-	_comp_label.visible = false
-	tabs.add_child(_comp_label)
 	var close_b := Button.new()
 	close_b.text = "닫기"
 	close_b.custom_minimum_size = Vector2(52, 20)
@@ -428,7 +419,22 @@ func _build_header() -> Control:
 	close_b.pressed.connect(func(): closed.emit())
 	tabs.add_child(close_b)
 
-	# Row 2 — compact sort + job filter toolbar
+	# Row 1b — compact party composition (live; not duplicated in bottom strip)
+	var comp_row := HBoxContainer.new()
+	comp_row.name = "PartyCompRow"
+	comp_row.add_theme_constant_override("separation", 8)
+	vb.add_child(comp_row)
+	_count_label = UIStyle.label("", 10 if not _dense else 9, METAL_GOLD_BRIGHT)
+	comp_row.add_child(_count_label)
+	_comp_label = UIStyle.label("", 9 if not _dense else 8, INK)
+	_comp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_comp_label.clip_text = true
+	_comp_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	comp_row.add_child(_comp_label)
+	_avg_label = UIStyle.label("", 9 if not _dense else 8, INK_DIM)
+	comp_row.add_child(_avg_label)
+
+	# Row 2 — compact sort + job filter toolbar (separate from composition)
 	var tools := HBoxContainer.new()
 	tools.add_theme_constant_override("separation", 3)
 	vb.add_child(tools)
@@ -751,19 +757,37 @@ func _build_detail_column() -> Control:
 	bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	layer.add_child(bg)
-	var scroll := ScrollContainer.new()
-	scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	# Inset past ornate rim so text does not sit on gold decoration.
-	scroll.offset_left = 18 if not _dense else 12
-	scroll.offset_top = 16 if not _dense else 12
-	scroll.offset_right = -18 if not _dense else -12
-	scroll.offset_bottom = -16 if not _dense else -12
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	layer.add_child(scroll)
+	# PC: margin host keeps key info scroll-free. Dense: allow inner scroll.
+	var inset_l := 16 if not _dense else 10
+	var inset_t := 14 if not _dense else 10
+	var inset_r := 16 if not _dense else 10
+	var inset_b := 14 if not _dense else 10
+	var content_host: Control
+	if _dense:
+		var scroll := ScrollContainer.new()
+		scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		scroll.offset_left = inset_l
+		scroll.offset_top = inset_t
+		scroll.offset_right = -inset_r
+		scroll.offset_bottom = -inset_b
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		layer.add_child(scroll)
+		content_host = scroll
+	else:
+		var margin := MarginContainer.new()
+		margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		margin.add_theme_constant_override("margin_left", inset_l)
+		margin.add_theme_constant_override("margin_top", inset_t)
+		margin.add_theme_constant_override("margin_right", inset_r)
+		margin.add_theme_constant_override("margin_bottom", inset_b)
+		layer.add_child(margin)
+		content_host = margin
 	_detail_box = VBoxContainer.new()
+	_detail_box.name = "DetailBox"
 	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_detail_box.add_theme_constant_override("separation", 6)
-	scroll.add_child(_detail_box)
+	_detail_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_detail_box.add_theme_constant_override("separation", 6 if not _dense else 4)
+	content_host.add_child(_detail_box)
 	_populate_detail()
 	return host
 
@@ -783,8 +807,8 @@ func _build_party_strip() -> Control:
 	row.add_theme_constant_override("separation", 6)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	panel.add_child(row)
-	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
-	var title := UIStyle.label("선택 파티 (%d/%d)" % [_draft_ids.size(), max_n], 11 if not _dense else 10, METAL_GOLD_BRIGHT)
+	# Slot strip only — composition summary lives under party-type tabs.
+	var title := UIStyle.label("파티원", 11 if not _dense else 10, METAL_GOLD_BRIGHT)
 	title.name = "PartyTitle"
 	row.add_child(title)
 	_party_row = HBoxContainer.new()
@@ -1358,12 +1382,14 @@ func _stat_bar_caps(job: String) -> Dictionary:
 
 
 func _populate_detail() -> void:
-	## Design A — right panel only: ~50% hero / ~25% stats / ~25% skills.
+	## Tidy Design A: compact hero+select / unified bars / skills — image must not dominate.
 	if _detail_box == null:
 		return
 	for c in _detail_box.get_children():
 		c.free()
 	_demo_sprite = null
+	_demo_host = null
+	_demo_note = null
 	var m := GameState.get_member_by_id(_focus_id)
 	if m.is_empty() and not GameState.members.is_empty():
 		m = GameState.members[0]
@@ -1371,66 +1397,71 @@ func _populate_detail() -> void:
 	if m.is_empty():
 		_detail_box.add_child(UIStyle.label("길드원을 선택하세요.", 13, INK_DIM))
 		_skill_desc = null
-		_demo_host = null
-		_demo_note = null
 		return
 
-	_detail_box.add_theme_constant_override("separation", 8 if not _dense else 5)
+	_detail_box.add_theme_constant_override("separation", 6 if not _dense else 4)
+	var mid := str(m.get("id", ""))
 	var job := str(m.get("job", "dps"))
 	var preview := GameState.compute_combat_preview(m)
 	var caps := _stat_bar_caps(job)
+	var in_draft := _draft_ids.has(mid)
 
-	# --- ~50% hero: real portrait, aspect locked, NEAREST ---
-	var hero := VBoxContainer.new()
-	hero.add_theme_constant_override("separation", 4 if not _dense else 2)
+	# --- Top: portrait + name/job/lv + 편성 select (compact, not full-panel hero) ---
+	var hero := HBoxContainer.new()
+	hero.add_theme_constant_override("separation", 8 if not _dense else 6)
 	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero.custom_minimum_size = Vector2(0, 200 if not _dense else 118)
 	_detail_box.add_child(hero)
 
 	var stage := PanelContainer.new()
-	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	stage.custom_minimum_size = Vector2(0, 150 if not _dense else 84)
+	stage.custom_minimum_size = Vector2(96 if not _dense else 64, 96 if not _dense else 64)
+	stage.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stage.add_theme_stylebox_override("panel", _style_inset())
 	hero.add_child(stage)
 	var stage_center := CenterContainer.new()
-	stage_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage_center.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	stage.add_child(stage_center)
 	var pface := TextureRect.new()
 	pface.texture = _card_portrait_for(job)
-	var face_side := 156.0 if not _dense else 88.0
+	var face_side := 84.0 if not _dense else 56.0
 	pface.custom_minimum_size = Vector2(face_side, face_side)
 	pface.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pface.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	pface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	stage_center.add_child(pface)
 
-	var name_l := UIStyle.label(str(m.get("name", "")), 18 if not _dense else 14, METAL_GOLD_BRIGHT)
-	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hero.add_child(name_l)
-	var meta_l := UIStyle.label("%s · Lv.%d" % [UIStyle.job_name(job), int(m.get("level", 1))], 12 if not _dense else 10, INK)
-	meta_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hero.add_child(meta_l)
+	var meta := VBoxContainer.new()
+	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.add_theme_constant_override("separation", 3)
+	hero.add_child(meta)
+	var name_l := UIStyle.label(str(m.get("name", "")), 16 if not _dense else 13, METAL_GOLD_BRIGHT)
+	meta.add_child(name_l)
+	meta.add_child(UIStyle.label("%s · Lv.%d" % [UIStyle.job_name(job), int(m.get("level", 1))], 11 if not _dense else 9, INK))
+	var select_b := Button.new()
+	select_b.text = "편성 해제" if in_draft else "편성"
+	select_b.custom_minimum_size = Vector2(0, 26 if not _dense else 22)
+	_apply_metal_button(select_b, not in_draft)
+	select_b.pressed.connect(func():
+		_toggle_draft(mid)
+		_refresh_lists_only()
+	)
+	meta.add_child(select_b)
 
-	# --- ~25% stats: real compute_combat_preview + lord/member bar caps ---
+	# --- Mid: unified HP/ATK/DEF bars from real preview ---
 	var stats_sec := VBoxContainer.new()
-	stats_sec.add_theme_constant_override("separation", 4 if not _dense else 3)
+	stats_sec.add_theme_constant_override("separation", 3)
 	stats_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stats_sec.custom_minimum_size = Vector2(0, 96 if not _dense else 78)
 	_detail_box.add_child(stats_sec)
-	stats_sec.add_child(UIStyle.label("능력치", 12 if not _dense else 11, METAL_GOLD))
+	stats_sec.add_child(UIStyle.label("능력치", 11 if not _dense else 10, METAL_GOLD))
 	stats_sec.add_child(_bar_stat("HP", int(preview.get("hp", 0)), int(caps.get("hp", 300)), Color(0.75, 0.28, 0.28)))
 	stats_sec.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), int(caps.get("atk", 80)), Color(0.85, 0.65, 0.25)))
 	stats_sec.add_child(_bar_stat("DEF", int(preview.get("def", 0)), int(caps.get("def", 60)), Color(0.35, 0.55, 0.85)))
 
-	# --- ~25% skills: real member skills, ≤3 / row, icon + name; desc on select ---
+	# --- Bottom: real skills ≤3/row, square icon + name + short effect ---
 	var skills_sec := VBoxContainer.new()
-	skills_sec.add_theme_constant_override("separation", 4 if not _dense else 3)
+	skills_sec.add_theme_constant_override("separation", 3)
 	skills_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	skills_sec.custom_minimum_size = Vector2(0, 110 if not _dense else 88)
 	_detail_box.add_child(skills_sec)
-	skills_sec.add_child(UIStyle.label("스킬", 12 if not _dense else 11, METAL_GOLD))
+	skills_sec.add_child(UIStyle.label("스킬", 11 if not _dense else 10, METAL_GOLD))
 
 	var skills: Array = m.get("skills", [])
 	if typeof(skills) != TYPE_ARRAY:
@@ -1438,8 +1469,6 @@ func _populate_detail() -> void:
 	if skills.is_empty():
 		skills_sec.add_child(UIStyle.label("(등록된 스킬 없음)", 11, INK_DIM))
 		_skill_desc = null
-		_demo_host = null
-		_demo_note = null
 		return
 
 	if _selected_skill == "" or not skills.has(_selected_skill):
@@ -1447,18 +1476,18 @@ func _populate_detail() -> void:
 
 	var sk_grid := GridContainer.new()
 	sk_grid.columns = mini(3, maxi(skills.size(), 1))
-	sk_grid.add_theme_constant_override("h_separation", 6 if not _dense else 4)
-	sk_grid.add_theme_constant_override("v_separation", 6 if not _dense else 4)
+	sk_grid.add_theme_constant_override("h_separation", 5 if not _dense else 4)
+	sk_grid.add_theme_constant_override("v_separation", 5 if not _dense else 4)
 	sk_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	skills_sec.add_child(sk_grid)
 
-	var icon_sz := 28.0 if not _dense else 22.0
+	var icon_sz := 24.0 if not _dense else 20.0
 	for sk in skills:
 		var sk_name := str(sk)
 		if sk_name == "":
 			continue
 		var sb := Button.new()
-		sb.custom_minimum_size = Vector2(86 if not _dense else 64, 66 if not _dense else 54)
+		sb.custom_minimum_size = Vector2(78 if not _dense else 58, 58 if not _dense else 48)
 		sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_apply_metal_button(sb)
 		if sk_name == _selected_skill:
@@ -1468,7 +1497,6 @@ func _populate_detail() -> void:
 		inner.alignment = BoxContainer.ALIGNMENT_CENTER
 		inner.add_theme_constant_override("separation", 2)
 		sb.add_child(inner)
-		# Square icon well
 		var well := PanelContainer.new()
 		well.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		well.custom_minimum_size = Vector2(icon_sz + 4.0, icon_sz + 4.0)
@@ -1496,7 +1524,7 @@ func _populate_detail() -> void:
 			well.add_child(ir)
 		else:
 			well.add_child(UIStyle.label(sk_name.substr(0, 1), 11, INK))
-		var cap := UIStyle.label(sk_name, 10 if not _dense else 9, INK)
+		var cap := UIStyle.label(sk_name, 9 if not _dense else 8, INK)
 		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cap.clip_text = true
 		cap.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -1513,25 +1541,6 @@ func _populate_detail() -> void:
 	_skill_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	skills_sec.add_child(_skill_desc)
 	_update_skill_desc()
-
-	# Compact skill demo (existing preview-only path — not Design A chrome change).
-	_demo_host = Control.new()
-	_demo_host.custom_minimum_size = Vector2(0, 48 if _dense else 56)
-	_demo_host.clip_contents = true
-	var demo_bg := PanelContainer.new()
-	demo_bg.set_anchors_preset(PRESET_FULL_RECT)
-	demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	demo_bg.add_theme_stylebox_override("panel", _style_inset())
-	_demo_host.add_child(demo_bg)
-	skills_sec.add_child(_demo_host)
-	_demo_note = UIStyle.label("미리보기 전용", 9, INK_DIM)
-	skills_sec.add_child(_demo_note)
-	var demo_btn := Button.new()
-	demo_btn.text = "스킬 미리보기"
-	demo_btn.custom_minimum_size = Vector2(0, 24 if _dense else 26)
-	_apply_metal_button(demo_btn)
-	demo_btn.pressed.connect(_play_skill_demo)
-	skills_sec.add_child(demo_btn)
 
 
 func _bar_stat(label: String, value: int, cap: int, fill: Color = Color(0.55, 0.72, 0.35)) -> Control:
@@ -1648,13 +1657,11 @@ func _populate_party_strip() -> void:
 		return
 	for c in _party_row.get_children():
 		c.free()
-	# Refresh title text if present.
 	var strip := find_child("PartyStrip", true, false)
 	if strip:
 		var title := strip.find_child("PartyTitle", true, false) as Label
 		if title:
-			var max_label_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
-			title.text = "선택 파티 (%d/%d)" % [_draft_ids.size(), max_label_n]
+			title.text = "파티원"
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	for i in max_n:
 		var slot := PanelContainer.new()
@@ -1749,6 +1756,7 @@ func _refresh_lists_only() -> void:
 
 
 func _update_summary_labels() -> void:
+	## Live party composition under type tabs (job counts + role bonus if present).
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	if _count_label:
 		_count_label.text = "선택 %d/%d" % [_draft_ids.size(), max_n]
@@ -1761,7 +1769,7 @@ func _update_summary_labels() -> void:
 		jobs[j] = int(jobs.get(j, 0)) + 1
 	if _avg_label:
 		if _draft_ids.is_empty():
-			_avg_label.text = "평균 Lv. —"
+			_avg_label.text = "평균 —"
 		else:
 			_avg_label.text = "평균 Lv.%d" % int(round(float(sum_lv) / float(_draft_ids.size())))
 	if _comp_label:
@@ -1772,7 +1780,20 @@ func _update_summary_labels() -> void:
 			var n: int = int(jobs.get(j, 0))
 			if n > 0:
 				parts.append("%s %d" % [UIStyle.job_name(j), n])
-		_comp_label.text = "구성: " + (" / ".join(parts) if parts.size() > 0 else "없음")
+		var comp := " · ".join(parts) if parts.size() > 0 else "구성 없음"
+		# Role bonus line from real draft jobs (same rules as former strip helper).
+		var bonus_parts: PackedStringArray = PackedStringArray()
+		if jobs.has("tank"):
+			bonus_parts.append("탱커")
+		if jobs.has("healer"):
+			bonus_parts.append("힐러")
+		if jobs.has("mage") or jobs.has("dps"):
+			bonus_parts.append("딜러")
+		if jobs.has("lord"):
+			bonus_parts.append("군주")
+		if bonus_parts.size() > 0:
+			comp += "  |  보너스: " + ("·".join(bonus_parts))
+		_comp_label.text = comp
 
 
 func _style_filter_buttons() -> void:
