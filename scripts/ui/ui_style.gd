@@ -321,3 +321,44 @@ static func facility_name(id: String) -> String:
 			return "사냥터 출구"
 		_:
 			return id
+
+
+static func apply_cover_texture(tex_rect: TextureRect, tex: Texture2D = null) -> void:
+	## Aspect-safe cover fill. Godot centers KEEP_ASPECT_COVERED — no bottom-only crop.
+	if tex_rect == null:
+		return
+	if tex != null:
+		tex_rect.texture = tex
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+
+static func fit_texture_cover_centered(
+	tex_rect: TextureRect,
+	area: Vector2,
+	aspect: float = 0.0,
+	zoom: float = 1.0
+) -> void:
+	## Manual cover with true center alignment (X and Y). Prefer over bottom-pin.
+	if tex_rect == null or area.x < 8.0 or area.y < 8.0:
+		return
+	var a := aspect
+	if a <= 0.0:
+		var t := tex_rect.texture
+		if t != null and t.get_height() > 0:
+			a = float(t.get_width()) / float(t.get_height())
+		else:
+			a = 16.0 / 9.0
+	var z := maxf(0.01, zoom)
+	var w := area.x * z
+	var h := w / a
+	if h < area.y * z:
+		h = area.y * z
+		w = h * a
+	tex_rect.anchor_left = 0.0
+	tex_rect.anchor_top = 0.0
+	tex_rect.anchor_right = 0.0
+	tex_rect.anchor_bottom = 0.0
+	tex_rect.position = Vector2((area.x - w) * 0.5, (area.y - h) * 0.5)
+	tex_rect.size = Vector2(w, h)

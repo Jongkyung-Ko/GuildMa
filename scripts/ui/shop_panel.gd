@@ -44,6 +44,9 @@ class ShopPanelRoot extends Control:
 	const GRID_BATCH_SIZE := 4
 	var _grid_gen: int = 0
 	var _grid_queue: Array = []
+	## Catalog identity — rebuild grid only when this changes (not on hover/qty/select).
+	var _catalog_fp: String = ""
+	var _cards_by_key: Dictionary = {}
 
 	func build() -> void:
 		set_anchors_preset(PRESET_FULL_RECT)
@@ -52,12 +55,16 @@ class ShopPanelRoot extends Control:
 		_confirm = AcceptDialog.new()
 		_confirm.title = "구매 확인"
 		add_child(_confirm)
-		GameState.state_changed.connect(_refresh)
+		GameState.state_changed.connect(_on_state_changed)
 		_rebuild_layout()
 		resized.connect(_on_resized)
 		if get_viewport():
 			get_viewport().size_changed.connect(_on_resized)
 		_on_resized()
+
+	func _on_state_changed() -> void:
+		## Gold/inventory may change from outside; refresh chrome + catalog when needed.
+		_refresh(false)
 
 	func _window_size() -> Vector2i:
 		## Physical/window size — reliable for short mobile landscape under stretch modes.
@@ -159,14 +166,11 @@ class ShopPanelRoot extends Control:
 
 		root_vb.add_child(UIStyle.label("상점", 18, UIStyle.GOLD_BRIGHT))
 		var portrait := TextureRect.new()
-		portrait.texture = load("res://assets/backgrounds/shop_interior.png")
 		# Compact short-landscape: keep atmosphere but leave room for pinned Buy/Sell
 		# inside the height-clamped left host (110 + mins overflowed ~270px host).
 		portrait.custom_minimum_size = Vector2(0, 90 if _compact else 150)
-		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		portrait.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		UIStyle.apply_cover_texture(portrait, load("res://assets/backgrounds/shop_interior.png") as Texture2D)
 		root_vb.add_child(portrait)
 
 		_dialogue = UIStyle.label(NPC_LINES[0], 13, UIStyle.TEXT)
@@ -209,7 +213,7 @@ class ShopPanelRoot extends Control:
 			b.pressed.connect(func():
 				category = cat_id
 				selected_id = ""
-				_refresh()
+				_refresh(true)
 			)
 			_cat_buttons[cat_str] = b
 			vb.add_child(b)
@@ -228,7 +232,7 @@ class ShopPanelRoot extends Control:
 			mode = "buy"
 			selected_id = ""
 			_dialogue.text = NPC_LINES[0]
-			_refresh()
+			_refresh(true)
 		)
 		mode_row.add_child(_mode_buy)
 		_mode_sell = Button.new()
@@ -240,7 +244,7 @@ class ShopPanelRoot extends Control:
 			mode = "sell"
 			selected_id = ""
 			_dialogue.text = NPC_LINES[2]
-			_refresh()
+			_refresh(true)
 		)
 		mode_row.add_child(_mode_sell)
 
@@ -340,7 +344,8 @@ class ShopPanelRoot extends Control:
 			else:
 				UIStyle.apply_button(_mode_sell)
 
-	func _refresh() -> void:
+	func _refresh(force_grid: bool = false) -> void:
+		## force_grid: category/mode/trade changed. Selection/qty only patches chrome.
 		if _gold_chip == null:
 			return
 		_gold_chip.text = "골드 %d G" % GameState.gold
@@ -350,7 +355,48 @@ class ShopPanelRoot extends Control:
 		_level_chip.text = "군주 Lv.%d" % lvl
 		_style_active_buttons()
 		_ensure_selection()
-		_populate_grid()
+		var fp := _catalog_fingerprint()
+		if force_grid or fp != _catalog_fp or _grid == null or _grid.get_child_count() == 0:
+			_catalog_fp = fp
+			_populate_grid()
+		else:
+			_patch_selection_chrome()
+		_populate_detail()
+
+	func _catalog_fingerprint() -> String:
+		var parts: PackedStringArray = PackedStringArray()
+		parts.append(mode)
+		parts.append(category)
+		if mode == "buy":
+			for item in GameState.items_by_category(category):
+				parts.append(str(item.get("id", "")))
+		else:
+			for e in GameState.inventory:
+				var item := GameState.get_item(str(e.get("id", "")))
+				if item.is_empty():
+					continue
+				if str(item.get("category", "")) != category:
+					continue
+				parts.append("%s#%d#%d" % [str(e.get("id", "")), int(e.get("enhance", 0)), int(e.get("qty", 0))])
+		return "|".join(parts)
+
+	func _card_key(id: String, enhance: int) -> String:
+		return "%s#%d" % [id, enhance]
+
+	func _patch_selection_chrome() -> void:
+		for key in _cards_by_key.keys():
+			var cell: Button = _cards_by_key[key] as Button
+			if cell == null or not is_instance_valid(cell):
+				continue
+			var want := _card_key(selected_id, selected_enhance)
+			ItemUI.set_card_selected(cell, str(key) == want)
+
+	func _select_item(id: String, enhance: int = 0, reset_qty: bool = false) -> void:
+		selected_id = id
+		selected_enhance = enhance
+		if reset_qty:
+			buy_qty = 1
+		_patch_selection_chrome()
 		_populate_detail()
 
 	func _ensure_selection() -> void:
@@ -379,10 +425,12 @@ class ShopPanelRoot extends Control:
 	func _populate_grid() -> void:
 		## Clear immediately, then spawn cards across frames so town BGM does not underrun.
 		## First batch is deferred one frame so facility shell/layout cost does not stack.
+		## Icons are cached in ItemUI — do not reload textures per refresh.
 		if _grid == null:
 			return
 		for c in _grid.get_children():
 			c.free()
+		_cards_by_key.clear()
 		_grid_gen += 1
 		var gen := _grid_gen
 		_grid_queue.clear()
@@ -456,11 +504,9 @@ class ShopPanelRoot extends Control:
 			"price_text": "%d G" % int(item.get("price", 0)),
 			"sub_text": sub,
 		}))
+		_cards_by_key[_card_key(id, 0)] = cell
 		cell.pressed.connect(func():
-			selected_id = id
-			selected_enhance = 0
-			buy_qty = 1
-			_refresh()
+			_select_item(id, 0, true)
 		)
 		return cell
 
@@ -476,10 +522,9 @@ class ShopPanelRoot extends Control:
 			"price_text": "%d G" % unit,
 			"sub_text": "보유 x%d" % qty,
 		}))
+		_cards_by_key[_card_key(id, enhance)] = cell
 		cell.pressed.connect(func():
-			selected_id = id
-			selected_enhance = enhance
-			_refresh()
+			_select_item(id, enhance, false)
 		)
 		return cell
 
@@ -531,7 +576,7 @@ class ShopPanelRoot extends Control:
 			UIStyle.apply_button(minus)
 			minus.pressed.connect(func():
 				buy_qty = maxi(1, buy_qty - 1)
-				_refresh()
+				_populate_detail()
 			)
 			qty_row.add_child(minus)
 			qty_row.add_child(UIStyle.label("수량 %d" % buy_qty, 15))
@@ -541,7 +586,7 @@ class ShopPanelRoot extends Control:
 			UIStyle.apply_button(plus)
 			plus.pressed.connect(func():
 				buy_qty = mini(99, buy_qty + 1)
-				_refresh()
+				_populate_detail()
 			)
 			qty_row.add_child(plus)
 
@@ -587,7 +632,8 @@ class ShopPanelRoot extends Control:
 		_feedback.text = "구매 완료!" if ok else "구매 실패"
 		_feedback.add_theme_color_override("font_color", UIStyle.OK if ok else UIStyle.DANGER)
 		_dialogue.text = NPC_LINES[1] if ok else "골드가 부족한 것 같아요…"
-		_refresh()
+		# Buy catalog identity unchanged — patch chrome/detail only (no grid flicker).
+		_refresh(false)
 
 	func _on_sell_pressed() -> void:
 		var item := GameState.get_item(selected_id)
@@ -611,4 +657,4 @@ class ShopPanelRoot extends Control:
 		else:
 			_feedback.text = "판매 실패"
 			_feedback.add_theme_color_override("font_color", UIStyle.DANGER)
-		_refresh()
+		_refresh(true)

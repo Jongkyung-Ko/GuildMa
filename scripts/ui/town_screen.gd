@@ -50,12 +50,11 @@ func _build_world() -> void:
 	add_child(world)
 
 	var bg := TextureRect.new()
-	bg.texture = load("res://assets/backgrounds/town_bg.png")
-	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	bg.position = Vector2.ZERO
 	bg.size = Vector2(1280, 720)
-	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Design plate is already 1280×720 — cover keeps aspect if source differs.
+	UIStyle.apply_cover_texture(bg, load("res://assets/backgrounds/town_bg.png") as Texture2D)
 	world.add_child(bg)
 
 	for b in BUILDINGS:
