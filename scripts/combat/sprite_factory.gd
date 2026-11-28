@@ -39,6 +39,13 @@ static func ally_frames(job: String) -> SpriteFrames:
 
 
 static func enemy_frames(kind: String) -> SpriteFrames:
+	## Prefer boss anim pack (idle + attack/hit/death) when present; else idle-only; else wolf.
+	var root := boss_root_path(kind)
+	if root != "" and has_boss_anim_pack_at(root):
+		return boss_anim_frames(root)
+	var idle_path := boss_idle_path(kind)
+	if idle_path != "":
+		return single_texture_frames(idle_path)
 	var base := "res://assets/sprites/monsters/%s" % kind
 	if not ResourceLoader.exists(base + "/frame_00.png"):
 		base = "res://assets/sprites/monsters/wolf"
@@ -49,6 +56,146 @@ static func enemy_frames(kind: String) -> SpriteFrames:
 	_add_seq(sf, "hit", base, "frame_%02d.png", [4], 10.0, false)
 	_add_seq(sf, "death", base, "frame_%02d.png", [5], 1.0, false)
 	return sf
+
+
+static func boss_root_path(kind: String) -> String:
+	## Directory res://assets/sprites/monsters/bosses/<id> when it exists.
+	var idle := boss_idle_path(kind)
+	if idle != "":
+		return idle.get_base_dir()
+	var k := kind.strip_edges()
+	var candidates: Array = []
+	if k.begins_with("bosses/"):
+		candidates.append("res://assets/sprites/monsters/%s" % k)
+	else:
+		candidates.append("res://assets/sprites/monsters/bosses/%s" % k)
+		if k.begins_with("boss_"):
+			candidates.append("res://assets/sprites/monsters/bosses/%s" % k.substr(5))
+	for c in candidates:
+		var path := str(c)
+		if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(path)) or DirAccess.open(path) != null:
+			return path
+	return ""
+
+
+static func has_boss_anim_pack(kind: String) -> bool:
+	var root := boss_root_path(kind)
+	return root != "" and has_boss_anim_pack_at(root)
+
+
+static func has_boss_anim_pack_at(root: String) -> bool:
+	## True when attack/attack_00.png is present (Fenrir pack and future packs).
+	var probe := "%s/attack/attack_00.png" % root
+	return ResourceLoader.exists(probe) or FileAccess.file_exists(probe)
+
+
+static func boss_anim_frames(root: String) -> SpriteFrames:
+	## Idle loops existing idle.png; attack 8fps / hit 10fps / death 6fps non-loop.
+	var sf := SpriteFrames.new()
+	var idle_path := "%s/idle.png" % root
+	var idle_tex: Texture2D = _load_tex(idle_path)
+	for anim in ["idle", "walk"]:
+		if sf.has_animation(anim):
+			sf.remove_animation(anim)
+		sf.add_animation(anim)
+		sf.set_animation_speed(anim, 4.0)
+		sf.set_animation_loop(anim, true)
+		if idle_tex:
+			sf.add_frame(anim, idle_tex)
+		else:
+			var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0, 0, 0, 0))
+			sf.add_frame(anim, ImageTexture.create_from_image(img))
+	_add_dir_seq(sf, "attack", "%s/attack" % root, "attack_%02d.png", 4, 8.0, false)
+	_add_dir_seq(sf, "hit", "%s/hit" % root, "hit_%02d.png", 4, 10.0, false)
+	_add_dir_seq(sf, "death", "%s/death" % root, "death_%02d.png", 4, 6.0, false)
+	return sf
+
+
+static func boss_idle_path(kind: String) -> String:
+	## Resolve bosses/<id>/idle.png from sprite kind / boss id / boss_* enemy id.
+	var candidates: Array = []
+	var k := kind.strip_edges()
+	if k.begins_with("bosses/"):
+		candidates.append("res://assets/sprites/monsters/%s/idle.png" % k)
+	else:
+		candidates.append("res://assets/sprites/monsters/bosses/%s/idle.png" % k)
+		if k.begins_with("boss_"):
+			candidates.append("res://assets/sprites/monsters/bosses/%s/idle.png" % k.substr(5))
+	for p in candidates:
+		var path := str(p)
+		if ResourceLoader.exists(path):
+			return path
+		# Pre-import / raw file check
+		if FileAccess.file_exists(path):
+			return path
+	return ""
+
+
+static func _load_tex(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	if FileAccess.file_exists(path):
+		var img := Image.load_from_file(
+			ProjectSettings.globalize_path(path) if path.begins_with("res://") else path
+		)
+		if img:
+			return ImageTexture.create_from_image(img)
+	return null
+
+
+static func _add_dir_seq(
+	sf: SpriteFrames,
+	anim: String,
+	dir: String,
+	pattern: String,
+	count: int,
+	fps: float,
+	loop: bool
+) -> void:
+	if sf.has_animation(anim):
+		sf.remove_animation(anim)
+	sf.add_animation(anim)
+	sf.set_animation_speed(anim, fps)
+	sf.set_animation_loop(anim, loop)
+	for i in range(count):
+		var path := "%s/%s" % [dir, pattern % i]
+		var tex := _load_tex(path)
+		if tex:
+			sf.add_frame(anim, tex)
+	if sf.get_frame_count(anim) == 0:
+		var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		sf.add_frame(anim, ImageTexture.create_from_image(img))
+
+
+static func single_texture_frames(path: String) -> SpriteFrames:
+	## Idle-only sheet: reuse same frame for walk/attack/hit/death until anim packs land.
+	var sf := SpriteFrames.new()
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	elif FileAccess.file_exists(path):
+		var img := Image.load_from_file(ProjectSettings.globalize_path(path) if path.begins_with("res://") else path)
+		if img:
+			tex = ImageTexture.create_from_image(img)
+	if tex == null:
+		# Keep placeholder path: empty → caller should fall back; provide transparent 1px.
+		var img2 := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img2.fill(Color(0, 0, 0, 0))
+		tex = ImageTexture.create_from_image(img2)
+	for anim in ["idle", "walk", "attack", "hit", "death"]:
+		if sf.has_animation(anim):
+			sf.remove_animation(anim)
+		sf.add_animation(anim)
+		sf.set_animation_speed(anim, 4.0 if anim == "idle" else 8.0)
+		sf.set_animation_loop(anim, anim in ["idle", "walk"])
+		sf.add_frame(anim, tex)
+	return sf
+
+
+static func has_boss_idle(kind: String) -> bool:
+	return boss_idle_path(kind) != ""
 
 
 static func vfx_frames(kind: String) -> SpriteFrames:
@@ -79,8 +226,19 @@ static func attack_active_frame(job: String) -> int:
 			return 2
 		"enemy":
 			return 1
+		"fenrir", "bosses/fenrir", "boss_fenrir":
+			return 2  # attack_02 impact in 4-frame pack
 		_:
 			return 2
+
+
+static func attack_active_frame_for_enemy(kind: String) -> int:
+	## Boss anim packs: impact near mid sequence; other enemies keep legacy index.
+	if has_boss_anim_pack(kind):
+		if kind.contains("fenrir") or kind.ends_with("/fenrir"):
+			return 2
+		return 2
+	return attack_active_frame("enemy")
 
 
 static func attack_sheet_indices(job: String) -> Array:

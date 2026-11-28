@@ -22,12 +22,24 @@ var _hunt_mini: Control = null
 var _dungeon_mini: Control = null
 var _modal: CanvasLayer = null
 var _dir_pad: Control = null
+var _boss_hud: Control = null
+
+const BOSS_HUD := preload("res://scripts/combat/boss_hud.gd")
 
 
 func setup(manager: Node) -> void:
 	_manager = manager
 	_build()
+	if _manager and _manager.has_method("get_active_boss"):
+		bind_boss(_manager.get_active_boss())
 	refresh()
+
+
+func bind_boss(boss: Node) -> void:
+	if _boss_hud == null:
+		return
+	if _boss_hud.has_method("bind_boss"):
+		_boss_hud.bind_boss(boss)
 
 
 func _build() -> void:
@@ -132,6 +144,11 @@ func _build() -> void:
 	UIStyle.apply_font(_log, 13)
 	bottom.add_child(_log)
 
+	_boss_hud = BOSS_HUD.new()
+	_boss_hud.name = "BossHud"
+	_root.add_child(_boss_hud)
+	_boss_hud.visible = false
+
 	_attach_minimap()
 
 
@@ -210,12 +227,14 @@ func refresh() -> void:
 				_status.text = "승리! — 층 클리어"
 			elif _manager.has_method("is_hunt_combat") and _manager.is_hunt_combat():
 				_status.text = "승리! — 방 클리어 (화살표로 이동)"
+			elif _manager.has_method("is_special_encounter") and _manager.is_special_encounter():
+				_status.text = "승리! — 특수 조우 클리어"
 			else:
-				_status.text = "승리! (보상은 후속 Phase)"
+				_status.text = "승리!"
 			_status.add_theme_color_override("font_color", UIStyle.OK)
 			_pause_btn.disabled = true
 		"defeat":
-			_status.text = "패배 (보상은 후속 Phase)"
+			_status.text = "패배"
 			_status.add_theme_color_override("font_color", UIStyle.DANGER)
 			_pause_btn.disabled = true
 

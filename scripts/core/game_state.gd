@@ -11,6 +11,11 @@ var adventurer_pool: Array = []
 var quest_catalog: Array = []
 var dungeon_catalog: Dictionary = {}
 var hunt_catalog: Dictionary = {}
+var boss_catalog: Dictionary = {}
+## Cleared boss ids (fenrir, malkav, …) for spawn gates / Morgana unlock.
+var bosses_cleared: Dictionary = {}
+## Special encounter clears keyed by encounter_id.
+var special_encounters_cleared: Dictionary = {}
 
 var gold: int = 0
 var reputation: int = 0
@@ -76,6 +81,7 @@ func _load_static_data() -> void:
 	quest_catalog = _read_json("res://data/quests.json").get("quests", [])
 	dungeon_catalog = _read_json("res://data/combat/dungeons.json")
 	hunt_catalog = _read_json("res://data/combat/hunts.json")
+	boss_catalog = _read_json("res://data/combat/bosses.json")
 	_combat_balance = _read_json("res://data/combat/balance_combat.json")
 
 
@@ -104,6 +110,8 @@ func new_game() -> void:
 	recruited_ids = []
 	dungeon_progress = {}
 	hunt_progress = {}
+	bosses_cleared = {}
+	special_encounters_cleared = {}
 	active_hunt_id = ""
 	message_log = []
 	members = _create_starting_party()
@@ -583,6 +591,8 @@ func save_game() -> void:
 		"recruited_ids": recruited_ids,
 		"dungeon_progress": dungeon_progress,
 		"hunt_progress": hunt_progress,
+		"bosses_cleared": bosses_cleared,
+		"special_encounters_cleared": special_encounters_cleared,
 		"active_hunt_id": active_hunt_id,
 		"guild_parties": guild_parties,
 		"selected_guild_member_id": selected_guild_member_id,
@@ -624,6 +634,12 @@ func load_game() -> bool:
 	hunt_progress = data.get("hunt_progress", {})
 	if typeof(hunt_progress) != TYPE_DICTIONARY:
 		hunt_progress = {}
+	bosses_cleared = data.get("bosses_cleared", {})
+	if typeof(bosses_cleared) != TYPE_DICTIONARY:
+		bosses_cleared = {}
+	special_encounters_cleared = data.get("special_encounters_cleared", {})
+	if typeof(special_encounters_cleared) != TYPE_DICTIONARY:
+		special_encounters_cleared = {}
 	active_hunt_id = str(data.get("active_hunt_id", ""))
 	message_log = data.get("message_log", [])
 	selected_guild_member_id = str(data.get("selected_guild_member_id", ""))
@@ -923,6 +939,12 @@ func mark_dungeon_floor_cleared(dungeon_id: String, floor: int, kills: int = 0) 
 		prog["mid_boss_defeated"] = true
 	elif boss == "final":
 		prog["final_boss_defeated"] = true
+	var bid := str(floor_def.get("boss_id", ""))
+	if bid == "":
+		var bf: Dictionary = get_dungeon_def(dungeon_id).get("boss_floors", {})
+		bid = str(bf.get(str(floor), {}).get("boss_id", ""))
+	if bid != "":
+		bosses_cleared[bid] = true
 	dungeon_progress[dungeon_id] = prog
 	save_game()
 	state_changed.emit()
@@ -1090,6 +1112,10 @@ func mark_hunt_room_cleared(room_id: String = "") -> void:
 		prog["goal_boss_cleared"] = true
 		prog["map"] = map
 		hunt_progress[active_hunt_id] = prog
+		var hdef := get_hunt_def(active_hunt_id)
+		var bid := str(hdef.get("boss_id", ""))
+		if bid != "":
+			bosses_cleared[bid] = true
 		emit_message("%s 클리어 (미로 목표 보스)" % str(rooms[rid].get("name", rid)))
 	else:
 		emit_message("%s 클리어" % str(rooms[rid].get("name", rid)))
@@ -1150,6 +1176,126 @@ func hunt_move_to(target_id: String) -> bool:
 	_store_active_map(map)
 	emit_message("%s 로 이동" % str(rooms[target_id].get("name", target_id)))
 	return true
+
+
+func list_bosses() -> Array:
+	return boss_catalog.get("bosses", [])
+
+
+func get_boss_def(boss_id: String) -> Dictionary:
+	for b in list_bosses():
+		if str(b.get("id", "")) == boss_id:
+			return b
+	return {}
+
+
+func get_boss_def_by_enemy_id(enemy_id: String) -> Dictionary:
+	for b in list_bosses():
+		if str(b.get("enemy_id", "")) == enemy_id:
+			return b
+	return {}
+
+
+func get_boss_for_special_encounter(encounter_id: String) -> Dictionary:
+	for b in list_bosses():
+		var spawn: Dictionary = b.get("spawn", {})
+		if str(spawn.get("kind", "")) != "special_encounter":
+			continue
+		if str(spawn.get("encounter_id", "")) == encounter_id:
+			return b
+	return {}
+
+
+func is_boss_cleared(boss_id: String) -> bool:
+	return bool(bosses_cleared.get(boss_id, false))
+
+
+func can_start_special_encounter(encounter_id: String) -> Dictionary:
+	## Returns {ok:bool, reason:String, boss:Dictionary}
+	var bdef := get_boss_for_special_encounter(encounter_id)
+	if bdef.is_empty():
+		return {"ok": false, "reason": "조우 정보 없음", "boss": {}}
+	var spawn: Dictionary = bdef.get("spawn", {})
+	var need_tier := int(spawn.get("requires_hunt_tier_min", 0))
+	if need_tier > 0:
+		var best := 0
+		for h in list_hunts():
+			best = maxi(best, int(h.get("tier", 0)))
+		# Gate on player progress: any hunt of that tier with a cleared goal, else allow entry for testing when tier exists.
+		var progressed := false
+		for h in list_hunts():
+			if int(h.get("tier", 0)) < need_tier:
+				continue
+			var hid := str(h.get("id", ""))
+			var prog = hunt_progress.get(hid, {})
+			if typeof(prog) == TYPE_DICTIONARY and bool(prog.get("goal_boss_cleared", false)):
+				progressed = true
+				break
+		if not progressed and best < need_tier:
+			return {"ok": false, "reason": "사냥터 %d티어 이상 클리어 필요" % need_tier, "boss": bdef}
+	var req: Array = spawn.get("requires_boss_cleared", [])
+	for rid in req:
+		if not is_boss_cleared(str(rid)):
+			return {"ok": false, "reason": "%s 처치 후 도전 가능" % str(rid), "boss": bdef}
+	return {"ok": true, "reason": "", "boss": bdef}
+
+
+func mark_special_encounter_cleared(encounter_id: String) -> void:
+	special_encounters_cleared[encounter_id] = true
+	var bdef := get_boss_for_special_encounter(encounter_id)
+	if not bdef.is_empty():
+		bosses_cleared[str(bdef.get("id"))] = true
+	save_game()
+	state_changed.emit()
+
+
+func grant_party_exp(amount: int) -> void:
+	if amount <= 0:
+		return
+	for m in members:
+		if not bool(m.get("in_party", false)):
+			continue
+		m["exp"] = int(m.get("exp", 0)) + amount
+		while int(m["exp"]) >= 100:
+			m["exp"] = int(m["exp"]) - 100
+			m["level"] = int(m.get("level", 1)) + 1
+			emit_message("%s 레벨 업! (Lv.%d)" % [m.get("name"), m.get("level")])
+	state_changed.emit()
+
+
+func grant_boss_rewards(boss_id: String) -> Dictionary:
+	var bdef := get_boss_def(boss_id)
+	var summary := {"gold": 0, "exp": 0, "items": {}}
+	if bdef.is_empty():
+		return summary
+	var rewards: Dictionary = bdef.get("rewards", {})
+	var gmin := int(rewards.get("gold_min", 50))
+	var gmax := int(rewards.get("gold_max", maxi(gmin, 80)))
+	var gold_gain := randi_range(gmin, gmax)
+	var exp_gain := int(rewards.get("exp", 100))
+	add_gold(gold_gain)
+	grant_party_exp(exp_gain)
+	var items_out := {}
+	for entry in rewards.get("materials", []):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var mid := str(entry.get("id", ""))
+		var qty := int(entry.get("qty", 1))
+		if mid == "" or qty <= 0:
+			continue
+		# Only grant catalog materials — never invent craft recipes / overwrite smith.
+		if get_item(mid).is_empty():
+			continue
+		add_item(mid, qty)
+		items_out[mid] = int(items_out.get(mid, 0)) + qty
+	bosses_cleared[boss_id] = true
+	summary["gold"] = gold_gain
+	summary["exp"] = exp_gain
+	summary["items"] = items_out
+	emit_message("%s 처치 보상 — %d G" % [str(bdef.get("name", boss_id)), gold_gain])
+	save_game()
+	state_changed.emit()
+	return summary
 
 
 func _normalize_inventory_entries() -> void:

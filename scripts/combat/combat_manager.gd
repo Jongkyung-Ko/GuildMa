@@ -1,7 +1,6 @@
 extends Node2D
 
-## Phase 2-1 combat orchestrator: spawn party + wolves, auto-fight, win/lose UI.
-## No rewards, tactics, or HuntSelect.
+## Combat orchestrator: party + hunt/dungeon encounters, wave fill, boss kits, rewards.
 
 enum Phase { FIGHTING, PAUSED, VICTORY, DEFEAT }
 
@@ -11,6 +10,7 @@ const ENEMIES_PATH := "res://data/combat/enemies.json"
 const LORD_SCRIPT := preload("res://scripts/combat/player_lord_actor.gd")
 const ALLY_SCRIPT := preload("res://scripts/combat/party_member_actor.gd")
 const ENEMY_SCRIPT := preload("res://scripts/combat/enemy_base.gd")
+const BOSS_SCRIPT := preload("res://scripts/combat/boss_actor.gd")
 
 var balance: Dictionary = {}
 var enemy_catalog: Dictionary = {}
@@ -30,6 +30,15 @@ var _floor_cleared_reported: bool = false
 ## Hunting-ground maze run id (empty = legacy phase test or dungeon).
 var hunt_id: String = ""
 var _hunt_clear_reported: bool = false
+## Special named encounter (vorak_rift / morgana_sanctum) — not maze/dungeon floor.
+var special_encounter_id: String = ""
+var _spawn_queue: Array = []
+var _respawn_timer: float = 0.0
+var _active_boss: Node = null
+var _rewards_granted: bool = false
+var _kill_gold: int = 0
+var _kill_exp: int = 0
+var _kill_items: Dictionary = {}
 
 @onready var _battlefield: Node2D = $Battlefield
 @onready var _ally_root: Node2D = $Battlefield/Allies
@@ -43,8 +52,9 @@ func _ready() -> void:
 	dungeon_id = str(get_tree().root.get_meta("dungeon_id", ""))
 	dungeon_floor = int(get_tree().root.get_meta("dungeon_floor", 0))
 	hunt_id = str(get_tree().root.get_meta("hunt_id", ""))
+	special_encounter_id = str(get_tree().root.get_meta("special_encounter_id", ""))
 	_ensure_game_state()
-	if hunt_id != "" and dungeon_id == "":
+	if hunt_id != "" and dungeon_id == "" and special_encounter_id == "":
 		var force_new := bool(get_tree().root.get_meta("hunt_force_new", false))
 		# Town→hunt / re-entry always requests entrance spawn (not mid-maze resume).
 		var spawn_at_start := bool(get_tree().root.get_meta("hunt_spawn_at_start", true))
@@ -56,7 +66,9 @@ func _ready() -> void:
 	_spawn_party()
 	_spawn_enemies()
 	_ui.setup(self)
-	if dungeon_id != "" and dungeon_floor > 0:
+	if special_encounter_id != "":
+		log_combat("특수 조우 — %s" % special_encounter_id)
+	elif dungeon_id != "" and dungeon_floor > 0:
 		var fdef := GameState.get_dungeon_floor_def(dungeon_id, dungeon_floor)
 		var boss := str(fdef.get("boss", ""))
 		var tag := "중층 보스" if boss == "mid" else ("최종 보스" if boss == "final" else "일반")
@@ -122,6 +134,7 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("ui_cancel"):
 		toggle_pause()
 	if phase == Phase.FIGHTING:
+		_tick_wave_spawns(delta)
 		_check_end_conditions()
 	_ui.refresh()
 
@@ -202,11 +215,12 @@ func toggle_pause() -> void:
 func return_to_town() -> void:
 	Engine.time_scale = 1.0
 	_hit_stop_t = 0.0
+	get_tree().root.set_meta("special_encounter_id", "")
 	if dungeon_id != "":
 		SceneRouter.go_dungeon_hub(dungeon_id)
 	else:
 		# Full leave: always pass local hunt_id so reset works even if active_hunt_id was cleared.
-		if hunt_id != "" and GameState:
+		if hunt_id != "" and GameState and special_encounter_id == "":
 			GameState.leave_hunt_session(hunt_id)
 		SceneRouter.go_town()
 
@@ -216,7 +230,20 @@ func is_dungeon_combat() -> bool:
 
 
 func is_hunt_combat() -> bool:
-	return hunt_id != "" and dungeon_id == "" and not GameState.get_active_hunt_map().is_empty()
+	return (
+		hunt_id != ""
+		and dungeon_id == ""
+		and special_encounter_id == ""
+		and not GameState.get_active_hunt_map().is_empty()
+	)
+
+
+func is_special_encounter() -> bool:
+	return special_encounter_id != ""
+
+
+func get_active_boss() -> Node:
+	return _active_boss if _active_boss != null and is_instance_valid(_active_boss) else null
 
 
 func travel_hunt_room(room_id: String) -> void:
@@ -247,6 +274,11 @@ func travel_hunt_direction(dir: String) -> void:
 
 func _reload_room_encounter() -> void:
 	_clear_living_enemies_quiet()
+	_rewards_granted = false
+	_kill_gold = 0
+	_kill_exp = 0
+	_kill_items.clear()
+	_active_boss = null
 	var room := GameState.get_current_hunt_room()
 	log_combat("이동 — %s" % str(room.get("name", room_id_safe())))
 	if bool(room.get("cleared", false)):
@@ -286,6 +318,10 @@ func _clear_living_enemies_quiet() -> void:
 		if e and is_instance_valid(e):
 			e.queue_free()
 	_enemies.clear()
+	_spawn_queue.clear()
+	_active_boss = null
+	if _ui and _ui.has_method("bind_boss"):
+		_ui.bind_boss(null)
 
 
 func _ensure_game_state() -> void:
@@ -336,7 +372,7 @@ func _spawn_party() -> void:
 		actor.setup_from_member(m, balance)
 		if actor.has_method("assign_formation"):
 			actor.assign_formation(i)
-		actor.global_position = slots[i]
+		actor.global_position = CombatFieldBounds.clamp_point(slots[i], actor)
 		actor.died.connect(_on_combatant_died)
 		actor.hp_changed.connect(func(_c, _m): _ui.refresh())
 		_allies.append(actor)
@@ -344,10 +380,28 @@ func _spawn_party() -> void:
 
 
 func _spawn_enemies() -> void:
+	_spawn_queue.clear()
+	_respawn_timer = 0.0
+	_active_boss = null
 	var roster: Array = _resolve_enemy_roster()
 	if roster.is_empty():
 		return
-	var count: int = roster.size()
+	var live_cap := _max_live_enemies()
+	var initial := mini(roster.size(), live_cap)
+	for i in range(initial):
+		_spawn_one_enemy(roster[i], i)
+	for j in range(initial, roster.size()):
+		_spawn_queue.append(roster[j])
+	if _ui and _ui.has_method("bind_boss"):
+		_ui.bind_boss(get_active_boss())
+
+
+func _max_live_enemies() -> int:
+	var hc: Dictionary = balance.get("hunt_content", {})
+	return clampi(int(hc.get("max_live_enemies", 12)), 3, 16)
+
+
+func _enemy_slot(i: int) -> Vector2:
 	# Keep enemies left of the right HUD (~268px) so sprites are not clipped.
 	var slots := [
 		Vector2(860, 240),
@@ -355,28 +409,153 @@ func _spawn_enemies() -> void:
 		Vector2(800, 440),
 		Vector2(940, 300),
 		Vector2(820, 500),
+		Vector2(780, 320),
+		Vector2(900, 480),
+		Vector2(840, 200),
+		Vector2(960, 400),
+		Vector2(760, 460),
+		Vector2(880, 280),
+		Vector2(820, 380),
 	]
-	for i in range(count):
-		var data: Dictionary = roster[i]
-		var enemy: Node = ENEMY_SCRIPT.new()
-		enemy.name = "Enemy_%s_%d" % [str(data.get("id", "mob")), i]
+	var base: Vector2 = slots[i % slots.size()]
+	var ring := int(i / slots.size())
+	var spread := Vector2((i % 5 - 2) * 16.0, (i % 4 - 1) * 36.0) + Vector2(ring * 12.0, ring * 10.0)
+	return base + spread + Vector2(randf_range(-8, 8), randf_range(-5, 5))
+
+
+func _spawn_one_enemy(data: Dictionary, slot_i: int) -> Node:
+	var scaled := _apply_hunt_difficulty(data)
+	var is_boss := _is_boss_def(scaled)
+	var enemy: Node
+	if is_boss:
+		enemy = BOSS_SCRIPT.new()
+		enemy.name = "Boss_%s_%d" % [str(scaled.get("id", "boss")), slot_i]
 		_enemy_root.add_child(enemy)
 		enemy.bind_manager(self)
-		enemy.setup_from_enemy(data)
-		if enemy.has_method("assign_formation"):
-			enemy.assign_formation(i)
-		# Keep enemies spread on spawn so they don't start stacked.
-		var spread := Vector2((i - 1) * 18.0, (i - 1) * 78.0)
-		enemy.global_position = slots[i % slots.size()] + spread + Vector2(randf_range(-10, 10), randf_range(-6, 6))
-		enemy.died.connect(_on_combatant_died)
-		enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
-		_enemies.append(enemy)
+		var boss_id := str(scaled.get("boss_id", ""))
+		var bdef := GameState.get_boss_def(boss_id) if boss_id != "" else {}
+		if bdef.is_empty() and scaled.has("id"):
+			bdef = GameState.get_boss_def_by_enemy_id(str(scaled.get("id")))
+		if not bdef.is_empty() and enemy.has_method("setup_from_boss"):
+			enemy.setup_from_boss(bdef, scaled)
+		else:
+			enemy.setup_from_enemy(scaled)
+		_active_boss = enemy
+	else:
+		enemy = ENEMY_SCRIPT.new()
+		enemy.name = "Enemy_%s_%d" % [str(scaled.get("id", "mob")), slot_i]
+		_enemy_root.add_child(enemy)
+		enemy.bind_manager(self)
+		enemy.setup_from_enemy(scaled)
+	if enemy.has_method("assign_formation"):
+		enemy.assign_formation(slot_i % 8)
+	enemy.global_position = CombatFieldBounds.clamp_point(_enemy_slot(slot_i), enemy)
+	enemy.died.connect(_on_combatant_died)
+	enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
+	_enemies.append(enemy)
+	return enemy
+
+
+func _is_boss_def(data: Dictionary) -> bool:
+	var tier := str(data.get("tier", ""))
+	if tier.begins_with("boss"):
+		return true
+	if str(data.get("behavior", "")) == "boss":
+		return true
+	return str(data.get("boss_id", "")) != ""
+
+
+func _apply_hunt_difficulty(data: Dictionary) -> Dictionary:
+	var out := data.duplicate(true)
+	if not is_hunt_combat():
+		return out
+	var hunt := GameState.get_hunt_def(hunt_id)
+	var diff: Dictionary = hunt.get("difficulty", {})
+	if diff.is_empty():
+		return out
+	out["hp"] = float(out.get("hp", 40)) * float(diff.get("hp_mult", 1.0))
+	out["atk"] = float(out.get("atk", 8)) * float(diff.get("atk_mult", 1.0))
+	out["def"] = float(out.get("def", 2)) * float(diff.get("def_mult", 1.0))
+	out["aspd"] = float(out.get("aspd", 1.0)) * float(diff.get("aspd_mult", 1.0))
+	out["aggro_range"] = float(out.get("aggro_range", 900)) * float(diff.get("aggro_mult", 1.0))
+	out["exp"] = int(round(float(out.get("exp", 10)) * float(diff.get("reward_exp_mult", 1.0))))
+	out["gold_min"] = int(round(float(out.get("gold_min", 3)) * float(diff.get("reward_gold_mult", 1.0))))
+	out["gold_max"] = int(round(float(out.get("gold_max", 8)) * float(diff.get("reward_gold_mult", 1.0))))
+	return out
+
+
+func _tick_wave_spawns(delta: float) -> void:
+	if _spawn_queue.is_empty():
+		return
+	if _is_boss_only_encounter():
+		return
+	var live := 0
+	for e in _enemies:
+		if e and is_instance_valid(e) and not e.is_dead:
+			live += 1
+	var cap := _max_live_enemies()
+	if live >= cap:
+		return
+	var hunt := GameState.get_hunt_def(hunt_id) if is_hunt_combat() else {}
+	var resp: Dictionary = hunt.get("respawn", {})
+	var delay := float(resp.get("delay_sec", 3.0))
+	if not bool(resp.get("enabled", true)):
+		# Still drain queue immediately up to cap without delay when respawn disabled.
+		delay = 0.0
+	_respawn_timer -= delta
+	if _respawn_timer > 0.0:
+		return
+	while live < cap and not _spawn_queue.is_empty():
+		var data: Dictionary = _spawn_queue.pop_front()
+		_spawn_one_enemy(data, _enemies.size())
+		live += 1
+		_respawn_timer = delay
+		if delay > 0.0:
+			break
+
+
+func _is_boss_only_encounter() -> bool:
+	if get_active_boss() != null:
+		return true
+	if special_encounter_id != "":
+		return true
+	if is_hunt_combat():
+		var room := GameState.get_current_hunt_room()
+		return str(room.get("room_type", "")) == "boss"
+	if is_dungeon_combat():
+		var fdef := GameState.get_dungeon_floor_def(dungeon_id, dungeon_floor)
+		return str(fdef.get("boss", "")) != ""
+	return false
 
 
 func _resolve_enemy_roster() -> Array:
 	var list: Array = enemy_catalog.get("enemies", [])
 	if list.is_empty():
 		return []
+	# Special named boss encounter (Vorak / Morgana) — one boss, never a hunt pack.
+	if special_encounter_id != "":
+		var bdef := GameState.get_boss_for_special_encounter(special_encounter_id)
+		if bdef.is_empty():
+			return []
+		var data := _enemy_def_by_id(str(bdef.get("enemy_id", "")))
+		if data.is_empty():
+			data = {
+				"id": str(bdef.get("enemy_id", bdef.get("id"))),
+				"boss_id": str(bdef.get("id")),
+				"name": str(bdef.get("name")),
+				"tier": "boss_special",
+				"behavior": "boss",
+				"hp": bdef.get("hp", 1000),
+				"atk": bdef.get("atk", 20),
+				"def": bdef.get("def", 8),
+				"move": bdef.get("move", 100),
+				"aspd": bdef.get("aspd", 1.0),
+				"sprite": bdef.get("sprite", "wolf"),
+				"color": bdef.get("color", [1, 1, 1, 1]),
+			}
+		else:
+			data["boss_id"] = str(bdef.get("id"))
+		return [data]
 	# Dungeon floor encounter from dungeons.json (vertical progression).
 	if dungeon_id != "" and dungeon_floor > 0:
 		var fdef := GameState.get_dungeon_floor_def(dungeon_id, dungeon_floor)
@@ -385,6 +564,8 @@ func _resolve_enemy_roster() -> Array:
 		for eid in ids:
 			var data := _enemy_def_by_id(str(eid))
 			if not data.is_empty():
+				if str(fdef.get("boss_id", "")) != "":
+					data["boss_id"] = str(fdef.get("boss_id"))
 				out.append(data)
 		if out.is_empty() and not list.is_empty():
 			out.append(list[0])
@@ -398,8 +579,13 @@ func _resolve_enemy_roster() -> Array:
 		var hout: Array = []
 		for eid in ids:
 			var data := _enemy_def_by_id(str(eid))
-			if not data.is_empty():
-				hout.append(data)
+			if data.is_empty():
+				continue
+			if str(room.get("room_type", "")) == "boss":
+				var hunt := GameState.get_hunt_def(hunt_id)
+				if str(hunt.get("boss_id", "")) != "":
+					data["boss_id"] = str(hunt.get("boss_id"))
+			hout.append(data)
 		if hout.is_empty() and not list.is_empty():
 			hout.append(list[0])
 		return hout
@@ -422,13 +608,39 @@ func _resolve_enemy_roster() -> Array:
 func _enemy_def_by_id(enemy_id: String) -> Dictionary:
 	for e in enemy_catalog.get("enemies", []):
 		if str(e.get("id", "")) == enemy_id:
-			return e
+			return (e as Dictionary).duplicate(true)
 	return {}
 
 
-func _on_combatant_died(_who: Node) -> void:
+func _on_combatant_died(who: Node) -> void:
+	if who != null and who.has_method("setup_from_enemy"):
+		_accumulate_kill_rewards(who)
 	_check_end_conditions()
 	_ui.refresh()
+
+
+func _accumulate_kill_rewards(who: Node) -> void:
+	# Boss kill rewards granted once via GameState.grant_boss_rewards.
+	if who == _active_boss:
+		return
+	if who.get("boss_id") != null and str(who.get("boss_id")) != "":
+		return
+	var eid := str(who.member_id)
+	var data := _enemy_def_by_id(eid)
+	if data.is_empty():
+		return
+	var gmin := int(data.get("gold_min", 2))
+	var gmax := int(data.get("gold_max", maxi(gmin, 4)))
+	_kill_gold += randi_range(gmin, gmax)
+	_kill_exp += int(data.get("exp", 8))
+	if is_hunt_combat():
+		var hunt := GameState.get_hunt_def(hunt_id)
+		var table: Dictionary = hunt.get("reward_table", {})
+		if randf() < float(table.get("material_chance", 0.0)):
+			var mats: Array = table.get("materials", [])
+			if mats.size() > 0:
+				var mid := str(mats[randi_range(0, mats.size() - 1)])
+				_kill_items[mid] = int(_kill_items.get(mid, 0)) + 1
 
 
 func _check_end_conditions() -> void:
@@ -436,16 +648,23 @@ func _check_end_conditions() -> void:
 		return
 	var enemies_alive := false
 	for e in _enemies:
-		if e and not e.is_dead:
+		if e and is_instance_valid(e) and not e.is_dead:
 			enemies_alive = true
 			break
-	if not enemies_alive:
+	if enemies_alive:
+		pass
+	elif not _spawn_queue.is_empty():
+		# Waves remaining — keep fighting.
+		return
+	else:
 		phase = Phase.VICTORY
 		Engine.time_scale = 1.0
 		_hit_stop_t = 0.0
-		log_combat("승리 — 적 전멸 (보상은 후속 Phase)")
+		log_combat("승리 — 적 전멸")
+		_grant_victory_rewards()
 		_on_dungeon_victory()
 		_on_hunt_victory()
+		_on_special_victory()
 		return
 	var allies_alive := false
 	for a in _allies:
@@ -456,7 +675,47 @@ func _check_end_conditions() -> void:
 		phase = Phase.DEFEAT
 		Engine.time_scale = 1.0
 		_hit_stop_t = 0.0
-		log_combat("패배 — 파티 전원 전투불능 (보상은 후속 Phase)")
+		log_combat("패배 — 파티 전원 전투불능")
+		_grant_defeat_rewards()
+
+
+func _grant_victory_rewards() -> void:
+	if _rewards_granted:
+		return
+	_rewards_granted = true
+	var boss := get_active_boss()
+	if boss != null and str(boss.boss_id) != "":
+		var summary: Dictionary = GameState.grant_boss_rewards(str(boss.boss_id))
+		log_combat("보스 보상 — +%dG / EXP %d" % [int(summary.get("gold", 0)), int(summary.get("exp", 0))])
+		for mid in summary.get("items", {}).keys():
+			log_combat("  재료 %s x%d" % [mid, int(summary.get("items", {})[mid])])
+		return
+	if _kill_gold > 0:
+		GameState.add_gold(_kill_gold)
+	if _kill_exp > 0:
+		GameState.grant_party_exp(_kill_exp)
+	for mid in _kill_items.keys():
+		GameState.add_item(str(mid), int(_kill_items[mid]))
+	if _kill_gold > 0 or _kill_exp > 0:
+		log_combat("보상 — +%dG / EXP %d" % [_kill_gold, _kill_exp])
+	GameState.save_game()
+
+
+func _grant_defeat_rewards() -> void:
+	if _rewards_granted:
+		return
+	_rewards_granted = true
+	var hc: Dictionary = balance.get("hunt_content", {})
+	var g := int(round(float(_kill_gold) * float(hc.get("defeat_gold_frac", 0.15))))
+	var e := int(round(float(_kill_exp) * float(hc.get("defeat_exp_frac", 0.1))))
+	if g > 0:
+		GameState.add_gold(g)
+	if e > 0:
+		GameState.grant_party_exp(e)
+	# Items never on defeat (D2).
+	if g > 0 or e > 0:
+		log_combat("패배 위로 보상 — +%dG / EXP %d" % [g, e])
+	GameState.save_game()
 
 
 func _on_dungeon_victory() -> void:
@@ -481,6 +740,13 @@ func _on_hunt_victory() -> void:
 	_hunt_clear_reported = true
 	GameState.mark_hunt_room_cleared()
 	log_combat("방 클리어 — 미니맵에서 연결된 방으로 이동하세요")
+
+
+func _on_special_victory() -> void:
+	if special_encounter_id == "":
+		return
+	GameState.mark_special_encounter_cleared(special_encounter_id)
+	log_combat("특수 조우 클리어 — %s" % special_encounter_id)
 
 
 func _read_json(path: String) -> Dictionary:

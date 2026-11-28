@@ -30,5 +30,27 @@
   "heal_threshold": 0.75,
   "heal_atk_mult": 1.35,
   "projectile_travel": 0.35,
-  "move_speed_mult": 1.4
+  "move_speed_mult": 1.4,
+  "hunt_content": {
+    "max_live_enemies": 12,
+    "elite_stat_mult": {
+      "hp": 1.0,
+      "atk": 1.0,
+      "def": 1.0
+    },
+    "room_spawn_frac": {
+      "start": 0.35,
+      "normal": 0.55,
+      "elite": 0.75,
+      "treasure": 0.4,
+      "boss": 0.0
+    },
+    "defeat_gold_frac": 0.15,
+    "defeat_exp_frac": 0.1,
+    "defeat_grants_items": false
+  },
+  "boss_ui": {
+    "bar_width": 520,
+    "bar_height": 18
+  }
 }
