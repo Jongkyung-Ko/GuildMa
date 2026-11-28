@@ -472,8 +472,15 @@ func _build_header() -> Control:
 	return host
 
 
+const GRID_SIDE_PAD := 8
+const GRID_TOP_PAD := 14  ## Keeps kit frame top ornament clear of clip edge.
+const GRID_BOTTOM_PAD := 6
+const GRID_H_SEP := 10
+const GRID_V_SEP := 10
+
+
 func _screen_width() -> float:
-	## Prefer the real window/viewport width — not `_dense` chrome flags.
+	## Window/viewport width for PC vs short-landscape classing.
 	var win := get_window()
 	if win != null and win.size.x >= 64:
 		return float(win.size.x)
@@ -487,13 +494,32 @@ func _screen_width() -> float:
 	return 1280.0
 
 
+func _list_usable_width() -> float:
+	## Actual center list pane (scroll viewport), not full window width.
+	if _grid_scroll != null and is_instance_valid(_grid_scroll) and _grid_scroll.size.x >= 32.0:
+		return _grid_scroll.size.x
+	if _members_lock_w > 64.0:
+		return _members_lock_w
+	if _shell_lock.x > 64.0:
+		var dw := _target_detail_w if _target_detail_w > 64.0 else _shell_lock.x * (_ratio_detail / maxf(_ratio_list + _ratio_detail, 0.01))
+		return maxf(160.0, _shell_lock.x - dw - 6.0)
+	return maxf(160.0, _screen_width() * 0.55)
+
+
 func _member_grid_columns() -> int:
-	## Width-based columns (independent of `_dense` chrome packing):
-	## 844×390 → 2, 1280×720 / 1366×768 → 4.
-	var w := _screen_width()
-	if w < 1100.0:
+	## Columns from list capacity + screen class:
+	## 844×390 → 2; 1280/1366 → 4 (never stretch 2-col across a wide list).
+	var sw := _screen_width()
+	if sw > 0.0 and sw < 1100.0:
 		return 2
-	return 4
+	var list_w := _list_usable_width()
+	var need4 := 4.0 * 168.0 + 3.0 * float(GRID_H_SEP) + float(GRID_SIDE_PAD * 2)
+	if list_w >= need4 - 8.0:
+		return 4
+	# PC window before list settles — still 4; mid_split reserves width.
+	if sw >= 1100.0:
+		return 4
+	return 2
 
 
 func _build_member_column() -> Control:
@@ -520,22 +546,21 @@ func _build_member_column() -> Control:
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vb.add_child(_grid_scroll)
-	# MarginContainer owns side gutters; GridContainer owns inter-card gaps.
-	# Avoid CenterContainer so size/align duties are not duplicated.
+	# MarginContainer: fixed L/T inset only. Grid owns equal inter-card gaps.
+	# Content-sized host → left-top aligned in the scroll (no center-spread).
 	var grid_host := MarginContainer.new()
 	grid_host.name = "GridHost"
-	grid_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	grid_host.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_grid_scroll.add_child(grid_host)
 	_grid = GridContainer.new()
 	_grid.columns = _member_grid_columns()
-	_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_grid.add_theme_constant_override("h_separation", 8 if _dense else 10)
-	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
+	_grid.add_theme_constant_override("h_separation", GRID_H_SEP)
+	_grid.add_theme_constant_override("v_separation", GRID_V_SEP)
 	grid_host.add_child(_grid)
 	_populate_grid()
-	# Grid gutters are applied after mid-split knows the final list width.
 	return host
 
 
@@ -547,7 +572,7 @@ func _kit_card_base_size() -> Vector2:
 
 
 func _uniform_kit_card_size() -> Vector2:
-	## One size for every KitNamecard — prefer shared shrunk size, else width-mode base.
+	## One size for every KitNamecard — prefer shared shrunk size, else mode base.
 	var base := _kit_card_base_size()
 	if _grid == null or not is_instance_valid(_grid):
 		return base
@@ -562,10 +587,8 @@ func _uniform_kit_card_size() -> Vector2:
 		if count == 0:
 			seen = sz
 		elif absf(sz.x - seen.x) > 0.5 or absf(sz.y - seen.y) > 0.5:
-			# Mixed sizes → reset to width-mode base.
 			return base
 		count += 1
-	# Keep a uniform shrink from `_ensure_first_row_uncut` when all cards match.
 	if count > 0 and seen.y <= base.y + 0.5:
 		return seen
 	return base
@@ -576,7 +599,7 @@ func _is_kit_namecard(n: Node) -> bool:
 
 
 func _layout_member_grid() -> void:
-	## Single alignment pass: equal card size, equal side margins, equal h_sep.
+	## Left-top pack: fixed pads + equal h_sep. Never stretch leftover across the list.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	if _grid_scroll.size.x < 32.0:
@@ -584,10 +607,8 @@ func _layout_member_grid() -> void:
 		return
 	var cols := _member_grid_columns()
 	_grid.columns = cols
-	# Always retarget to the width-mode base (or a uniform shrink), then lock all cards.
-	var card_sz := _uniform_kit_card_size()
-	# If column mode just flipped, drop stale footprints and use the mode base.
 	var mode_base := _kit_card_base_size()
+	var card_sz := _uniform_kit_card_size()
 	if absf(card_sz.x - mode_base.x) > 24.0:
 		card_sz = mode_base
 	for c in _grid.get_children():
@@ -599,39 +620,31 @@ func _layout_member_grid() -> void:
 		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	var host := _grid_scroll.get_node_or_null("GridHost") as MarginContainer
-	# Always fill the current scroll viewport so left/right gutters match visually.
-	var avail := _grid_scroll.size.x
-	if avail < 32.0:
-		call_deferred("_layout_member_grid_retry")
-		return
-	# Guard against content-size blow-up before mid-split settles.
-	if _members_lock_w > 64.0 and avail > _members_lock_w + 24.0:
-		avail = _members_lock_w
+	var side := GRID_SIDE_PAD
+	var top := GRID_TOP_PAD
+	var bottom := GRID_BOTTOM_PAD
+	var sep := GRID_H_SEP
+	# If 4 cards cannot fit with fixed pads, tighten sep slightly (still equal).
+	var list_w := _list_usable_width()
+	var need := float(cols) * card_sz.x + float(maxi(cols - 1, 0)) * float(sep) + float(side * 2)
+	if cols >= 4 and need > list_w + 0.5:
+		var room := maxf(0.0, list_w - float(cols) * card_sz.x - float(side * 2))
+		sep = int(floor(room / float(maxi(cols - 1, 1))))
+		sep = clampi(sep, 4, GRID_H_SEP)
+	var content_w := float(cols) * card_sz.x + float(maxi(cols - 1, 0)) * float(sep)
 	if host:
-		host.custom_minimum_size = Vector2(avail, 0)
-	# leftover = 2*side + (cols-1)*sep  with side == sep  →  (cols+1) equal gutters
-	# Equal gutters: left + between×(cols-1) + right  == leftover.
-	var leftover := maxf(0.0, avail - float(cols) * card_sz.x)
-	var gutters := cols + 1
-	var unit := leftover / float(gutters) if gutters > 0 else 0.0
-	# Prefer true equal spacing; only floor a tiny minimum when leftover is sparse.
-	if unit < 4.0 and leftover >= float(gutters) * 4.0:
-		unit = 4.0
-	var side := int(floor(unit + 0.5))
-	var sep := side
-	# Rebalance rounding so 2*side + (cols-1)*sep stays ≤ leftover.
-	var used := float(side * 2 + sep * maxi(cols - 1, 0))
-	if used > leftover and side > 0:
-		side = int(floor(leftover / float(gutters)))
-		sep = side
-	if host:
+		host.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		host.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		host.add_theme_constant_override("margin_left", side)
 		host.add_theme_constant_override("margin_right", side)
-		host.add_theme_constant_override("margin_top", 0)
-		host.add_theme_constant_override("margin_bottom", 0)
+		host.add_theme_constant_override("margin_top", top)
+		host.add_theme_constant_override("margin_bottom", bottom)
+		# Content-sized — leftover list width stays empty on the right (no center-spread).
+		host.custom_minimum_size = Vector2(content_w + float(side * 2), 0)
 	_grid.add_theme_constant_override("h_separation", sep)
-	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
+	_grid.add_theme_constant_override("v_separation", GRID_V_SEP)
 	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_grid.queue_sort()
 
 
@@ -655,7 +668,8 @@ func _ensure_first_row_uncut() -> void:
 			call_deferred("_ensure_first_row_uncut")
 		return
 	_ensure_row_tries = 0
-	var max_card_h := maxf(view_h - 8.0, 140.0)
+	# Reserve top/bottom pads so frame ornaments are not clipped by the scroll clip.
+	var max_card_h := maxf(view_h - float(GRID_TOP_PAD + GRID_BOTTOM_PAD + 4), 140.0)
 	var base := _kit_card_base_size()
 	var target := base
 	if base.y > max_card_h + 0.5:
@@ -669,7 +683,6 @@ func _ensure_first_row_uncut() -> void:
 		if absf(card.custom_minimum_size.x - target.x) > 0.5 or absf(card.custom_minimum_size.y - target.y) > 0.5:
 			card.custom_minimum_size = target
 			changed = true
-	# Always re-run grid layout so h_sep/margins match the (possibly new) card width.
 	_layout_member_grid()
 	if changed:
 		call_deferred("_layout_member_grid")
@@ -691,9 +704,9 @@ func _layout_mid_split() -> void:
 		return
 	var sep := 6.0
 	var detail_w := _target_detail_w if _target_detail_w > 64.0 else avail * (_ratio_detail / (_ratio_list + _ratio_detail))
-	# Reserve list width for the width-based column count (4 on PC, 2 on ~844).
+	# Reserve list width for the column count (4 on PC, 2 on ~844).
 	var cols_for_list := _member_grid_columns()
-	var min_list := (4.0 * 168.0 + 3.0 * 10.0 + 24.0) if cols_for_list >= 4 else (2.0 * 148.0 + 10.0 + 16.0)
+	var min_list := (4.0 * 168.0 + 3.0 * float(GRID_H_SEP) + float(GRID_SIDE_PAD * 2)) if cols_for_list >= 4 else (2.0 * 148.0 + float(GRID_H_SEP) + float(GRID_SIDE_PAD * 2))
 	detail_w = mini(detail_w, maxf(160.0, avail - min_list - sep))
 	if _dense:
 		detail_w = mini(detail_w, avail * 0.34)
