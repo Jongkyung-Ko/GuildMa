@@ -1,0 +1,440 @@
+{
+  "kit": "GuildMaster_Party_Art_Kit",
+  "frames": [
+    {
+      "file": "assets/ui/party/frames/card_frame_default.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        82,
+        12,
+        421,
+        559
+      ],
+      "size": [
+        340,
+        548
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 95359,
+      "chrome_pixels": 90961,
+      "portrait_hole": {
+        "rect": [
+          45,
+          77,
+          292,
+          320
+        ],
+        "uv": [
+          0.1323529411764706,
+          0.14051094890510948,
+          0.861764705882353,
+          0.5857664233576643
+        ],
+        "size": [
+          248,
+          244
+        ],
+        "pixels": 58442
+      },
+      "skill_holes": [
+        {
+          "rect": [
+            55,
+            420,
+            111,
+            475
+          ],
+          "uv": [
+            0.16176470588235295,
+            0.7664233576642335,
+            0.32941176470588235,
+            0.8686131386861314
+          ],
+          "size": [
+            57,
+            56
+          ],
+          "pixels": 3022
+        },
+        {
+          "rect": [
+            143,
+            420,
+            198,
+            474
+          ],
+          "uv": [
+            0.42058823529411765,
+            0.7664233576642335,
+            0.5852941176470589,
+            0.8667883211678832
+          ],
+          "size": [
+            56,
+            55
+          ],
+          "pixels": 2927
+        },
+        {
+          "rect": [
+            230,
+            420,
+            284,
+            474
+          ],
+          "uv": [
+            0.6764705882352942,
+            0.7664233576642335,
+            0.8382352941176471,
+            0.8667883211678832
+          ],
+          "size": [
+            55,
+            55
+          ],
+          "pixels": 2862
+        }
+      ]
+    },
+    {
+      "file": "assets/ui/party/frames/card_frame_selected.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        1076,
+        2,
+        1462,
+        570
+      ],
+      "size": [
+        387,
+        569
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 95635,
+      "chrome_pixels": 124568,
+      "portrait_hole": {
+        "rect": [
+          68,
+          88,
+          318,
+          331
+        ],
+        "uv": [
+          0.17571059431524547,
+          0.1546572934973638,
+          0.8242894056847545,
+          0.5834797891036907
+        ],
+        "size": [
+          251,
+          244
+        ],
+        "pixels": 59132
+      },
+      "skill_holes": [
+        {
+          "rect": [
+            79,
+            431,
+            135,
+            485
+          ],
+          "uv": [
+            0.2041343669250646,
+            0.7574692442882249,
+            0.35142118863049093,
+            0.8541300527240774
+          ],
+          "size": [
+            57,
+            55
+          ],
+          "pixels": 2925
+        },
+        {
+          "rect": [
+            167,
+            431,
+            222,
+            485
+          ],
+          "uv": [
+            0.4315245478036176,
+            0.7574692442882249,
+            0.5762273901808785,
+            0.8541300527240774
+          ],
+          "size": [
+            56,
+            55
+          ],
+          "pixels": 2920
+        },
+        {
+          "rect": [
+            254,
+            431,
+            309,
+            485
+          ],
+          "uv": [
+            0.6563307493540051,
+            0.7574692442882249,
+            0.8010335917312662,
+            0.8541300527240774
+          ],
+          "size": [
+            56,
+            55
+          ],
+          "pixels": 2826
+        }
+      ]
+    },
+    {
+      "file": "assets/ui/party/frames/card_frame_compact.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        530,
+        109,
+        966,
+        542
+      ],
+      "size": [
+        437,
+        434
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 90235,
+      "chrome_pixels": 99423,
+      "portrait_hole": {
+        "rect": [
+          49,
+          76,
+          387,
+          227
+        ],
+        "uv": [
+          0.11212814645308924,
+          0.17511520737327188,
+          0.8878718535469108,
+          0.5253456221198156
+        ],
+        "size": [
+          339,
+          152
+        ],
+        "pixels": 49779
+      },
+      "skill_holes": [
+        {
+          "rect": [
+            91,
+            318,
+            145,
+            369
+          ],
+          "uv": [
+            0.20823798627002288,
+            0.7327188940092166,
+            0.3340961098398169,
+            0.8525345622119815
+          ],
+          "size": [
+            55,
+            52
+          ],
+          "pixels": 2720
+        },
+        {
+          "rect": [
+            193,
+            318,
+            247,
+            369
+          ],
+          "uv": [
+            0.4416475972540046,
+            0.7327188940092166,
+            0.5675057208237986,
+            0.8525345622119815
+          ],
+          "size": [
+            55,
+            52
+          ],
+          "pixels": 2718
+        },
+        {
+          "rect": [
+            294,
+            318,
+            347,
+            369
+          ],
+          "uv": [
+            0.6727688787185355,
+            0.7327188940092166,
+            0.7963386727688787,
+            0.8525345622119815
+          ],
+          "size": [
+            54,
+            52
+          ],
+          "pixels": 2642
+        }
+      ]
+    },
+    {
+      "file": "assets/ui/party/frames/icon_frame.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        90,
+        644,
+        407,
+        958
+      ],
+      "size": [
+        318,
+        315
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 63618,
+      "chrome_pixels": 36552,
+      "portrait_hole": {
+        "rect": [
+          57,
+          56,
+          261,
+          259
+        ],
+        "uv": [
+          0.1792452830188679,
+          0.17777777777777778,
+          0.8238993710691824,
+          0.8253968253968254
+        ],
+        "size": [
+          205,
+          204
+        ],
+        "pixels": 40349
+      },
+      "skill_holes": []
+    },
+    {
+      "file": "assets/ui/party/frames/party_slot_bar.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        479,
+        715,
+        935,
+        888
+      ],
+      "size": [
+        457,
+        174
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 13179,
+      "chrome_pixels": 66339,
+      "portrait_hole": {
+        "rect": [
+          43,
+          38,
+          139,
+          135
+        ],
+        "uv": [
+          0.09409190371991247,
+          0.21839080459770116,
+          0.3063457330415755,
+          0.7816091954022989
+        ],
+        "size": [
+          97,
+          98
+        ],
+        "pixels": 8954
+      },
+      "skill_holes": [
+        {
+          "rect": [
+            43,
+            38,
+            139,
+            135
+          ],
+          "uv": [
+            0.09409190371991247,
+            0.21839080459770116,
+            0.3063457330415755,
+            0.7816091954022989
+          ],
+          "size": [
+            97,
+            98
+          ],
+          "pixels": 8954
+        }
+      ]
+    },
+    {
+      "file": "assets/ui/party/frames/detail_panel.png",
+      "source": "01_UI_Frames_Atlas.png",
+      "source_rect": [
+        992,
+        651,
+        1506,
+        949
+      ],
+      "size": [
+        515,
+        299
+      ],
+      "has_real_alpha": false,
+      "white_to_alpha": true,
+      "white_pixels": 23821,
+      "chrome_pixels": 130164,
+      "portrait_hole": {
+        "rect": [
+          253,
+          25,
+          258,
+          31
+        ],
+        "uv": [
+          0.4912621359223301,
+          0.08361204013377926,
+          0.5029126213592233,
+          0.10702341137123746
+        ],
+        "pixels": 18
+      },
+      "skill_holes": []
+    }
+  ],
+  "notes": "Sheet01 had opaque white fills converted to alpha. Painted portraits/skills unused (pixel roster kept).",
+  "unused": {
+    "painted_portraits": "03/04/05 sheet samples — style mismatch vs GDD pixel roster; not applied",
+    "painted_skill_icons": "03/04/05 — no 1:1 map to GameState skills; kept existing item/icon remaps",
+    "job_icons_archer_thief": "sheet has archer/thief — GDD jobs are tank/dps/healer/mage/lord only",
+    "generative_hangul_labels": "never used as UI text",
+    "card_frame_compact": "extracted but unused this PR",
+    "icon_frame": "extracted but unused this PR"
+  },
+  "skill_mapping": {
+    "지휘": "res://assets/sprites/icons/guild.png (existing)",
+    "방패 막기": "res://assets/items/crest_shield.png",
+    "연속 베기": "res://assets/items/blade_zwei.png",
+    "치유": "res://assets/items/health_potion.png",
+    "마력탄": "res://assets/items/crystal_shadow.png",
+    "kit_painted_skills": "UNMAPPED — not wired"
+  }
+}
