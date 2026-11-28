@@ -86,6 +86,7 @@ var _party_row: HBoxContainer
 var _count_label: Label
 var _comp_label: Label
 var _avg_label: Label
+var _comp_jobs_host: HBoxContainer
 var _skill_desc: Label
 var _demo_host: Control
 var _demo_sprite: AnimatedSprite2D
@@ -419,20 +420,32 @@ func _build_header() -> Control:
 	close_b.pressed.connect(func(): closed.emit())
 	tabs.add_child(close_b)
 
-	# Row 1b — compact party composition (live; not duplicated in bottom strip)
+	# Row 1b — compact party composition (count | job icons | bonus). Same height budget.
 	var comp_row := HBoxContainer.new()
 	comp_row.name = "PartyCompRow"
-	comp_row.add_theme_constant_override("separation", 8)
+	comp_row.add_theme_constant_override("separation", 6)
+	comp_row.custom_minimum_size = Vector2(0, 18)
 	vb.add_child(comp_row)
 	_count_label = UIStyle.label("", 10 if not _dense else 9, METAL_GOLD_BRIGHT)
 	comp_row.add_child(_count_label)
-	_comp_label = UIStyle.label("", 9 if not _dense else 8, INK)
-	_comp_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_comp_label.clip_text = true
-	_comp_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	comp_row.add_child(_make_comp_separator())
+	_comp_jobs_host = HBoxContainer.new()
+	_comp_jobs_host.name = "CompJobChips"
+	_comp_jobs_host.add_theme_constant_override("separation", 6)
+	_comp_jobs_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	comp_row.add_child(_comp_jobs_host)
+	# Fallback text host kept for empty-party messaging (chips carry job counts).
+	_comp_label = UIStyle.label("", 9 if not _dense else 8, INK_DIM)
+	_comp_label.visible = false
 	comp_row.add_child(_comp_label)
-	_avg_label = UIStyle.label("", 9 if not _dense else 8, INK_DIM)
-	comp_row.add_child(_avg_label)
+	var bonus_wrap := HBoxContainer.new()
+	bonus_wrap.name = "CompBonusWrap"
+	bonus_wrap.add_theme_constant_override("separation", 6)
+	bonus_wrap.visible = false
+	comp_row.add_child(bonus_wrap)
+	bonus_wrap.add_child(_make_comp_separator())
+	_avg_label = UIStyle.label("", 9 if not _dense else 8, UIStyle.OK)
+	bonus_wrap.add_child(_avg_label)
 
 	# Row 2 — compact sort + job filter toolbar (separate from composition)
 	var tools := HBoxContainer.new()
@@ -1381,8 +1394,14 @@ func _stat_bar_caps(job: String) -> Dictionary:
 	}
 
 
+func _detail_section_sep() -> Control:
+	var sep := HSeparator.new()
+	sep.custom_minimum_size = Vector2(0, 6)
+	return sep
+
+
 func _populate_detail() -> void:
-	## Tidy Design A: compact hero+select / unified bars / skills — image must not dominate.
+	## Kit detail: top image+meta / mid stats / bottom skills+preview. Image stays in top band.
 	if _detail_box == null:
 		return
 	for c in _detail_box.get_children():
@@ -1399,22 +1418,27 @@ func _populate_detail() -> void:
 		_skill_desc = null
 		return
 
-	_detail_box.add_theme_constant_override("separation", 6 if not _dense else 4)
+	_detail_box.add_theme_constant_override("separation", 4 if not _dense else 3)
 	var mid := str(m.get("id", ""))
 	var job := str(m.get("job", "dps"))
 	var preview := GameState.compute_combat_preview(m)
 	var caps := _stat_bar_caps(job)
 	var in_draft := _draft_ids.has(mid)
 
-	# --- Top: portrait + name/job/lv + 편성 select (compact, not full-panel hero) ---
+	# --- Top: fixed-size portrait + name/job/lv + unassign (cannot invade stats) ---
 	var hero := HBoxContainer.new()
+	hero.name = "DetailHero"
 	hero.add_theme_constant_override("separation", 8 if not _dense else 6)
 	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_detail_box.add_child(hero)
 
+	var face_side := 72.0 if not _dense else 52.0
 	var stage := PanelContainer.new()
-	stage.custom_minimum_size = Vector2(96 if not _dense else 64, 96 if not _dense else 64)
+	stage.custom_minimum_size = Vector2(face_side + 8.0, face_side + 8.0)
 	stage.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stage.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stage.clip_contents = true
 	stage.add_theme_stylebox_override("panel", _style_inset())
 	hero.add_child(stage)
 	var stage_center := CenterContainer.new()
@@ -1422,7 +1446,6 @@ func _populate_detail() -> void:
 	stage.add_child(stage_center)
 	var pface := TextureRect.new()
 	pface.texture = _card_portrait_for(job)
-	var face_side := 84.0 if not _dense else 56.0
 	pface.custom_minimum_size = Vector2(face_side, face_side)
 	pface.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pface.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -1431,14 +1454,17 @@ func _populate_detail() -> void:
 
 	var meta := VBoxContainer.new()
 	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	meta.add_theme_constant_override("separation", 3)
 	hero.add_child(meta)
-	var name_l := UIStyle.label(str(m.get("name", "")), 16 if not _dense else 13, METAL_GOLD_BRIGHT)
+	var name_l := UIStyle.label(str(m.get("name", "")), 15 if not _dense else 12, METAL_GOLD_BRIGHT)
+	name_l.clip_text = true
+	name_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	meta.add_child(name_l)
 	meta.add_child(UIStyle.label("%s · Lv.%d" % [UIStyle.job_name(job), int(m.get("level", 1))], 11 if not _dense else 9, INK))
 	var select_b := Button.new()
 	select_b.text = "편성 해제" if in_draft else "편성"
-	select_b.custom_minimum_size = Vector2(0, 26 if not _dense else 22)
+	select_b.custom_minimum_size = Vector2(0, 24 if not _dense else 20)
 	_apply_metal_button(select_b, not in_draft)
 	select_b.pressed.connect(func():
 		_toggle_draft(mid)
@@ -1446,20 +1472,28 @@ func _populate_detail() -> void:
 	)
 	meta.add_child(select_b)
 
-	# --- Mid: unified HP/ATK/DEF bars from real preview ---
+	_detail_box.add_child(_detail_section_sep())
+
+	# --- Mid: HP / ATK / DEF separated from portrait and skills ---
 	var stats_sec := VBoxContainer.new()
+	stats_sec.name = "DetailStats"
 	stats_sec.add_theme_constant_override("separation", 3)
 	stats_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_sec.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_detail_box.add_child(stats_sec)
 	stats_sec.add_child(UIStyle.label("능력치", 11 if not _dense else 10, METAL_GOLD))
 	stats_sec.add_child(_bar_stat("HP", int(preview.get("hp", 0)), int(caps.get("hp", 300)), Color(0.75, 0.28, 0.28)))
 	stats_sec.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), int(caps.get("atk", 80)), Color(0.85, 0.65, 0.25)))
 	stats_sec.add_child(_bar_stat("DEF", int(preview.get("def", 0)), int(caps.get("def", 60)), Color(0.35, 0.55, 0.85)))
 
-	# --- Bottom: real skills ≤3/row, square icon + name + short effect ---
+	_detail_box.add_child(_detail_section_sep())
+
+	# --- Bottom: real skills icon/name/desc + preview (anim/FX only, no combat mutate) ---
 	var skills_sec := VBoxContainer.new()
+	skills_sec.name = "DetailSkills"
 	skills_sec.add_theme_constant_override("separation", 3)
 	skills_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skills_sec.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_detail_box.add_child(skills_sec)
 	skills_sec.add_child(UIStyle.label("스킬", 11 if not _dense else 10, METAL_GOLD))
 
@@ -1469,6 +1503,8 @@ func _populate_detail() -> void:
 	if skills.is_empty():
 		skills_sec.add_child(UIStyle.label("(등록된 스킬 없음)", 11, INK_DIM))
 		_skill_desc = null
+		_demo_host = null
+		_demo_note = null
 		return
 
 	if _selected_skill == "" or not skills.has(_selected_skill):
@@ -1481,13 +1517,13 @@ func _populate_detail() -> void:
 	sk_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	skills_sec.add_child(sk_grid)
 
-	var icon_sz := 24.0 if not _dense else 20.0
+	var icon_sz := 22.0 if not _dense else 18.0
 	for sk in skills:
 		var sk_name := str(sk)
 		if sk_name == "":
 			continue
 		var sb := Button.new()
-		sb.custom_minimum_size = Vector2(78 if not _dense else 58, 58 if not _dense else 48)
+		sb.custom_minimum_size = Vector2(72 if not _dense else 54, 52 if not _dense else 44)
 		sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_apply_metal_button(sb)
 		if sk_name == _selected_skill:
@@ -1541,6 +1577,33 @@ func _populate_detail() -> void:
 	_skill_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	skills_sec.add_child(_skill_desc)
 	_update_skill_desc()
+
+	# Preview button + demo stage (SpriteFactory anim only — no combat HP/MP/CD mutation).
+	var demo_btn := Button.new()
+	demo_btn.text = "스킬 미리보기"
+	demo_btn.custom_minimum_size = Vector2(0, 22 if not _dense else 20)
+	_apply_metal_button(demo_btn)
+	demo_btn.pressed.connect(_play_skill_demo)
+	skills_sec.add_child(demo_btn)
+
+	_demo_host = Control.new()
+	_demo_host.name = "SkillDemoHost"
+	_demo_host.custom_minimum_size = Vector2(0, 48 if not _dense else 40)
+	_demo_host.clip_contents = true
+	_demo_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skills_sec.add_child(_demo_host)
+	var demo_bg := PanelContainer.new()
+	demo_bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	demo_bg.add_theme_stylebox_override("panel", _style_inset())
+	_demo_host.add_child(demo_bg)
+	_demo_note = UIStyle.label("선택 스킬 미리보기 · 전투 수치 미적용", 8, INK_DIM)
+	_demo_note.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
+	_demo_note.offset_top = -16
+	_demo_note.offset_bottom = -2
+	_demo_note.offset_left = 4
+	_demo_note.offset_right = -4
+	_demo_host.add_child(_demo_note)
 
 
 func _bar_stat(label: String, value: int, cap: int, fill: Color = Color(0.55, 0.72, 0.35)) -> Control:
@@ -1601,15 +1664,16 @@ func _update_skill_desc() -> void:
 
 
 func _play_skill_demo() -> void:
-	if _demo_host == null:
+	## Preview-only: play existing SpriteFactory ally anim. Never mutates combat HP/MP/CD/state.
+	if _demo_host == null or not is_instance_valid(_demo_host):
 		return
 	for c in _demo_host.get_children():
-		if c is AnimatedSprite2D or c is Label:
+		if c is AnimatedSprite2D:
 			c.queue_free()
 	_demo_sprite = null
 	var m := GameState.get_member_by_id(_focus_id)
 	if m.is_empty():
-		if _demo_note:
+		if _demo_note and is_instance_valid(_demo_note):
 			_demo_note.text = "대상 없음"
 		return
 	var job := str(m.get("job", "dps"))
@@ -1617,22 +1681,24 @@ func _play_skill_demo() -> void:
 	var demo := str(info.get("demo", "attack" if _selected_skill != "" else "idle"))
 	var frames := SpriteFactory.ally_frames(job)
 	if frames == null:
-		if _demo_note:
+		if _demo_note and is_instance_valid(_demo_note):
 			_demo_note.text = "미리보기 불가 — 스프라이트 없음"
 		return
 	var anim := &"attack" if demo == "attack" and frames.has_animation("attack") else &"idle"
 	if not frames.has_animation(anim):
-		if _demo_note:
+		if _demo_note and is_instance_valid(_demo_note):
 			_demo_note.text = "미리보기 불가 — 애니 없음"
 		return
 	_demo_sprite = AnimatedSprite2D.new()
 	_demo_sprite.sprite_frames = frames
 	_demo_sprite.animation = anim
 	_demo_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_demo_sprite.scale = Vector2(1.25, 1.25)
-	_demo_sprite.position = Vector2(100, 95)
+	_demo_sprite.scale = Vector2(1.0, 1.0) if _dense else Vector2(1.15, 1.15)
+	var host_w := maxf(_demo_host.size.x, 120.0)
+	var host_h := maxf(_demo_host.size.y, 40.0)
+	_demo_sprite.position = Vector2(host_w * 0.5, host_h * 0.55)
 	_demo_sprite.centered = true
-	_demo_sprite.offset = Vector2(0, -26)
+	_demo_sprite.offset = Vector2(0, -10)
 	_demo_host.add_child(_demo_sprite)
 	_demo_sprite.play()
 	if anim == &"attack":
@@ -1641,7 +1707,7 @@ func _play_skill_demo() -> void:
 				_demo_sprite.animation = &"idle"
 				_demo_sprite.play()
 		, CONNECT_ONE_SHOT)
-	if _demo_note:
+	if _demo_note and is_instance_valid(_demo_note):
 		if info.is_empty() and _selected_skill != "":
 			_demo_note.text = "등록 메타 없음 → 직업 공격/대기 애니로 대체 미리보기"
 		else:
@@ -1755,33 +1821,56 @@ func _refresh_lists_only() -> void:
 	_populate_party_strip()
 
 
+func _make_comp_separator() -> Control:
+	var sep := VSeparator.new()
+	sep.custom_minimum_size = Vector2(2, 14)
+	return sep
+
+
+func _make_job_chip(job: String, count: int) -> Control:
+	## Real job portrait as icon — no invented art paths.
+	var chip := HBoxContainer.new()
+	chip.add_theme_constant_override("separation", 3)
+	var ir := TextureRect.new()
+	ir.texture = _card_portrait_for(job)
+	ir.custom_minimum_size = Vector2(14, 14)
+	ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(ir)
+	var lab := UIStyle.label("%s×%d" % [UIStyle.job_name(job), count], 9 if not _dense else 8, INK)
+	chip.add_child(lab)
+	return chip
+
+
 func _update_summary_labels() -> void:
-	## Live party composition under type tabs (job counts + role bonus if present).
+	## Live compact row: count | real job chips | bonus (only if draft has roles).
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	if _count_label:
-		_count_label.text = "선택 %d/%d" % [_draft_ids.size(), max_n]
-	var sum_lv := 0
+		_count_label.text = "%d/%d" % [_draft_ids.size(), max_n]
 	var jobs := {}
 	for mid in _draft_ids:
 		var m := GameState.get_member_by_id(str(mid))
-		sum_lv += int(m.get("level", 1))
 		var j := str(m.get("job", ""))
-		jobs[j] = int(jobs.get(j, 0)) + 1
-	if _avg_label:
-		if _draft_ids.is_empty():
-			_avg_label.text = "평균 —"
+		if j != "":
+			jobs[j] = int(jobs.get(j, 0)) + 1
+	if _comp_jobs_host and is_instance_valid(_comp_jobs_host):
+		for c in _comp_jobs_host.get_children():
+			c.free()
+		if jobs.is_empty():
+			_comp_jobs_host.add_child(UIStyle.label("구성 없음", 9 if not _dense else 8, INK_DIM))
 		else:
-			_avg_label.text = "평균 Lv.%d" % int(round(float(sum_lv) / float(_draft_ids.size())))
+			for j in JOB_FILTERS:
+				if j == "all":
+					continue
+				var n: int = int(jobs.get(j, 0))
+				if n > 0:
+					_comp_jobs_host.add_child(_make_job_chip(j, n))
 	if _comp_label:
-		var parts: PackedStringArray = PackedStringArray()
-		for j in JOB_FILTERS:
-			if j == "all":
-				continue
-			var n: int = int(jobs.get(j, 0))
-			if n > 0:
-				parts.append("%s %d" % [UIStyle.job_name(j), n])
-		var comp := " · ".join(parts) if parts.size() > 0 else "구성 없음"
-		# Role bonus line from real draft jobs (same rules as former strip helper).
+		_comp_label.visible = false
+		_comp_label.text = ""
+	if _avg_label:
 		var bonus_parts: PackedStringArray = PackedStringArray()
 		if jobs.has("tank"):
 			bonus_parts.append("탱커")
@@ -1791,9 +1880,15 @@ func _update_summary_labels() -> void:
 			bonus_parts.append("딜러")
 		if jobs.has("lord"):
 			bonus_parts.append("군주")
+		var bonus_wrap := _avg_label.get_parent() as Control
 		if bonus_parts.size() > 0:
-			comp += "  |  보너스: " + ("·".join(bonus_parts))
-		_comp_label.text = comp
+			_avg_label.text = "보너스 " + ("·".join(bonus_parts))
+			if bonus_wrap:
+				bonus_wrap.visible = true
+		else:
+			_avg_label.text = ""
+			if bonus_wrap:
+				bonus_wrap.visible = false
 
 
 func _style_filter_buttons() -> void:
