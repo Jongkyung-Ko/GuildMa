@@ -1111,15 +1111,25 @@ func _open_formation(kind: String) -> void:
 func _fit_formation() -> void:
 	if _formation == null or not is_instance_valid(_formation):
 		return
-	var nav_w := 96.0 if _dense else 112.0
-	var gap := 6.0 if _dense else 8.0
+	## Narrower nav so formation mid + detail stay fully on-screen.
+	var nav_w := 84.0 if _dense else 96.0
+	var gap := 4.0 if _dense else 6.0
 	var area := _body_host.size
 	if area.x < 8.0 or area.y < 8.0:
 		area = Vector2(maxf(size.x - 16.0, 640.0), maxf(size.y - 120.0, 280.0))
+	var nav_scroll := _body_host.get_node_or_null("NavScroll") as ScrollContainer
+	if nav_scroll:
+		nav_scroll.size = Vector2(nav_w, area.y)
+		nav_scroll.custom_minimum_size = Vector2(nav_w, area.y)
+	if _nav_box:
+		_nav_box.custom_minimum_size = Vector2(nav_w - 4.0, 0)
 	var fpos := Vector2(nav_w + gap, 0)
-	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap), maxf(200.0, area.y))
+	# Leave a 4px safety gutter so detail chrome never paints past the window edge.
+	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap - 4.0), maxf(200.0, area.y))
 	_formation.position = fpos
+	_formation.clip_contents = true
 	_formation.custom_minimum_size = fsize
+	_formation.custom_maximum_size = fsize
 	_formation.set_deferred("size", fsize)
 
 

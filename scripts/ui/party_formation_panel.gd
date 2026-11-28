@@ -57,10 +57,11 @@ const KIT_CARD_DEFAULT := "res://assets/ui/party/frames/card_frame_default.png"
 const KIT_CARD_SELECTED := "res://assets/ui/party/frames/card_frame_selected.png"
 const KIT_DETAIL_PANEL := "res://assets/ui/party/frames/detail_panel.png"
 const KIT_PARTY_SLOT := "res://assets/ui/party/frames/party_slot_bar.png"
-## Rect2 = (x0, y0, w, h) in 0–1 frame space (default card 340×548).
+## Rect2 = (x0, y0, w, h) in 0–1 frame space — always paired with `card_frame_default`
+## (340×548). Selected state uses a badge, not the differently-proportioned selected PNG.
 const KIT_PORTRAIT_UV := Rect2(0.132, 0.141, 0.730, 0.445)
-const KIT_NAME_UV := Rect2(0.14, 0.600, 0.72, 0.085)
-const KIT_STATS_UV := Rect2(0.14, 0.685, 0.72, 0.070)
+const KIT_NAME_UV := Rect2(0.14, 0.600, 0.72, 0.078)
+const KIT_STATS_UV := Rect2(0.14, 0.678, 0.72, 0.078)
 const KIT_SKILL_UVS := [
 	Rect2(0.162, 0.766, 0.168, 0.102),
 	Rect2(0.421, 0.766, 0.165, 0.100),
@@ -296,12 +297,15 @@ func _rebuild() -> void:
 	_kind_buttons.clear()
 	_demo_sprite = null
 	_grid_fit_w = 0.0
+	_ensure_row_tries = 0
 	_grid_scroll = null
 	_grid = null
 
+	clip_contents = true
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 4 if _dense else 5)
+	root.clip_contents = true
+	root.add_theme_constant_override("separation", 3 if _dense else 4)
 	add_child(root)
 
 	root.add_child(_build_header())
@@ -309,14 +313,17 @@ func _rebuild() -> void:
 	mid.name = "FormationMid"
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mid.size_flags_stretch_ratio = 1.0
-	mid.add_theme_constant_override("separation", 6 if _dense else 8)
+	mid.clip_contents = true
+	mid.add_theme_constant_override("separation", 4 if _dense else 6)
 	root.add_child(mid)
 	mid.add_child(_build_member_column())
+	# Dense 844: list-first; detail becomes a slim column that must not push past the window.
 	mid.add_child(_build_detail_column())
 	var party := _build_party_strip()
 	party.size_flags_vertical = Control.SIZE_SHRINK_END
 	root.add_child(party)
 	call_deferred("_ensure_first_row_uncut")
+	call_deferred("_clamp_detail_width")
 
 
 func _build_header() -> Control:
@@ -405,9 +412,10 @@ func _member_grid_columns() -> int:
 
 
 func _build_member_column() -> Control:
+	## Widest column — ornate Aren card lives here as a normal grid cell (not a floating hero).
 	var panel := _make_stone_panel()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.size_flags_stretch_ratio = 2.15
+	panel.size_flags_stretch_ratio = 2.6 if not _dense else 1.0
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 3)
@@ -422,28 +430,21 @@ func _build_member_column() -> Control:
 	_grid.columns = _member_grid_columns()
 	_grid.add_theme_constant_override("h_separation", 8 if _dense else 10)
 	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Do not force-stretch grid to full width — keeps fixed card sizes from floating in fat cells.
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_grid_scroll.add_child(_grid)
 	_populate_grid()
-	# Fit after ScrollContainer has a real size (no resized hook — avoids layout feedback loops).
 	call_deferred("_fit_member_grid_width")
 	return panel
 
 
 func _fit_member_grid_width() -> void:
-	## Stretch cards across the scroll viewport so the list pane is not left-aligned empty.
+	## Only sync column count; do not inflate card widths to fill the pane.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
-	var w := _grid_scroll.size.x
-	if w < 32.0:
-		# Try once more next frame when parent layout finishes.
+	if _grid_scroll.size.x < 32.0:
 		call_deferred("_fit_member_grid_width_retry")
 		return
-	var target := maxf(w - 6.0, 64.0)
-	if absf(target - _grid_fit_w) < 0.5:
-		return
-	_grid_fit_w = target
-	_grid.custom_minimum_size.x = target
 	var cols := _member_grid_columns()
 	if _grid.columns != cols:
 		_grid.columns = cols
@@ -456,21 +457,35 @@ func _fit_member_grid_width_retry() -> void:
 		_fit_member_grid_width()
 
 
+var _ensure_row_tries: int = 0
+
 func _ensure_first_row_uncut() -> void:
-	## If content-driven card height exceeds the list viewport, shrink portrait wells
-	## so stats+skills remain on the first paint (scroll is for more cards, not card bottoms).
+	## Shrink standard cards only. Ornate prototype keeps frame UV geometry —
+	## scale the whole card down if the viewport is shorter than the kit card.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	var view_h := _grid_scroll.size.y
 	if view_h < 48.0:
-		call_deferred("_ensure_first_row_uncut")
+		_ensure_row_tries += 1
+		if _ensure_row_tries < 8:
+			call_deferred("_ensure_first_row_uncut")
 		return
-	var max_card_h := maxf(view_h - 6.0, 140.0)
+	_ensure_row_tries = 0
+	var max_card_h := maxf(view_h - 8.0, 140.0)
 	var changed := false
 	for c in _grid.get_children():
 		if not (c is Control):
 			continue
 		var card := c as Control
+		if str(card.name) == "OrnatePrototypeCard":
+			var target_h := mini(card.custom_minimum_size.y, max_card_h)
+			# Keep aspect ~340:548 from default frame.
+			var target_w := target_h * (340.0 / 548.0)
+			if absf(card.custom_minimum_size.y - target_h) > 0.5:
+				card.custom_minimum_size = Vector2(target_w, target_h)
+				card.size = Vector2(target_w, target_h)
+				changed = true
+			continue
 		var need := card.get_combined_minimum_size().y
 		if need <= max_card_h + 0.5:
 			continue
@@ -493,29 +508,48 @@ func _ensure_first_row_uncut() -> void:
 		_grid.queue_sort()
 
 
+func _clamp_detail_width() -> void:
+	## Detail is fixed-width SHRINK_END; only ensure the shell clips.
+	if is_inside_tree():
+		clip_contents = true
+
+
 func _build_detail_column() -> Control:
-	## Kit detail panel as sole chrome (no second stone frame on top).
-	var host := Control.new()
-	host.custom_minimum_size = Vector2(250 if not _dense else 200, 0)
-	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	host.size_flags_stretch_ratio = 0.9
+	## Kit detail chrome; hard-capped so mid+detail never spill past the window.
+	var host := PanelContainer.new()
+	host.name = "DetailColumn"
+	## Fixed slim column — SHRINK_END so it cannot expand mid past the window.
+	var detail_w := 180.0 if not _dense else 140.0
+	host.custom_minimum_size = Vector2(detail_w, 0)
+	host.custom_maximum_size = Vector2(detail_w, 0)
+	host.size_flags_horizontal = Control.SIZE_SHRINK_END
 	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	host.clip_contents = true
+	var empty_sb := StyleBoxEmpty.new()
+	host.add_theme_stylebox_override("panel", empty_sb)
+	var layer := Control.new()
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layer.custom_minimum_size = Vector2(140, 120)
+	host.add_child(layer)
 	var bg := TextureRect.new()
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.texture = _tex(KIT_DETAIL_PANEL)
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
-	bg.set_anchors_preset(PRESET_FULL_RECT)
+	bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	host.add_child(bg)
+	layer.add_child(bg)
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	scroll.offset_left = 14
-	scroll.offset_top = 14
-	scroll.offset_right = -14
-	scroll.offset_bottom = -14
+	# Inset past ornate rim so text does not sit on gold decoration.
+	scroll.offset_left = 18 if not _dense else 12
+	scroll.offset_top = 16 if not _dense else 12
+	scroll.offset_right = -18 if not _dense else -12
+	scroll.offset_bottom = -16 if not _dense else -12
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	host.add_child(scroll)
+	layer.add_child(scroll)
 	_detail_box = VBoxContainer.new()
 	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_box.add_theme_constant_override("separation", 6)
@@ -639,21 +673,20 @@ func _populate_grid() -> void:
 # ---------------------------------------------------------------------------
 
 func _make_prototype_ornate_card(m: Dictionary) -> Control:
-	## Vertical namecard from kit `01` frames. Real GameState data + pixel portrait.
-	## Geometry ~190–205 × 270–295. TextureRect scale (not NinePatch — ornate corners).
+	## Compact vertical kit card for m_lord only — sits in the guild list grid.
+	## Start ~180×255 (PC) / ~168×235 (dense); UV locked to card_frame_default.
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
-	var selected := in_draft or focused
-	var card_w := 190.0 if _dense else 205.0
-	var card_h := 275.0 if _dense else 295.0
+	var card_w := 156.0 if _dense else 176.0
+	var card_h := 220.0 if _dense else 242.0
 
 	var card := Button.new()
 	card.name = "OrnatePrototypeCard"
 	card.flat = true
 	card.clip_contents = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
-	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	card.size = Vector2(card_w, card_h)
 	UIStyle.apply_button(card)
@@ -668,66 +701,108 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	card.add_child(root)
 
-	# Pixel roster portrait behind frame hole (do not use painted sheet samples).
+	# Dark fill in portrait hole, then sharp pixel portrait (NEAREST, no COVER upscale mush).
+	var hole_fill := ColorRect.new()
+	hole_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hole_fill.color = Color(0.03, 0.025, 0.02, 1)
+	_ornate_apply_uv(hole_fill, KIT_PORTRAIT_UV)
+	root.add_child(hole_fill)
+	var portrait_host := CenterContainer.new()
+	portrait_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ornate_apply_uv(portrait_host, KIT_PORTRAIT_UV)
+	root.add_child(portrait_host)
 	var portrait := TextureRect.new()
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait.texture = _card_portrait_for(str(m.get("job", "lord")))
+	# Cap display size near source (96×96 atlas) — prefer sharp over huge blurry blow-up.
+	var face_side := 80.0 if _dense else 96.0
+	portrait.custom_minimum_size = Vector2(face_side, face_side)
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_ornate_apply_uv(portrait, KIT_PORTRAIT_UV)
-	root.add_child(portrait)
+	portrait_host.add_child(portrait)
 
+	# Always default frame for UV fidelity (selected PNG has different aspect/holes).
 	var frame := TextureRect.new()
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.texture = _tex(KIT_CARD_SELECTED if selected else KIT_CARD_DEFAULT)
+	frame.texture = _tex(KIT_CARD_DEFAULT)
 	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	frame.stretch_mode = TextureRect.STRETCH_SCALE
 	frame.set_anchors_preset(PRESET_FULL_RECT)
 	frame.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	root.add_child(frame)
+	if in_draft or focused:
+		var rim := PanelContainer.new()
+		rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rim.set_anchors_preset(PRESET_FULL_RECT)
+		var rsb := StyleBoxFlat.new()
+		rsb.bg_color = Color(0, 0, 0, 0)
+		rsb.border_color = METAL_GOLD_BRIGHT if focused else UIStyle.OK
+		rsb.set_border_width_all(2)
+		rsb.set_corner_radius_all(6)
+		rim.add_theme_stylebox_override("panel", rsb)
+		root.add_child(rim)
 
 	var name_host := Control.new()
 	name_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_host.clip_contents = true
 	_ornate_apply_uv(name_host, KIT_NAME_UV)
 	root.add_child(name_host)
 	var name_col := VBoxContainer.new()
 	name_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_col.set_anchors_preset(PRESET_FULL_RECT)
 	name_col.alignment = BoxContainer.ALIGNMENT_CENTER
-	name_col.add_theme_constant_override("separation", 1)
+	name_col.add_theme_constant_override("separation", 0)
 	name_host.add_child(name_col)
 	var name_row := HBoxContainer.new()
 	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	name_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	name_row.add_theme_constant_override("separation", 6)
+	name_row.add_theme_constant_override("separation", 4)
 	name_col.add_child(name_row)
-	var name_l := UIStyle.label(str(m.get("name", "")), 15 if not _dense else 13, METAL_GOLD_BRIGHT)
+	var name_l := UIStyle.label(str(m.get("name", "")), 13 if not _dense else 12, METAL_GOLD_BRIGHT)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_row.add_child(name_l)
 	if in_draft:
-		name_row.add_child(UIStyle.label("선택", 9, UIStyle.OK))
+		name_row.add_child(UIStyle.label("선택", 8, UIStyle.OK))
 	elif focused:
-		name_row.add_child(UIStyle.label("포커스", 9, METAL_GOLD))
+		name_row.add_child(UIStyle.label("포커스", 8, METAL_GOLD))
 	var job_l := UIStyle.label("%s · Lv.%d" % [
 		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
-	], 11 if not _dense else 10, INK)
+	], 10 if not _dense else 9, INK)
 	job_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_col.add_child(job_l)
 
+	# Compact one-line stats — chip stacks do not fit the kit stats band (~0.078 UV).
 	var stats_host := Control.new()
 	stats_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats_host.clip_contents = true
 	_ornate_apply_uv(stats_host, KIT_STATS_UV)
 	root.add_child(stats_host)
 	var preview := GameState.compute_combat_preview(m)
-	var chips := _stat_chip_row(
-		int(preview.get("hp", 0)),
-		int(preview.get("atk", 0)),
-		int(preview.get("def", 0))
-	)
-	chips.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	stats_host.add_child(chips)
+	var stats_row := HBoxContainer.new()
+	stats_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_row.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	stats_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	stats_row.add_theme_constant_override("separation", 6 if not _dense else 4)
+	stats_host.add_child(stats_row)
+	for pair in [
+		["HP", int(preview.get("hp", 0)), Color(1.0, 0.55, 0.5)],
+		["ATK", int(preview.get("atk", 0)), Color(1.0, 0.85, 0.45)],
+		["DEF", int(preview.get("def", 0)), Color(0.65, 0.8, 1.0)],
+	]:
+		var cell := VBoxContainer.new()
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.alignment = BoxContainer.ALIGNMENT_CENTER
+		cell.add_theme_constant_override("separation", 0)
+		var lab := UIStyle.label(str(pair[0]), 8, INK_DIM)
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lab.add_theme_color_override("font_color", pair[2])
+		cell.add_child(lab)
+		var val := UIStyle.label(str(pair[1]), 12 if not _dense else 11, METAL_GOLD_BRIGHT)
+		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cell.add_child(val)
+		stats_row.add_child(cell)
 
 	var skills: Array = m.get("skills", [])
 	for i in 3:
@@ -736,10 +811,10 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 		_ornate_apply_uv(well, KIT_SKILL_UVS[i])
 		root.add_child(well)
 		var sk := str(skills[i]) if i < skills.size() else ""
-		var cell := CenterContainer.new()
-		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.set_anchors_preset(PRESET_FULL_RECT)
-		well.add_child(cell)
+		var cell2 := CenterContainer.new()
+		cell2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell2.set_anchors_preset(PRESET_FULL_RECT)
+		well.add_child(cell2)
 		if sk != "":
 			var tex := _skill_tex(sk)
 			if tex:
@@ -751,11 +826,17 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 				ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				ir.tooltip_text = sk
-				cell.add_child(ir)
+				cell2.add_child(ir)
 			else:
-				var cap := UIStyle.label(sk.substr(0, 2), 10, INK)
+				var cap := UIStyle.label(sk.substr(0, 2), 9, INK)
 				cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-				cell.add_child(cap)
+				cell2.add_child(cap)
+		else:
+			var empty := ColorRect.new()
+			empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			empty.color = Color(0.08, 0.06, 0.04, 0.55)
+			empty.custom_minimum_size = Vector2(18, 18)
+			cell2.add_child(empty)
 
 	card.pressed.connect(func():
 		if _focus_id == mid:
@@ -803,7 +884,7 @@ func _make_member_card(m: Dictionary) -> Control:
 	card.flat = true
 	card.clip_contents = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(card)
 	var flat_sb := StyleBoxEmpty.new()
@@ -1077,11 +1158,10 @@ func _populate_detail() -> void:
 		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
 	], 12, INK))
 
-	# Single portrait stage (same atlas as namecards). Combat idle sprite only appears
-	# after "스킬 미리보기 재생" — never side-by-side with this face.
+	# Compact detail face (list card already shows the framed hero). Sharp NEAREST, not blown up.
 	var stage := PanelContainer.new()
 	stage.add_theme_stylebox_override("panel", _style_inset())
-	stage.custom_minimum_size = Vector2(0, 84 if _dense else 104)
+	stage.custom_minimum_size = Vector2(0, 72 if _dense else 88)
 	_detail_box.add_child(stage)
 	var stage_center := CenterContainer.new()
 	stage_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1089,27 +1169,25 @@ func _populate_detail() -> void:
 	stage.add_child(stage_center)
 	var pface := TextureRect.new()
 	pface.texture = _card_portrait_for(str(m.get("job", "dps")))
-	pface.custom_minimum_size = Vector2(72 if _dense else 92, 72 if _dense else 92)
+	pface.custom_minimum_size = Vector2(64 if _dense else 80, 64 if _dense else 80)
 	pface.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pface.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	pface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	stage_center.add_child(pface)
 
 	var preview := GameState.compute_combat_preview(m)
-	_detail_box.add_child(UIStyle.label("기본 정보", 12, METAL_GOLD))
+	_detail_box.add_child(UIStyle.label("능력치", 12, METAL_GOLD))
 	_detail_box.add_child(_bar_stat("HP", int(preview.get("hp", 0)), 300, Color(0.75, 0.28, 0.28)))
 	_detail_box.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), 80, Color(0.85, 0.65, 0.25)))
 	_detail_box.add_child(_bar_stat("DEF", int(preview.get("def", 0)), 60, Color(0.35, 0.55, 0.85)))
-	_detail_box.add_child(_bar_stat("SPD", int(preview.get("spd", 0)), 220, Color(0.45, 0.75, 0.45)))
 
-	_detail_box.add_child(UIStyle.label("공격 패턴 (직업 기본)", 12, METAL_GOLD))
-	for line in _job_patterns(str(m.get("job", ""))):
-		_detail_box.add_child(UIStyle.label("· " + line, 11, INK_DIM))
-
-	_detail_box.add_child(UIStyle.label("스킬", 13, METAL_GOLD))
+	_detail_box.add_child(UIStyle.label("대표 스킬", 12, METAL_GOLD))
 	var skills: Array = m.get("skills", [])
 	if skills.is_empty():
 		_detail_box.add_child(UIStyle.label("(등록된 스킬 없음)", 12, INK_DIM))
+		_skill_desc = null
+		_demo_host = null
+		_demo_note = null
 	else:
 		var sk_row := HBoxContainer.new()
 		sk_row.add_theme_constant_override("separation", 6)
@@ -1118,7 +1196,7 @@ func _populate_detail() -> void:
 			_selected_skill = str(skills[0])
 		for sk in skills:
 			var sb := Button.new()
-			sb.custom_minimum_size = Vector2(56 if _dense else 64, 52 if _dense else 58)
+			sb.custom_minimum_size = Vector2(52 if _dense else 58, 46 if _dense else 52)
 			_apply_metal_button(sb)
 			if str(sk) == _selected_skill:
 				sb.add_theme_stylebox_override("normal", UIStyle.button_pressed())
@@ -1130,7 +1208,7 @@ func _populate_detail() -> void:
 			if tex:
 				var ir := TextureRect.new()
 				ir.texture = tex
-				ir.custom_minimum_size = Vector2(22, 22)
+				ir.custom_minimum_size = Vector2(20, 20)
 				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -1148,36 +1226,28 @@ func _populate_detail() -> void:
 			)
 			sk_row.add_child(sb)
 
-	_skill_desc = UIStyle.label("", 11, INK)
-	_skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_box.add_child(_skill_desc)
-	_update_skill_desc()
+		_skill_desc = UIStyle.label("", 10, INK)
+		_skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_detail_box.add_child(_skill_desc)
+		_update_skill_desc()
 
-	_detail_box.add_child(UIStyle.label("스킬 미리보기", 12, METAL_GOLD))
-	_demo_host = Control.new()
-	_demo_host.custom_minimum_size = Vector2(0, 72 if _dense else 88)
-	_demo_host.clip_contents = true
-	var demo_bg := PanelContainer.new()
-	demo_bg.set_anchors_preset(PRESET_FULL_RECT)
-	demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	demo_bg.add_theme_stylebox_override("panel", _style_inset())
-	_demo_host.add_child(demo_bg)
-	var demo_hint := UIStyle.label("재생 시 직업 애니 표시", 10, INK_DIM)
-	demo_hint.set_anchors_preset(PRESET_FULL_RECT)
-	demo_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	demo_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	demo_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_demo_host.add_child(demo_hint)
-	_detail_box.add_child(_demo_host)
-	_demo_note = UIStyle.label("미리보기 전용 · 전투 수치 미적용", 10, INK_DIM)
-	_detail_box.add_child(_demo_note)
-	var demo_btn := Button.new()
-	demo_btn.text = "스킬 미리보기 재생"
-	demo_btn.custom_minimum_size = Vector2(0, 30)
-	_apply_metal_button(demo_btn)
-	demo_btn.pressed.connect(_play_skill_demo)
-	_detail_box.add_child(demo_btn)
-	# Do not auto-spawn AnimatedSprite here — it looked like a duplicate portrait.
+		_demo_host = Control.new()
+		_demo_host.custom_minimum_size = Vector2(0, 56 if _dense else 64)
+		_demo_host.clip_contents = true
+		var demo_bg := PanelContainer.new()
+		demo_bg.set_anchors_preset(PRESET_FULL_RECT)
+		demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		demo_bg.add_theme_stylebox_override("panel", _style_inset())
+		_demo_host.add_child(demo_bg)
+		_detail_box.add_child(_demo_host)
+		_demo_note = UIStyle.label("미리보기 전용", 9, INK_DIM)
+		_detail_box.add_child(_demo_note)
+		var demo_btn := Button.new()
+		demo_btn.text = "스킬 미리보기"
+		demo_btn.custom_minimum_size = Vector2(0, 26)
+		_apply_metal_button(demo_btn)
+		demo_btn.pressed.connect(_play_skill_demo)
+		_detail_box.add_child(demo_btn)
 
 
 func _bar_stat(label: String, value: int, cap: int, fill: Color = Color(0.55, 0.72, 0.35)) -> Control:
