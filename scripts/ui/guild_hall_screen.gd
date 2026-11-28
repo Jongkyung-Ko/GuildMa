@@ -1085,6 +1085,8 @@ func _open_assign(kind: String) -> void:
 
 func _open_formation(kind: String) -> void:
 	_assign_kind = kind
+	_mode = MENU_PARTY
+	_refresh_nav()
 	_close_overlay()
 	if _hall_wrap:
 		_hall_wrap.visible = false

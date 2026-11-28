@@ -1,7 +1,7 @@
 extends Control
 class_name PartyFormationPanel
 
-## Playable guild party formation UI (reference layout, real GameState data).
+## Dark-fantasy guild party formation UI (concept layout, real GameState data).
 ## Skill demo is visual preview only — no HP/MP/CD combat side effects.
 
 const JOB_FILTERS := ["all", "lord", "tank", "dps", "healer", "mage"]
@@ -9,7 +9,18 @@ const SORT_LEVEL_DESC := "level_desc"
 const SORT_LEVEL_ASC := "level_asc"
 const SORT_NAME := "name"
 
-## Real skill strings on members → short preview metadata (not mock numbers).
+## Stone / bronze / gold palette — local to formation (does not restyle shop/hall globals).
+const STONE_BG := Color(0.10, 0.085, 0.065, 0.98)
+const STONE_DEEP := Color(0.07, 0.055, 0.04, 0.99)
+const STONE_WELL := Color(0.045, 0.038, 0.028, 1.0)
+const BRONZE := Color(0.62, 0.46, 0.24)
+const BRONZE_DIM := Color(0.42, 0.32, 0.18)
+const METAL_GOLD := Color(0.86, 0.70, 0.32)
+const METAL_GOLD_BRIGHT := Color(1.0, 0.88, 0.48)
+const INK := Color(0.95, 0.92, 0.86)
+const INK_DIM := Color(0.68, 0.64, 0.56)
+
+## Real skill strings → preview metadata (not mock combat numbers).
 const SKILL_INFO := {
 	"지휘": {"desc": "아군의 전투 지휘. 전투에서는 기본 공격으로 표현됩니다.", "pattern": "기본 공격", "demo": "attack"},
 	"방패 막기": {"desc": "방패로 전방을 막아 피해를 줄입니다.", "pattern": "강공격", "demo": "attack"},
@@ -21,6 +32,23 @@ const SKILL_INFO := {
 	"견고함": {"desc": "일시적으로 방어 태세를 강화합니다.", "pattern": "방어", "demo": "idle"},
 	"급습": {"desc": "그림자를 이용해 급습합니다.", "pattern": "돌진", "demo": "attack"},
 }
+
+## Map skills → existing project icon paths (facility + item art). Never invent missing paths.
+const SKILL_ICON_CANDIDATES := {
+	"지휘": ["res://assets/sprites/icons/guild.png", "res://assets/sprites/icons/rep.png"],
+	"방패 막기": ["res://assets/items/crest_shield.png", "res://assets/sprites/icons/storage.png"],
+	"연속 베기": ["res://assets/items/blade_zwei.png", "res://assets/sprites/icons/train.png"],
+	"치유": ["res://assets/items/health_potion.png", "res://assets/sprites/icons/med.png"],
+	"마력탄": ["res://assets/items/crystal_shadow.png", "res://assets/sprites/icons/quest.png"],
+	"화염구": ["res://assets/items/fire_crystal.png", "res://assets/items/amulet_flame.png"],
+	"도발": ["res://assets/sprites/icons/rep.png", "res://assets/sprites/icons/gate.png"],
+	"견고함": ["res://assets/items/armor_knight.png", "res://assets/sprites/icons/smith.png"],
+	"급습": ["res://assets/items/cloak_shadow.png", "res://assets/sprites/icons/gate.png"],
+}
+
+const STAT_ICON_HP := ["res://assets/sprites/icons/med.png", "res://assets/items/health_potion.png"]
+const STAT_ICON_ATK := ["res://assets/sprites/icons/train.png", "res://assets/items/blade_zwei.png"]
+const STAT_ICON_DEF := ["res://assets/items/crest_shield.png", "res://assets/sprites/icons/storage.png"]
 
 signal closed
 signal saved(kind: String)
@@ -47,6 +75,8 @@ var _demo_sprite: AnimatedSprite2D
 var _demo_note: Label
 var _filter_buttons: Dictionary = {}
 var _kind_buttons: Dictionary = {}
+
+var _tex_cache: Dictionary = {}
 
 
 func setup(kind: String = "hunt") -> void:
@@ -98,13 +128,127 @@ func _on_resized() -> void:
 	var wsz: Vector2i = win.size if win else Vector2i(1280, 720)
 	_dense = wsz.y <= 420 or (wsz.x > 0 and float(wsz.x) / float(wsz.y) >= 2.0)
 	if get_child_count() > 0:
-		# Preserve scroll when density flips.
 		if _grid_scroll:
 			_scroll_y = float(_grid_scroll.scroll_vertical)
 		_rebuild()
 		if _grid_scroll:
 			_grid_scroll.scroll_vertical = int(_scroll_y)
 
+
+# ---------------------------------------------------------------------------
+# Dark-fantasy chrome helpers (formation-local)
+# ---------------------------------------------------------------------------
+
+func _style_stone(active: bool = false, compact: bool = false) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.14, 0.11, 0.07, 0.96) if active else STONE_BG
+	s.border_color = METAL_GOLD_BRIGHT if active else BRONZE
+	s.border_width_left = 2
+	s.border_width_right = 2
+	s.border_width_top = 2
+	s.border_width_bottom = 3
+	s.set_corner_radius_all(7)
+	var pad := 8 if compact else 12
+	s.content_margin_left = pad
+	s.content_margin_right = pad
+	s.content_margin_top = 8 if compact else 10
+	s.content_margin_bottom = 8 if compact else 10
+	s.shadow_color = Color(0, 0, 0, 0.55)
+	s.shadow_size = 8
+	s.shadow_offset = Vector2(0, 3)
+	return s
+
+
+func _style_inset() -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = STONE_WELL
+	s.border_color = BRONZE_DIM
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(5)
+	s.content_margin_left = 6
+	s.content_margin_right = 6
+	s.content_margin_top = 5
+	s.content_margin_bottom = 5
+	return s
+
+
+func _style_card(selected: bool) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = STONE_DEEP
+	s.border_color = METAL_GOLD_BRIGHT if selected else BRONZE
+	s.set_border_width_all(3 if selected else 2)
+	s.set_corner_radius_all(8)
+	s.content_margin_left = 6
+	s.content_margin_right = 6
+	s.content_margin_top = 6
+	s.content_margin_bottom = 5
+	s.shadow_color = Color(0.75, 0.55, 0.15, 0.35) if selected else Color(0, 0, 0, 0.5)
+	s.shadow_size = 10 if selected else 5
+	return s
+
+
+func _style_metal_cta() -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color(0.42, 0.30, 0.10, 1)
+	s.border_color = METAL_GOLD_BRIGHT
+	s.set_border_width_all(2)
+	s.set_corner_radius_all(6)
+	s.content_margin_left = 18
+	s.content_margin_right = 18
+	s.content_margin_top = 10
+	s.content_margin_bottom = 10
+	s.shadow_color = Color(0.9, 0.7, 0.2, 0.35)
+	s.shadow_size = 8
+	return s
+
+
+func _make_stone_panel(active: bool = false, compact: bool = false) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.add_theme_stylebox_override("panel", _style_stone(active, compact))
+	return p
+
+
+func _apply_metal_button(btn: Button, primary: bool = false) -> void:
+	UIStyle.apply_button(btn)
+	if primary:
+		btn.add_theme_stylebox_override("normal", _style_metal_cta())
+		btn.add_theme_color_override("font_color", Color(1, 0.96, 0.82))
+		var hover := _style_metal_cta()
+		hover.bg_color = Color(0.52, 0.38, 0.12, 1)
+		btn.add_theme_stylebox_override("hover", hover)
+
+
+func _tex(path: String) -> Texture2D:
+	if path == "":
+		return null
+	if _tex_cache.has(path):
+		return _tex_cache[path]
+	if not ResourceLoader.exists(path):
+		_tex_cache[path] = null
+		return null
+	var t := load(path) as Texture2D
+	_tex_cache[path] = t
+	return t
+
+
+func _first_tex(candidates: Array) -> Texture2D:
+	for c in candidates:
+		var t := _tex(str(c))
+		if t != null:
+			return t
+	return null
+
+
+func _skill_tex(skill_name: String) -> Texture2D:
+	if SKILL_ICON_CANDIDATES.has(skill_name):
+		return _first_tex(SKILL_ICON_CANDIDATES[skill_name])
+	# Fallback to facility icon set — never a broken path.
+	return _first_tex(["res://assets/sprites/icons/quest.png", "res://assets/sprites/icons/train.png"])
+
+
+# ---------------------------------------------------------------------------
+# Layout
+# ---------------------------------------------------------------------------
 
 func _rebuild() -> void:
 	for c in get_children():
@@ -115,7 +259,7 @@ func _rebuild() -> void:
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6 if _dense else 8)
+	root.add_theme_constant_override("separation", 5 if _dense else 7)
 	add_child(root)
 
 	root.add_child(_build_header())
@@ -129,51 +273,50 @@ func _rebuild() -> void:
 
 
 func _build_header() -> Control:
-	var panel := UIStyle.make_panel()
+	var panel := _make_stone_panel(false, true)
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 6)
+	vb.add_theme_constant_override("separation", 5)
 	panel.add_child(vb)
 
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
 	vb.add_child(top)
-	top.add_child(UIStyle.label("파티 편성", 18 if not _dense else 15, UIStyle.GOLD_BRIGHT))
-	_count_label = UIStyle.label("", 13)
+	top.add_child(UIStyle.label("파티 편성", 17 if not _dense else 14, METAL_GOLD_BRIGHT))
+	_count_label = UIStyle.label("", 13, INK)
 	top.add_child(_count_label)
-	_avg_label = UIStyle.label("", 12, UIStyle.TEXT_DIM)
+	_avg_label = UIStyle.label("", 12, INK_DIM)
 	top.add_child(_avg_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 	var close_b := Button.new()
 	close_b.text = "닫기"
-	close_b.custom_minimum_size = Vector2(0, 36 if _dense else 40)
-	UIStyle.apply_button(close_b)
+	close_b.custom_minimum_size = Vector2(0, 32 if _dense else 36)
+	_apply_metal_button(close_b)
 	close_b.pressed.connect(func(): closed.emit())
 	top.add_child(close_b)
 
-	_comp_label = UIStyle.label("", 12, UIStyle.TEXT_DIM)
+	_comp_label = UIStyle.label("", 11, INK_DIM)
 	vb.add_child(_comp_label)
 
-	# Mission party kind tabs (real guild_parties taxonomy).
-	var kinds := HBoxContainer.new()
-	kinds.add_theme_constant_override("separation", 6)
-	vb.add_child(kinds)
+	# Kind + sort/filter on one compact band so cards get vertical room.
+	var band := HBoxContainer.new()
+	band.add_theme_constant_override("separation", 6)
+	vb.add_child(band)
 	for kind in GameState.GUILD_PARTY_KINDS:
 		var b := Button.new()
 		b.text = GameState.guild_party_label(str(kind))
-		b.custom_minimum_size = Vector2(0, 32 if _dense else 36)
-		UIStyle.apply_button(b)
+		b.custom_minimum_size = Vector2(0, 28 if _dense else 32)
+		_apply_metal_button(b)
 		var k := str(kind)
 		b.pressed.connect(func(): _switch_kind(k))
-		kinds.add_child(b)
+		band.add_child(b)
 		_kind_buttons[k] = b
 	_style_kind_buttons()
 
-	# Sort + job filters (real jobs only).
-	var filters := HBoxContainer.new()
-	filters.add_theme_constant_override("separation", 6)
-	vb.add_child(filters)
+	var sep := VSeparator.new()
+	band.add_child(sep)
+
 	var sort := OptionButton.new()
 	sort.add_item("레벨 높은 순", 0)
 	sort.add_item("레벨 낮은 순", 1)
@@ -195,18 +338,18 @@ func _build_header() -> Control:
 				_sort_mode = SORT_LEVEL_DESC
 		_refresh_lists_only()
 	)
-	filters.add_child(sort)
+	band.add_child(sort)
 	for job in JOB_FILTERS:
 		var fb := Button.new()
 		fb.text = "전체" if job == "all" else UIStyle.job_name(job)
-		fb.custom_minimum_size = Vector2(0, 30 if _dense else 34)
-		UIStyle.apply_button(fb)
+		fb.custom_minimum_size = Vector2(0, 28 if _dense else 32)
+		_apply_metal_button(fb)
 		var jid := str(job)
 		fb.pressed.connect(func():
 			_filter_job = jid
 			_refresh_lists_only()
 		)
-		filters.add_child(fb)
+		band.add_child(fb)
 		_filter_buttons[jid] = fb
 	_style_filter_buttons()
 	_update_summary_labels()
@@ -214,14 +357,14 @@ func _build_header() -> Control:
 
 
 func _build_member_column() -> Control:
-	var panel := UIStyle.make_panel()
+	var panel := _make_stone_panel()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.size_flags_stretch_ratio = 1.35
+	panel.size_flags_stretch_ratio = 1.75
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)
 	panel.add_child(vb)
-	vb.add_child(UIStyle.label("길드원 목록", 14, UIStyle.GOLD))
+	vb.add_child(UIStyle.label("길드원 목록", 13, METAL_GOLD))
 	_grid_scroll = ScrollContainer.new()
 	_grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -229,8 +372,8 @@ func _build_member_column() -> Control:
 	vb.add_child(_grid_scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 2 if _dense else 3
-	_grid.add_theme_constant_override("h_separation", 8)
-	_grid.add_theme_constant_override("v_separation", 8)
+	_grid.add_theme_constant_override("h_separation", 10)
+	_grid.add_theme_constant_override("v_separation", 10)
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.add_child(_grid)
 	_populate_grid()
@@ -238,8 +381,8 @@ func _build_member_column() -> Control:
 
 
 func _build_detail_column() -> Control:
-	var panel := UIStyle.make_panel(true)
-	panel.custom_minimum_size = Vector2(260 if not _dense else 220, 0)
+	var panel := _make_stone_panel(true)
+	panel.custom_minimum_size = Vector2(280 if not _dense else 230, 0)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.size_flags_stretch_ratio = 1.0
 	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -250,14 +393,14 @@ func _build_detail_column() -> Control:
 	panel.add_child(scroll)
 	_detail_box = VBoxContainer.new()
 	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_detail_box.add_theme_constant_override("separation", 6)
+	_detail_box.add_theme_constant_override("separation", 7)
 	scroll.add_child(_detail_box)
 	_populate_detail()
 	return panel
 
 
 func _build_party_strip() -> Control:
-	var panel := UIStyle.make_panel()
+	var panel := _make_stone_panel(false, true)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 6)
 	panel.add_child(vb)
@@ -265,14 +408,12 @@ func _build_party_strip() -> Control:
 	head.add_theme_constant_override("separation", 10)
 	vb.add_child(head)
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
-	head.add_child(UIStyle.label("선택 파티 (%d/%d)" % [_draft_ids.size(), max_n], 14, UIStyle.GOLD_BRIGHT))
-	head.add_child(UIStyle.label(GameState.guild_party_purpose(party_kind), 11, UIStyle.TEXT_DIM))
+	head.add_child(UIStyle.label("선택 파티 (%d/%d)" % [_draft_ids.size(), max_n], 13, METAL_GOLD_BRIGHT))
+	head.add_child(UIStyle.label(GameState.guild_party_purpose(party_kind), 11, INK_DIM))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
-	# Simple composition buffs from real roster (honest, not mock %).
-	var buff := _party_effect_text()
-	head.add_child(UIStyle.label(buff, 12, UIStyle.OK))
+	head.add_child(UIStyle.label(_party_effect_text(), 11, UIStyle.OK))
 
 	_party_row = HBoxContainer.new()
 	_party_row.add_theme_constant_override("separation", 8)
@@ -284,8 +425,8 @@ func _build_party_strip() -> Control:
 	vb.add_child(actions)
 	var clear_b := Button.new()
 	clear_b.text = "선택 비우기"
-	clear_b.custom_minimum_size = Vector2(0, 40 if not _dense else 34)
-	UIStyle.apply_button(clear_b)
+	clear_b.custom_minimum_size = Vector2(0, 36 if not _dense else 32)
+	_apply_metal_button(clear_b)
 	clear_b.pressed.connect(func():
 		_draft_ids.clear()
 		_refresh_lists_only()
@@ -296,9 +437,8 @@ func _build_party_strip() -> Control:
 	actions.add_child(sp2)
 	var save_b := Button.new()
 	save_b.text = "편성 완료"
-	save_b.custom_minimum_size = Vector2(160 if not _dense else 120, 44 if not _dense else 38)
-	UIStyle.apply_button(save_b)
-	save_b.add_theme_stylebox_override("normal", UIStyle.button_pressed())
+	save_b.custom_minimum_size = Vector2(168 if not _dense else 130, 42 if not _dense else 36)
+	_apply_metal_button(save_b, true)
 	save_b.pressed.connect(_on_confirm)
 	actions.add_child(save_b)
 	_populate_party_strip()
@@ -359,38 +499,39 @@ func _populate_grid() -> void:
 		c.free()
 	var list := _filtered_members()
 	if list.is_empty():
-		_grid.add_child(UIStyle.label("해당 직업 길드원이 없습니다.", 13, UIStyle.TEXT_DIM))
+		_grid.add_child(UIStyle.label("해당 직업 길드원이 없습니다.", 13, INK_DIM))
 		return
 	for m in list:
 		_grid.add_child(_make_member_card(m))
 
 
+# ---------------------------------------------------------------------------
+# Namecards — portrait-forward 70/30 + equal 3-col skill icons
+# ---------------------------------------------------------------------------
+
 func _make_member_card(m: Dictionary) -> Control:
-	## Namecard: top ~70% identity/stats, bottom ~30% equal 3-col skill grid.
-	## Skills stay subordinate — small squares + captions; no oversized chips.
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
-	var card_w := 158.0 if _dense else 176.0
-	var card_h := 188.0 if _dense else 220.0
+	var selected := in_draft or focused
+	var card_w := 156.0 if _dense else 188.0
+	var card_h := 232.0 if _dense else 286.0
 	var card := Button.new()
 	card.flat = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(card)
+	# Flatten default button chrome — card StyleBox carries the look.
+	var flat_sb := StyleBoxEmpty.new()
+	card.add_theme_stylebox_override("normal", flat_sb)
+	card.add_theme_stylebox_override("hover", flat_sb)
+	card.add_theme_stylebox_override("pressed", flat_sb)
+	card.add_theme_stylebox_override("focus", flat_sb)
+
 	var wrap := PanelContainer.new()
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrap.set_anchors_preset(PRESET_FULL_RECT)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.08, 0.1, 0.96)
-	sb.border_color = UIStyle.GOLD_BRIGHT if (in_draft or focused) else UIStyle.GOLD
-	sb.set_border_width_all(3 if (in_draft or focused) else 2)
-	sb.set_corner_radius_all(8)
-	sb.content_margin_left = 7
-	sb.content_margin_right = 7
-	sb.content_margin_top = 5
-	sb.content_margin_bottom = 5
-	wrap.add_theme_stylebox_override("panel", sb)
+	wrap.add_theme_stylebox_override("panel", _style_card(selected))
 	card.add_child(wrap)
 
 	var root := VBoxContainer.new()
@@ -399,7 +540,7 @@ func _make_member_card(m: Dictionary) -> Control:
 	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	wrap.add_child(root)
 
-	# --- Top ~70%: portrait + name/job/level + HP/ATK/DEF ---
+	# --- Top ~70%: portrait-forward (hero image) + identity + discrete HP/ATK/DEF ---
 	var top := VBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_theme_constant_override("separation", 3)
@@ -407,49 +548,54 @@ func _make_member_card(m: Dictionary) -> Control:
 	top.size_flags_stretch_ratio = 7.0
 	root.add_child(top)
 
-	var head := HBoxContainer.new()
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	head.add_theme_constant_override("separation", 6)
-	head.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	top.add_child(head)
+	var portrait_well := PanelContainer.new()
+	portrait_well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_well.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	portrait_well.size_flags_stretch_ratio = 2.2
+	portrait_well.add_theme_stylebox_override("panel", _style_inset())
+	top.add_child(portrait_well)
 	var tr := TextureRect.new()
-	tr.texture = _portrait_for(str(m.get("job", "dps")))
-	tr.custom_minimum_size = Vector2(52 if _dense else 64, 52 if _dense else 64)
+	tr.texture = _card_portrait_for(str(m.get("job", "dps")))
+	tr.custom_minimum_size = Vector2(88 if _dense else 112, 88 if _dense else 112)
+	tr.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	head.add_child(tr)
-	var meta := VBoxContainer.new()
-	meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	meta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	meta.add_theme_constant_override("separation", 2)
-	head.add_child(meta)
-	meta.add_child(UIStyle.label(str(m.get("name", "")), 13 if not _dense else 12, UIStyle.GOLD_BRIGHT))
-	meta.add_child(UIStyle.label("%s Lv.%d" % [UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))], 11, UIStyle.TEXT))
+	portrait_well.add_child(tr)
+
+	var name_row := HBoxContainer.new()
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_theme_constant_override("separation", 4)
+	top.add_child(name_row)
+	var name_l := UIStyle.label(str(m.get("name", "")), 14 if not _dense else 12, METAL_GOLD_BRIGHT)
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(name_l)
 	if in_draft:
-		meta.add_child(UIStyle.label("✓ 선택", 10, UIStyle.OK))
+		name_row.add_child(UIStyle.label("선택", 10, UIStyle.OK))
+	top.add_child(UIStyle.label("%s  Lv.%d" % [
+		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
+	], 11, INK))
 
 	var preview := GameState.compute_combat_preview(m)
-	var stats_l := UIStyle.label("HP %d · ATK %d · DEF %d" % [
-		int(preview.get("hp", 0)), int(preview.get("atk", 0)), int(preview.get("def", 0))
-	], 10 if _dense else 11, UIStyle.TEXT_DIM)
-	stats_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	top.add_child(stats_l)
+	var stats_box := VBoxContainer.new()
+	stats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stats_box.add_theme_constant_override("separation", 2)
+	top.add_child(stats_box)
+	stats_box.add_child(_stat_row("HP", int(preview.get("hp", 0)), STAT_ICON_HP, Color(0.85, 0.35, 0.35)))
+	stats_box.add_child(_stat_row("ATK", int(preview.get("atk", 0)), STAT_ICON_ATK, Color(0.95, 0.75, 0.35)))
+	stats_box.add_child(_stat_row("DEF", int(preview.get("def", 0)), STAT_ICON_DEF, Color(0.45, 0.65, 0.95)))
 
-	# Divider between identity block and skill zone.
 	var div := HSeparator.new()
 	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(div)
 
-	# --- Bottom ~30%: full-width equal 3-column skill grid ---
+	# --- Bottom ~30%: equal 3-col skill icons (real textures) ---
 	var skill_zone := VBoxContainer.new()
 	skill_zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	skill_zone.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	skill_zone.size_flags_stretch_ratio = 3.0
-	# Lock a true ~30% floor so skills never collapse into oversized chips again.
 	skill_zone.custom_minimum_size = Vector2(0, card_h * 0.28)
 	skill_zone.add_theme_constant_override("separation", 2)
 	root.add_child(skill_zone)
@@ -467,8 +613,37 @@ func _make_member_card(m: Dictionary) -> Control:
 	return card
 
 
+func _stat_row(label: String, value: int, icon_paths: Array, accent: Color) -> Control:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 4)
+	var icon_sz := 12.0 if _dense else 14.0
+	var icon_tex := _first_tex(icon_paths)
+	if icon_tex:
+		var ir := TextureRect.new()
+		ir.texture = icon_tex
+		ir.custom_minimum_size = Vector2(icon_sz, icon_sz)
+		ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(ir)
+	else:
+		var dot := ColorRect.new()
+		dot.color = accent
+		dot.custom_minimum_size = Vector2(icon_sz, icon_sz)
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(dot)
+	row.add_child(UIStyle.label(label, 9 if _dense else 10, INK_DIM))
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(sp)
+	row.add_child(UIStyle.label(str(value), 10 if _dense else 11, INK))
+	return row
+
+
 func _build_card_skill_grid(skills_raw: Variant) -> Control:
-	## Equal-width 3 columns; max 3 real skills; empty slots keep the grid stable.
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -485,23 +660,22 @@ func _build_card_skill_grid(skills_raw: Variant) -> Control:
 		cell.alignment = BoxContainer.ALIGNMENT_CENTER
 		cell.add_theme_constant_override("separation", 2)
 
-		var icon_sz := 20.0 if _dense else 24.0
-		var icon := PanelContainer.new()
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon.custom_minimum_size = Vector2(icon_sz, icon_sz)
-		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		var isb := StyleBoxFlat.new()
-		isb.set_corner_radius_all(4)
-		isb.set_border_width_all(1)
-		isb.content_margin_left = 1
-		isb.content_margin_right = 1
-		isb.content_margin_top = 1
-		isb.content_margin_bottom = 1
+		var icon_sz := 22.0 if _dense else 26.0
+		var frame := PanelContainer.new()
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.custom_minimum_size = Vector2(icon_sz + 4, icon_sz + 4)
+		frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var fsb := StyleBoxFlat.new()
+		fsb.set_corner_radius_all(4)
+		fsb.set_border_width_all(1)
+		fsb.content_margin_left = 2
+		fsb.content_margin_right = 2
+		fsb.content_margin_top = 2
+		fsb.content_margin_bottom = 2
 
 		var caption := Label.new()
 		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		caption.autowrap_mode = TextServer.AUTOWRAP_OFF
 		caption.clip_text = true
 		caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		caption.add_theme_font_size_override("font_size", 9 if _dense else 10)
@@ -510,54 +684,39 @@ func _build_card_skill_grid(skills_raw: Variant) -> Control:
 
 		if i < skills.size() and str(skills[i]) != "":
 			var sk := str(skills[i])
-			isb.bg_color = _skill_icon_color(sk)
-			isb.border_color = UIStyle.GOLD
-			icon.add_theme_stylebox_override("panel", isb)
-			var glyph := UIStyle.label(_skill_glyph(sk), 10 if _dense else 11, Color(0.98, 0.95, 0.88))
-			glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			icon.add_child(glyph)
+			fsb.bg_color = Color(0.12, 0.10, 0.08, 1)
+			fsb.border_color = METAL_GOLD
+			frame.add_theme_stylebox_override("panel", fsb)
+			var tex := _skill_tex(sk)
+			if tex:
+				var ir := TextureRect.new()
+				ir.texture = tex
+				ir.custom_minimum_size = Vector2(icon_sz, icon_sz)
+				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				frame.add_child(ir)
+			else:
+				frame.add_child(UIStyle.label(sk.substr(0, 1), 10, INK))
 			caption.text = sk
-			caption.add_theme_color_override("font_color", UIStyle.TEXT)
+			caption.add_theme_color_override("font_color", INK)
 		else:
-			isb.bg_color = Color(0.08, 0.08, 0.1, 0.7)
-			isb.border_color = Color(0.35, 0.32, 0.28, 0.55)
-			icon.add_theme_stylebox_override("panel", isb)
+			fsb.bg_color = Color(0.07, 0.06, 0.05, 0.85)
+			fsb.border_color = BRONZE_DIM
+			frame.add_theme_stylebox_override("panel", fsb)
 			caption.text = "—"
-			caption.add_theme_color_override("font_color", UIStyle.TEXT_DIM)
+			caption.add_theme_color_override("font_color", INK_DIM)
 
-		cell.add_child(icon)
+		cell.add_child(frame)
 		cell.add_child(caption)
 		grid.add_child(cell)
 	return grid
 
 
-func _skill_glyph(skill_name: String) -> String:
-	var s := skill_name.strip_edges()
-	if s.is_empty():
-		return "·"
-	return s.substr(0, 1)
-
-
-func _skill_icon_color(skill_name: String) -> Color:
-	## Tiny tinted tile — not a fake catalog icon; keeps skills readable without dominating.
-	var key := skill_name
-	if SKILL_INFO.has(key):
-		var pattern := str(SKILL_INFO[key].get("pattern", ""))
-		match pattern:
-			"원거리":
-				return Color(0.28, 0.22, 0.42, 1)
-			"지원":
-				return Color(0.18, 0.36, 0.28, 1)
-			"방어", "유틸":
-				return Color(0.22, 0.28, 0.38, 1)
-			"돌진":
-				return Color(0.38, 0.22, 0.18, 1)
-			_:
-				return Color(0.32, 0.26, 0.14, 1)
-	return Color(0.22, 0.2, 0.18, 1)
-
+# ---------------------------------------------------------------------------
+# Detail panel
+# ---------------------------------------------------------------------------
 
 func _populate_detail() -> void:
 	if _detail_box == null:
@@ -569,53 +728,62 @@ func _populate_detail() -> void:
 		m = GameState.members[0]
 		_focus_id = str(m.get("id", ""))
 	if m.is_empty():
-		_detail_box.add_child(UIStyle.label("길드원을 선택하세요.", 13, UIStyle.TEXT_DIM))
+		_detail_box.add_child(UIStyle.label("길드원을 선택하세요.", 13, INK_DIM))
 		return
 
-	_detail_box.add_child(UIStyle.label(str(m.get("name", "")), 18, UIStyle.GOLD_BRIGHT))
-	_detail_box.add_child(UIStyle.label("%s · Lv.%d" % [
+	var title := HBoxContainer.new()
+	title.add_theme_constant_override("separation", 8)
+	_detail_box.add_child(title)
+	var pface := TextureRect.new()
+	pface.texture = _card_portrait_for(str(m.get("job", "dps")))
+	pface.custom_minimum_size = Vector2(48 if _dense else 56, 48 if _dense else 56)
+	pface.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pface.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	title.add_child(pface)
+	var tmeta := VBoxContainer.new()
+	tmeta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.add_child(tmeta)
+	tmeta.add_child(UIStyle.label(str(m.get("name", "")), 18 if not _dense else 15, METAL_GOLD_BRIGHT))
+	tmeta.add_child(UIStyle.label("%s · Lv.%d" % [
 		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
-	], 13))
+	], 12, INK))
 
-	# Large character preview (hunt sheet / idle anim).
+	# Large character stage (idle anim, aspect preserved) — sized so stats stay above the fold.
 	var stage := PanelContainer.new()
-	var ssb := StyleBoxFlat.new()
-	ssb.bg_color = Color(0.05, 0.06, 0.09, 0.95)
-	ssb.border_color = UIStyle.GOLD
-	ssb.set_border_width_all(2)
-	ssb.set_corner_radius_all(6)
-	stage.add_theme_stylebox_override("panel", ssb)
-	stage.custom_minimum_size = Vector2(0, 120 if _dense else 150)
+	stage.add_theme_stylebox_override("panel", _style_inset())
+	stage.custom_minimum_size = Vector2(0, 120 if _dense else 160)
 	_detail_box.add_child(stage)
 	var stage_host := Control.new()
-	stage_host.custom_minimum_size = Vector2(0, 110 if _dense else 140)
+	stage_host.custom_minimum_size = Vector2(0, 112 if _dense else 150)
+	stage_host.clip_contents = true
 	stage.add_child(stage_host)
 	var idle := AnimatedSprite2D.new()
 	idle.sprite_frames = SpriteFactory.ally_frames(str(m.get("job", "dps")))
 	idle.animation = &"idle"
 	idle.play()
 	idle.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	idle.scale = Vector2(1.1, 1.1) if _dense else Vector2(1.35, 1.35)
-	idle.position = Vector2(110 if _dense else 130, 95 if _dense else 120)
+	idle.scale = Vector2(1.25, 1.25) if _dense else Vector2(1.55, 1.55)
+	idle.position = Vector2(110 if _dense else 130, 95 if _dense else 125)
 	idle.centered = true
 	idle.offset = Vector2(0, -28)
 	stage_host.add_child(idle)
 
 	var preview := GameState.compute_combat_preview(m)
-	_detail_box.add_child(UIStyle.label("기본 정보", 14, UIStyle.GOLD))
-	_detail_box.add_child(_bar_stat("HP", int(preview.get("hp", 0)), 300))
-	_detail_box.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), 80))
-	_detail_box.add_child(_bar_stat("DEF", int(preview.get("def", 0)), 60))
-	_detail_box.add_child(_bar_stat("SPD", int(preview.get("spd", 0)), 220))
+	_detail_box.add_child(UIStyle.label("기본 정보", 13, METAL_GOLD))
+	_detail_box.add_child(_bar_stat("HP", int(preview.get("hp", 0)), 300, Color(0.75, 0.28, 0.28)))
+	_detail_box.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), 80, Color(0.85, 0.65, 0.25)))
+	_detail_box.add_child(_bar_stat("DEF", int(preview.get("def", 0)), 60, Color(0.35, 0.55, 0.85)))
+	_detail_box.add_child(_bar_stat("SPD", int(preview.get("spd", 0)), 220, Color(0.45, 0.75, 0.45)))
 
-	_detail_box.add_child(UIStyle.label("공격 패턴 (직업 기본)", 13, UIStyle.GOLD))
+	_detail_box.add_child(UIStyle.label("공격 패턴 (직업 기본)", 12, METAL_GOLD))
 	for line in _job_patterns(str(m.get("job", ""))):
-		_detail_box.add_child(UIStyle.label("· " + line, 12, UIStyle.TEXT_DIM))
+		_detail_box.add_child(UIStyle.label("· " + line, 11, INK_DIM))
 
-	_detail_box.add_child(UIStyle.label("스킬", 14, UIStyle.GOLD))
+	_detail_box.add_child(UIStyle.label("스킬", 13, METAL_GOLD))
 	var skills: Array = m.get("skills", [])
 	if skills.is_empty():
-		_detail_box.add_child(UIStyle.label("(등록된 스킬 없음)", 12, UIStyle.TEXT_DIM))
+		_detail_box.add_child(UIStyle.label("(등록된 스킬 없음)", 12, INK_DIM))
 	else:
 		var sk_row := HBoxContainer.new()
 		sk_row.add_theme_constant_override("separation", 6)
@@ -624,11 +792,29 @@ func _populate_detail() -> void:
 			_selected_skill = str(skills[0])
 		for sk in skills:
 			var sb := Button.new()
-			sb.text = str(sk)
-			sb.custom_minimum_size = Vector2(0, 36)
-			UIStyle.apply_button(sb)
+			sb.custom_minimum_size = Vector2(56 if _dense else 64, 52 if _dense else 58)
+			_apply_metal_button(sb)
 			if str(sk) == _selected_skill:
 				sb.add_theme_stylebox_override("normal", UIStyle.button_pressed())
+			var inner := VBoxContainer.new()
+			inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			inner.alignment = BoxContainer.ALIGNMENT_CENTER
+			sb.add_child(inner)
+			var tex := _skill_tex(str(sk))
+			if tex:
+				var ir := TextureRect.new()
+				ir.texture = tex
+				ir.custom_minimum_size = Vector2(22, 22)
+				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				ir.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+				inner.add_child(ir)
+			var cap := UIStyle.label(str(sk), 9, INK)
+			cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			inner.add_child(cap)
 			var sk_name := str(sk)
 			sb.pressed.connect(func():
 				_selected_skill = sk_name
@@ -636,48 +822,56 @@ func _populate_detail() -> void:
 			)
 			sk_row.add_child(sb)
 
-	_skill_desc = UIStyle.label("", 12, UIStyle.TEXT)
+	_skill_desc = UIStyle.label("", 11, INK)
 	_skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_box.add_child(_skill_desc)
 	_update_skill_desc()
 
-	_detail_box.add_child(UIStyle.label("스킬 미리보기", 13, UIStyle.GOLD))
+	_detail_box.add_child(UIStyle.label("스킬 미리보기", 12, METAL_GOLD))
 	_demo_host = Control.new()
-	_demo_host.custom_minimum_size = Vector2(0, 100 if _dense else 120)
+	_demo_host.custom_minimum_size = Vector2(0, 110 if _dense else 130)
 	_demo_host.clip_contents = true
-	var demo_bg := ColorRect.new()
-	demo_bg.color = Color(0.08, 0.1, 0.12, 1)
+	var demo_bg := PanelContainer.new()
 	demo_bg.set_anchors_preset(PRESET_FULL_RECT)
 	demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	demo_bg.add_theme_stylebox_override("panel", _style_inset())
 	_demo_host.add_child(demo_bg)
 	_detail_box.add_child(_demo_host)
-	_demo_note = UIStyle.label("", 11, UIStyle.TEXT_DIM)
+	_demo_note = UIStyle.label("", 10, INK_DIM)
 	_detail_box.add_child(_demo_note)
 	var demo_btn := Button.new()
 	demo_btn.text = "스킬 미리보기 재생"
-	demo_btn.custom_minimum_size = Vector2(0, 36)
-	UIStyle.apply_button(demo_btn)
+	demo_btn.custom_minimum_size = Vector2(0, 34)
+	_apply_metal_button(demo_btn)
 	demo_btn.pressed.connect(_play_skill_demo)
 	_detail_box.add_child(demo_btn)
 	_play_skill_demo()
 
 
-func _bar_stat(label: String, value: int, cap: int) -> Control:
+func _bar_stat(label: String, value: int, cap: int, fill: Color = Color(0.55, 0.72, 0.35)) -> Control:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	var head := HBoxContainer.new()
-	head.add_child(UIStyle.label(label, 12, UIStyle.TEXT_DIM))
+	head.add_child(UIStyle.label(label, 11, INK_DIM))
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(sp)
-	head.add_child(UIStyle.label(str(value), 12, UIStyle.TEXT))
+	head.add_child(UIStyle.label(str(value), 11, INK))
 	row.add_child(head)
 	var bar := ProgressBar.new()
 	bar.min_value = 0
 	bar.max_value = maxf(1.0, float(cap))
 	bar.value = float(value)
-	bar.custom_minimum_size = Vector2(0, 10)
+	bar.custom_minimum_size = Vector2(0, 11)
 	bar.show_percentage = false
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.12, 0.10, 0.08, 1)
+	bg.set_corner_radius_all(3)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = fill
+	fg.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
 	row.add_child(bar)
 	return row
 
@@ -716,7 +910,6 @@ func _update_skill_desc() -> void:
 func _play_skill_demo() -> void:
 	if _demo_host == null:
 		return
-	# Clear previous sprite children except bg.
 	for c in _demo_host.get_children():
 		if c is AnimatedSprite2D or c is Label:
 			c.queue_free()
@@ -743,8 +936,8 @@ func _play_skill_demo() -> void:
 	_demo_sprite.sprite_frames = frames
 	_demo_sprite.animation = anim
 	_demo_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_demo_sprite.scale = Vector2(1.15, 1.15)
-	_demo_sprite.position = Vector2(90, 85)
+	_demo_sprite.scale = Vector2(1.25, 1.25)
+	_demo_sprite.position = Vector2(100, 95)
 	_demo_sprite.centered = true
 	_demo_sprite.offset = Vector2(0, -26)
 	_demo_host.add_child(_demo_sprite)
@@ -762,6 +955,10 @@ func _play_skill_demo() -> void:
 			_demo_note.text = "미리보기 전용 · 전투 수치/쿨다운 적용 안 함"
 
 
+# ---------------------------------------------------------------------------
+# Party strip — portrait slots
+# ---------------------------------------------------------------------------
+
 func _populate_party_strip() -> void:
 	if _party_row == null:
 		return
@@ -770,17 +967,11 @@ func _populate_party_strip() -> void:
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	for i in max_n:
 		var slot := PanelContainer.new()
-		slot.custom_minimum_size = Vector2(110 if _dense else 128, 56 if _dense else 64)
+		slot.custom_minimum_size = Vector2(118 if _dense else 140, 68 if _dense else 78)
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var ssb := StyleBoxFlat.new()
-		ssb.bg_color = Color(0.08, 0.09, 0.12, 0.92)
-		ssb.border_color = UIStyle.GOLD
+		var ssb := _style_inset()
+		ssb.border_color = BRONZE
 		ssb.set_border_width_all(2)
-		ssb.set_corner_radius_all(6)
-		ssb.content_margin_left = 6
-		ssb.content_margin_right = 6
-		ssb.content_margin_top = 4
-		ssb.content_margin_bottom = 4
 		slot.add_theme_stylebox_override("panel", ssb)
 		if i < _draft_ids.size():
 			var mid := str(_draft_ids[i])
@@ -789,21 +980,23 @@ func _populate_party_strip() -> void:
 			hb.add_theme_constant_override("separation", 6)
 			slot.add_child(hb)
 			var tr := TextureRect.new()
-			tr.texture = _portrait_for(str(m.get("job", "dps")))
-			tr.custom_minimum_size = Vector2(36, 36)
+			tr.texture = _card_portrait_for(str(m.get("job", "dps")))
+			tr.custom_minimum_size = Vector2(48 if _dense else 56, 48 if _dense else 56)
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			hb.add_child(tr)
 			var meta := VBoxContainer.new()
 			meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			meta.add_theme_constant_override("separation", 1)
 			hb.add_child(meta)
-			meta.add_child(UIStyle.label(str(m.get("name", mid)), 12, UIStyle.GOLD_BRIGHT))
-			meta.add_child(UIStyle.label("%s Lv.%d" % [UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))], 10, UIStyle.TEXT_DIM))
+			meta.add_child(UIStyle.label(str(m.get("name", mid)), 12, METAL_GOLD_BRIGHT))
+			meta.add_child(UIStyle.label(UIStyle.job_name(str(m.get("job", ""))), 10, INK))
+			meta.add_child(UIStyle.label("Lv.%d" % int(m.get("level", 1)), 10, INK_DIM))
 			var xbtn := Button.new()
 			xbtn.text = "×"
 			xbtn.custom_minimum_size = Vector2(28, 28)
-			UIStyle.apply_button(xbtn)
+			_apply_metal_button(xbtn)
 			var mid_copy := mid
 			xbtn.pressed.connect(func():
 				_draft_ids.erase(mid_copy)
@@ -811,7 +1004,7 @@ func _populate_party_strip() -> void:
 			)
 			hb.add_child(xbtn)
 		else:
-			var empty := UIStyle.label("+", 18, UIStyle.TEXT_DIM)
+			var empty := UIStyle.label("빈 슬롯", 12, INK_DIM)
 			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -820,12 +1013,13 @@ func _populate_party_strip() -> void:
 		_party_row.add_child(slot)
 
 
+# ---------------------------------------------------------------------------
+# Actions / state
+# ---------------------------------------------------------------------------
+
 func _toggle_draft(member_id: String) -> void:
 	var sid := str(member_id)
 	if _draft_ids.has(sid):
-		# Focus-only when already selected via card double semantics:
-		# first click focuses+toggles; if already in draft and focused, keep (remove via ×).
-		# Card press always toggles for snappy formation.
 		_draft_ids.erase(sid)
 		return
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
@@ -834,7 +1028,6 @@ func _toggle_draft(member_id: String) -> void:
 		return
 	var other := GameState.member_party_kind(sid)
 	if other != "" and other != party_kind and not _draft_ids.has(sid):
-		# Exclusive on save; warn early.
 		GameState.emit_message("저장 시 다른 파티(%s)에서 해제됩니다." % GameState.guild_party_label(other))
 	_draft_ids.append(sid)
 
@@ -898,7 +1091,7 @@ func _style_filter_buttons() -> void:
 		if str(job) == _filter_job:
 			b.add_theme_stylebox_override("normal", UIStyle.button_pressed())
 		else:
-			UIStyle.apply_button(b)
+			_apply_metal_button(b)
 
 
 func _style_kind_buttons() -> void:
@@ -909,14 +1102,22 @@ func _style_kind_buttons() -> void:
 		if str(kind) == party_kind:
 			b.add_theme_stylebox_override("normal", UIStyle.button_pressed())
 		else:
-			UIStyle.apply_button(b)
+			_apply_metal_button(b)
+
+
+func _card_portrait_for(job: String) -> Texture2D:
+	## Prefer square 96×96 portraits for cards/slots (presence without upscaling combat sheets).
+	var path := "res://assets/sprites/characters/portrait_%s.png" % job
+	var t := _tex(path)
+	if t:
+		return t
+	var sheet := "res://assets/sprites/characters/%s/combat_00.png" % job
+	t = _tex(sheet)
+	if t:
+		return t
+	return _tex("res://assets/sprites/characters/portrait_lord.png")
 
 
 func _portrait_for(job: String) -> Texture2D:
-	var sheet := "res://assets/sprites/characters/%s/combat_00.png" % job
-	if ResourceLoader.exists(sheet):
-		return load(sheet) as Texture2D
-	var path := "res://assets/sprites/characters/portrait_%s.png" % job
-	if ResourceLoader.exists(path):
-		return load(path) as Texture2D
-	return load("res://assets/sprites/characters/portrait_lord.png") as Texture2D
+	## Kept for any external callers; same job → same art family as cards.
+	return _card_portrait_for(job)
