@@ -1,9 +1,9 @@
 extends SceneTree
 
-## PR14: hunting Tobitate MP3 + re-entry spawn (room + party coords).
+## Hunting-grounds MP3 + re-entry spawn (room + party coords).
 ## godot4 --headless --path . -s res://scripts/core/validate_hunt_mp3_spawn.gd
 
-const HUNT_MP3 := "res://assets/audio/music/tobitate_aoi_sora.mp3"
+const HUNT_MP3 := "res://assets/audio/music/hunting_ground_bgm.mp3"
 const ALLY_SLOTS := [
 	Vector2(220, 280),
 	Vector2(180, 360),
@@ -50,12 +50,12 @@ func _run() -> void:
 		print("FAIL: BGM_PATHS.hunt=%s" % str(paths.get("hunt", "")))
 		failed += 1
 	else:
-		_pass("BGM_PATHS.hunt → tobitate_aoi_sora.mp3")
+		_pass("BGM_PATHS.hunt → hunting_ground_bgm.mp3")
 	if str(paths.get("combat", "")) != HUNT_MP3:
-		print("FAIL: combat alias not Tobitate")
+		print("FAIL: combat alias not hunting_ground_bgm")
 		failed += 1
 	else:
-		_pass("BGM_PATHS.combat alias → Tobitate")
+		_pass("BGM_PATHS.combat alias → hunting_ground_bgm")
 
 	# --- B. Town → hunt plays hunt MP3 ---
 	am.call("on_enter_town")
@@ -89,7 +89,7 @@ func _run() -> void:
 	elif pos1 > 0.2 and pos2 < 0.05:
 		print("FAIL: internal hop seeked BGM"); failed += 1
 	else:
-		_pass("Hunt internal hop keeps Tobitate position (%.3f→%.3f)" % [pos1, pos2])
+		_pass("Hunt internal hop keeps hunt MP3 position (%.3f→%.3f)" % [pos1, pos2])
 
 	# --- D. Dungeon normal still uses OGG playlist ---
 	root.set_meta("hunt_id", "")

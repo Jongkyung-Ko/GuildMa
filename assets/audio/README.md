@@ -4,7 +4,7 @@
 
 - `sfx/` — WAV one-shots / loops from SFX Pack v1
 - `music/` — primary player-facing BGM (MP3)
-- `bgm/` — legacy MIDI/OGG pack (boss intensity still uses OGG)
+- `bgm/` — legacy MIDI/OGG pack (elite/mid + playlist still use OGG)
 
 ## Active BGM map (`AudioManager`)
 
@@ -12,10 +12,14 @@
 |-----|------|------|
 | `title` | `music/sovereign_of_the_keep.mp3` | Game start / title screen |
 | `town` | `music/morning_dew_on_stone.mp3` | Town + facilities |
-| `combat` | `music/tobitate_aoi_sora.mp3` | Explicit `play_bgm("combat")` cue |
+| `world_map` | `music/world_map_bgm.mp3` | World map screen |
+| `hunt` / `combat` | `music/hunting_ground_bgm.mp3` | Hunt maze (`on_enter_combat` hunt path) |
+| `boss` / `combat_boss` | `music/boss_battle_bgm.mp3` | Final boss intensity |
+| `credits` | `music/ending_credits_bgm.mp3` | Hook only — **no credits screen yet** |
 | `combat_epic` … `combat_hunting` | `bgm/03`…`02` OGG | Normal combat shuffle playlist |
 | `combat_metal` / `combat_heroic` | OGG | Elite / mid-boss intensity loops |
-| `combat_boss` | `bgm/06_combat_boss_intensity.ogg` | Final boss floors |
+
+Fade between tracks uses `FADE_SEC` (1.5s) on the single `BgmPlayer`. Town BGM is unchanged. Legacy `tobitate_aoi_sora.mp3` and `06_combat_boss_intensity.ogg` remain on disk but are no longer the active hunt/boss keys.
 
 Normal combat still shuffles Epic → Heroic → Metal → Hunting (end-of-track fade, no consecutive repeat). Web browsers require a first click/key before audio starts.
 
