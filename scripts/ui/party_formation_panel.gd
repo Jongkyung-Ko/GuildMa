@@ -50,18 +50,21 @@ const STAT_ICON_HP := ["res://assets/sprites/icons/med.png", "res://assets/items
 const STAT_ICON_ATK := ["res://assets/sprites/icons/train.png", "res://assets/items/blade_zwei.png"]
 const STAT_ICON_DEF := ["res://assets/items/crest_shield.png", "res://assets/sprites/icons/storage.png"]
 
-## Single ornate-frame prototype (approve before bulk). JPG reference had no alpha —
-## white holes converted to RGBA PNG. UV rects measured from assets/ui/namecard/frame_ornate_v1.png.
+## Art-kit single-card prototype (approve before bulk). Frames extracted from
+## 01_UI_Frames_Atlas.png (opaque white fills → alpha). UV from card_frame_default.png.
 const PROTOTYPE_MEMBER_ID := "m_lord"
-const ORNATE_FRAME_PATH := "res://assets/ui/namecard/frame_ornate_v1.png"
-## Normalized rects on the 841×1024 frame: x0,y0,x1,y1
-const ORNATE_PORTRAIT_UV := Rect2(0.128, 0.151, 0.744, 0.425) # pos + size
-const ORNATE_NAME_UV := Rect2(0.12, 0.575, 0.76, 0.090)
-const ORNATE_STATS_UV := Rect2(0.16, 0.662, 0.68, 0.090)
-const ORNATE_SKILL_UVS := [
-	Rect2(0.224, 0.766, 0.140, 0.104),
-	Rect2(0.432, 0.764, 0.139, 0.106),
-	Rect2(0.640, 0.766, 0.136, 0.104),
+const KIT_CARD_DEFAULT := "res://assets/ui/party/frames/card_frame_default.png"
+const KIT_CARD_SELECTED := "res://assets/ui/party/frames/card_frame_selected.png"
+const KIT_DETAIL_PANEL := "res://assets/ui/party/frames/detail_panel.png"
+const KIT_PARTY_SLOT := "res://assets/ui/party/frames/party_slot_bar.png"
+## Rect2 = (x0, y0, w, h) in 0–1 frame space (default card 340×548).
+const KIT_PORTRAIT_UV := Rect2(0.132, 0.141, 0.730, 0.445)
+const KIT_NAME_UV := Rect2(0.14, 0.600, 0.72, 0.085)
+const KIT_STATS_UV := Rect2(0.14, 0.685, 0.72, 0.070)
+const KIT_SKILL_UVS := [
+	Rect2(0.162, 0.766, 0.168, 0.102),
+	Rect2(0.421, 0.766, 0.165, 0.100),
+	Rect2(0.676, 0.766, 0.162, 0.100),
 ]
 
 signal closed
@@ -317,35 +320,30 @@ func _rebuild() -> void:
 
 
 func _build_header() -> Control:
-	## Ultra-compact header so the namecard list owns vertical space.
+	## Kit layout 02/05: minimize top chrome — one band for title+kinds+filters.
 	var panel := _make_stone_panel(false, true)
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 3 if _dense else 4)
+	vb.add_theme_constant_override("separation", 2)
 	panel.add_child(vb)
-
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
-	vb.add_child(top)
-	top.add_child(UIStyle.label("파티 편성", 15 if not _dense else 13, METAL_GOLD_BRIGHT))
-	_count_label = UIStyle.label("", 12, INK)
-	top.add_child(_count_label)
-	_avg_label = UIStyle.label("", 11, INK_DIM)
-	top.add_child(_avg_label)
-	_comp_label = UIStyle.label("", 10, INK_DIM)
-	top.add_child(_comp_label)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(spacer)
-	var close_b := Button.new()
-	close_b.text = "닫기"
-	close_b.custom_minimum_size = Vector2(0, 22 if _dense else 26)
-	_apply_metal_button(close_b)
-	close_b.pressed.connect(func(): closed.emit())
-	top.add_child(close_b)
 
 	var band := HBoxContainer.new()
 	band.add_theme_constant_override("separation", 4)
 	vb.add_child(band)
+	band.add_child(UIStyle.label("파티 편성", 13 if not _dense else 12, METAL_GOLD_BRIGHT))
+	_count_label = UIStyle.label("", 11, INK)
+	band.add_child(_count_label)
+	_avg_label = UIStyle.label("", 10, INK_DIM)
+	band.add_child(_avg_label)
+	_comp_label = UIStyle.label("", 9, INK_DIM)
+	band.add_child(_comp_label)
+	var close_b := Button.new()
+	close_b.text = "닫기"
+	close_b.custom_minimum_size = Vector2(0, 22 if _dense else 24)
+	_apply_metal_button(close_b)
+	close_b.pressed.connect(func(): closed.emit())
+	band.add_child(close_b)
+	var sep0 := VSeparator.new()
+	band.add_child(sep0)
 	for kind in GameState.GUILD_PARTY_KINDS:
 		var b := Button.new()
 		b.text = GameState.guild_party_label(str(kind))
@@ -496,22 +494,34 @@ func _ensure_first_row_uncut() -> void:
 
 
 func _build_detail_column() -> Control:
-	var panel := _make_stone_panel(true)
-	panel.custom_minimum_size = Vector2(250 if not _dense else 200, 0)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.size_flags_stretch_ratio = 0.9
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	## Kit detail panel as sole chrome (no second stone frame on top).
+	var host := Control.new()
+	host.custom_minimum_size = Vector2(250 if not _dense else 200, 0)
+	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	host.size_flags_stretch_ratio = 0.9
+	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var bg := TextureRect.new()
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.texture = _tex(KIT_DETAIL_PANEL)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_SCALE
+	bg.set_anchors_preset(PRESET_FULL_RECT)
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	host.add_child(bg)
 	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	scroll.offset_left = 14
+	scroll.offset_top = 14
+	scroll.offset_right = -14
+	scroll.offset_bottom = -14
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
+	host.add_child(scroll)
 	_detail_box = VBoxContainer.new()
 	_detail_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_box.add_theme_constant_override("separation", 6)
 	scroll.add_child(_detail_box)
 	_populate_detail()
-	return panel
+	return host
 
 
 func _build_party_strip() -> Control:
@@ -625,25 +635,24 @@ func _populate_grid() -> void:
 
 
 # ---------------------------------------------------------------------------
-# ONE ornate-frame prototype (m_lord) — do not bulk-apply until approved
+# ONE art-kit namecard (m_lord) — do not bulk-apply until approved
 # ---------------------------------------------------------------------------
 
 func _make_prototype_ornate_card(m: Dictionary) -> Control:
-	## Vertical RPG namecard using ornate frame chrome. Real GameState member data.
-	## Geometry ~200×295 (~0.68:1). Portrait in frame hole; name/stats mid; 3 skill wells.
+	## Vertical namecard from kit `01` frames. Real GameState data + pixel portrait.
+	## Geometry ~190–205 × 270–295. TextureRect scale (not NinePatch — ornate corners).
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
 	var selected := in_draft or focused
-	var card_w := 186.0 if _dense else 205.0
-	var card_h := 268.0 if _dense else 300.0
+	var card_w := 190.0 if _dense else 205.0
+	var card_h := 275.0 if _dense else 295.0
 
 	var card := Button.new()
 	card.name = "OrnatePrototypeCard"
 	card.flat = true
 	card.clip_contents = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
-	# Fixed vertical card — do not EXPAND_FILL or the ornate frame becomes landscape.
 	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	card.size = Vector2(card_w, card_h)
@@ -654,53 +663,33 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 	card.add_theme_stylebox_override("pressed", flat_sb)
 	card.add_theme_stylebox_override("focus", flat_sb)
 
-	# Root fills the button; children use normalized frame UVs.
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.set_anchors_preset(PRESET_FULL_RECT)
 	card.add_child(root)
 
-	# Selection glow behind frame (not baked into PNG).
-	if selected:
-		var glow := PanelContainer.new()
-		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		glow.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-		glow.offset_left = -3
-		glow.offset_top = -3
-		glow.offset_right = 3
-		glow.offset_bottom = 3
-		var gsb := StyleBoxFlat.new()
-		gsb.bg_color = Color(0.85, 0.65, 0.2, 0.18)
-		gsb.set_border_width_all(2)
-		gsb.border_color = METAL_GOLD_BRIGHT
-		gsb.set_corner_radius_all(8)
-		glow.add_theme_stylebox_override("panel", gsb)
-		root.add_child(glow)
-
-	# Portrait behind the ornate chrome (hole is alpha=0).
+	# Pixel roster portrait behind frame hole (do not use painted sheet samples).
 	var portrait := TextureRect.new()
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	portrait.texture = _card_portrait_for(str(m.get("job", "lord")))
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_ornate_apply_uv(portrait, ORNATE_PORTRAIT_UV)
+	_ornate_apply_uv(portrait, KIT_PORTRAIT_UV)
 	root.add_child(portrait)
 
-	# Ornate frame overlay (RGBA chrome; text/icons are separate Controls).
 	var frame := TextureRect.new()
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.texture = _tex(ORNATE_FRAME_PATH)
+	frame.texture = _tex(KIT_CARD_SELECTED if selected else KIT_CARD_DEFAULT)
 	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	frame.stretch_mode = TextureRect.STRETCH_SCALE
 	frame.set_anchors_preset(PRESET_FULL_RECT)
 	frame.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	root.add_child(frame)
 
-	# Mid: name / job / level over the dark plate (not baked into frame).
 	var name_host := Control.new()
 	name_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ornate_apply_uv(name_host, ORNATE_NAME_UV)
+	_ornate_apply_uv(name_host, KIT_NAME_UV)
 	root.add_child(name_host)
 	var name_col := VBoxContainer.new()
 	name_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -726,11 +715,10 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 	job_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_col.add_child(job_l)
 
-	# Stats chips in mid band under the name plate (clipped so they don't cover skill wells).
 	var stats_host := Control.new()
 	stats_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stats_host.clip_contents = true
-	_ornate_apply_uv(stats_host, ORNATE_STATS_UV)
+	_ornate_apply_uv(stats_host, KIT_STATS_UV)
 	root.add_child(stats_host)
 	var preview := GameState.compute_combat_preview(m)
 	var chips := _stat_chip_row(
@@ -741,12 +729,11 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 	chips.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	stats_host.add_child(chips)
 
-	# Bottom: 3 equal skill squares aligned to frame wells.
 	var skills: Array = m.get("skills", [])
 	for i in 3:
 		var well := Control.new()
 		well.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_ornate_apply_uv(well, ORNATE_SKILL_UVS[i])
+		_ornate_apply_uv(well, KIT_SKILL_UVS[i])
 		root.add_child(well)
 		var sk := str(skills[i]) if i < skills.size() else ""
 		var cell := CenterContainer.new()
@@ -754,12 +741,11 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 		cell.set_anchors_preset(PRESET_FULL_RECT)
 		well.add_child(cell)
 		if sk != "":
-			# Icon-only inside the frame well — captions hang past the gold rim and clip.
 			var tex := _skill_tex(sk)
 			if tex:
 				var ir := TextureRect.new()
 				ir.texture = tex
-				ir.custom_minimum_size = Vector2(24 if _dense else 28, 24 if _dense else 28)
+				ir.custom_minimum_size = Vector2(22 if _dense else 26, 22 if _dense else 26)
 				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -770,12 +756,6 @@ func _make_prototype_ornate_card(m: Dictionary) -> Control:
 				var cap := UIStyle.label(sk.substr(0, 2), 10, INK)
 				cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 				cell.add_child(cap)
-		else:
-			var empty := ColorRect.new()
-			empty.color = Color(0, 0, 0, 0)
-			empty.custom_minimum_size = Vector2(18, 18)
-			empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			cell.add_child(empty)
 
 	card.pressed.connect(func():
 		if _focus_id == mid:
