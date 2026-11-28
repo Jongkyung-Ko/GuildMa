@@ -3,6 +3,8 @@ extends Control
 ## Guild Hall HQ — landscape-only split layout + stage composition.
 ## Portrait stacked-scroll layout is disabled (game is landscape-only).
 
+const PartyFormationPanelScript = preload("res://scripts/ui/party_formation_panel.gd")
+
 const HALL_BG := "res://assets/backgrounds/guild_interior.png"
 const PORTRAIT_DIR := "res://assets/sprites/characters/"
 ## Match hunt on-screen size (combat base 0.95 × COMBAT_RENDER_SCALE). Do not edit combat 0.8.
@@ -52,6 +54,8 @@ var _overlay: ColorRect
 var _overlay_panel: PanelContainer
 var _nav_buttons: Dictionary = {}
 var _layout_built: bool = false
+var _formation: Control = null
+var _formation_state: Dictionary = {}
 
 
 func _ready() -> void:
@@ -356,6 +360,8 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	_body_host.size = Vector2(content_w, content_h)
 	# PanelContainer sizes HallRoot on the next layout pass.
 	call_deferred("_fit_interior")
+	if _formation and _formation.visible:
+		call_deferred("_fit_formation")
 
 
 func _hall_area() -> Vector2:
@@ -449,7 +455,12 @@ func _set_mode(mode: String) -> void:
 	_mode = mode
 	_close_overlay()
 	if mode == MENU_FACILITY:
+		_hide_formation()
 		_open_facility_panel()
+	elif mode == MENU_PARTY:
+		_open_formation("hunt")
+	else:
+		_hide_formation()
 	_refresh_all()
 
 
@@ -502,6 +513,9 @@ func _on_save_parties() -> void:
 func _refresh_all() -> void:
 	_refresh_top()
 	_refresh_nav()
+	if _formation and _formation.visible:
+		_fit_formation()
+		return
 	_refresh_hall()
 	_refresh_detail()
 	_refresh_party_cards()
@@ -1064,137 +1078,71 @@ func _make_party_card(kind: String) -> PanelContainer:
 
 
 func _open_assign(kind: String) -> void:
-	_assign_kind = kind
-	_draft_ids = GameState.get_guild_party(kind).duplicate()
 	_mode = MENU_PARTY
-	_show_overlay_assign()
+	_refresh_nav()
+	_open_formation(kind)
 
 
-func _show_overlay_assign() -> void:
-	_clear_overlay_body()
-	_fit_overlay()
-	if _hall_layer:
-		_hall_layer.visible = false
-	_overlay.visible = true
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
-	_overlay_panel.add_child(root)
-	root.add_child(UIStyle.label("%s 편성" % GameState.guild_party_label(_assign_kind), 18, UIStyle.GOLD_BRIGHT))
-	root.add_child(UIStyle.label("같은 길드원은 한 임무 파티에만 배치됩니다. 사냥 파티는 전투 출정 명단과 동기화됩니다.", 12, UIStyle.TEXT_DIM))
-	var count := UIStyle.label("", 13)
-	root.add_child(count)
-	_update_assign_count_label(count)
-
-	var split := HBoxContainer.new()
-	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	split.add_theme_constant_override("separation", 8 if _dense else 12)
-	root.add_child(split)
-
-	var left_scroll := ScrollContainer.new()
-	left_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_scroll.custom_minimum_size = Vector2(240 if _dense else 280, 160 if _dense else 220)
-	split.add_child(left_scroll)
-	var left_box := VBoxContainer.new()
-	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_scroll.add_child(left_box)
-	left_box.add_child(UIStyle.label("전체 길드원", 14, UIStyle.GOLD))
-	for m in GameState.members:
-		left_box.add_child(_assign_member_row(m))
-
-	var right := VBoxContainer.new()
-	right.custom_minimum_size = Vector2(200, 0)
-	split.add_child(right)
-	right.add_child(UIStyle.label("현재 파티", 14, UIStyle.GOLD))
-	var roster := VBoxContainer.new()
-	right.add_child(roster)
-	_rebuild_draft_roster(roster)
-
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override("separation", 10)
-	root.add_child(actions)
-	var save_b := Button.new()
-	save_b.text = "저장"
-	save_b.custom_minimum_size = Vector2(0, 44)
-	UIStyle.apply_button(save_b)
-	save_b.pressed.connect(func():
-		if GameState.set_guild_party(_assign_kind, _draft_ids):
-			_close_overlay()
-			_refresh_all()
-	)
-	actions.add_child(save_b)
-	var cancel_b := Button.new()
-	cancel_b.text = "취소"
-	cancel_b.custom_minimum_size = Vector2(0, 44)
-	UIStyle.apply_button(cancel_b)
-	cancel_b.pressed.connect(_close_overlay)
-	actions.add_child(cancel_b)
-
-
-func _assign_member_row(m: Dictionary) -> PanelContainer:
-	var mid := str(m.get("id", ""))
-	var row := UIStyle.make_panel(_draft_ids.has(mid))
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 8)
-	row.add_child(hb)
-	var tr := TextureRect.new()
-	tr.texture = _portrait_for(str(m.get("job", "lord")))
-	tr.custom_minimum_size = Vector2(36, 36)
-	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	hb.add_child(tr)
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hb.add_child(info)
-	info.add_child(UIStyle.label("%s  Lv.%d" % [m.get("name"), int(m.get("level", 1))], 13))
-	var other := GameState.member_party_kind(mid)
-	var note := ""
-	if _draft_ids.has(mid):
-		note = "선택됨"
-	elif other != "" and other != _assign_kind:
-		note = "다른 파티: %s" % GameState.guild_party_label(other)
+func _open_formation(kind: String) -> void:
+	_assign_kind = kind
+	_close_overlay()
+	if _hall_wrap:
+		_hall_wrap.visible = false
+	if _detail_wrap:
+		_detail_wrap.visible = false
+	if _party_wrap:
+		_party_wrap.visible = false
+	if _formation == null:
+		_formation = PartyFormationPanelScript.new()
+		_formation.name = "PartyFormation"
+		_body_host.add_child(_formation)
+		_formation.closed.connect(_on_formation_closed)
+		_formation.saved.connect(func(_k): _refresh_party_cards())
+	_formation.visible = true
+	_fit_formation()
+	if not _formation_state.is_empty() and str(_formation_state.get("party_kind", "")) == kind:
+		_formation.call("restore_view_state", _formation_state)
 	else:
-		note = UIStyle.job_name(str(m.get("job", "")))
-	info.add_child(UIStyle.label(note, 11, UIStyle.TEXT_DIM))
-	var btn := Button.new()
-	btn.text = "해제" if _draft_ids.has(mid) else "배치"
-	btn.custom_minimum_size = Vector2(0, 40)
-	UIStyle.apply_button(btn)
-	btn.pressed.connect(func():
-		_toggle_draft(mid)
-		_show_overlay_assign()
-	)
-	hb.add_child(btn)
-	return row
+		_formation.call("setup", kind)
 
 
-func _toggle_draft(member_id: String) -> void:
-	var sid := str(member_id)
-	if _draft_ids.has(sid):
-		_draft_ids.erase(sid)
+func _fit_formation() -> void:
+	if _formation == null or not is_instance_valid(_formation):
 		return
-	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(_assign_kind, 5))
-	if _draft_ids.size() >= max_n:
-		GameState.emit_message("파티 인원이 가득 찼습니다. (최대 %d)" % max_n, true)
-		return
-	_draft_ids.append(sid)
+	var nav_w := 96.0 if _dense else 112.0
+	var gap := 6.0 if _dense else 8.0
+	var area := _body_host.size
+	if area.x < 8.0 or area.y < 8.0:
+		area = Vector2(maxf(size.x - 16.0, 640.0), maxf(size.y - 120.0, 280.0))
+	var fpos := Vector2(nav_w + gap, 0)
+	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap), maxf(200.0, area.y))
+	_formation.position = fpos
+	_formation.custom_minimum_size = fsize
+	_formation.set_deferred("size", fsize)
 
 
-func _rebuild_draft_roster(box: VBoxContainer) -> void:
-	for c in box.get_children():
-		c.queue_free()
-	if _draft_ids.is_empty():
-		box.add_child(UIStyle.label("(비어 있음)", 12, UIStyle.TEXT_DIM))
-		return
-	for mid in _draft_ids:
-		var m := GameState.get_member_by_id(str(mid))
-		box.add_child(UIStyle.label("· %s (%s)" % [m.get("name", mid), UIStyle.job_name(str(m.get("job", "")))], 12))
+func _hide_formation() -> void:
+	if _formation and is_instance_valid(_formation):
+		var st: Variant = _formation.call("view_state")
+		if typeof(st) == TYPE_DICTIONARY:
+			_formation_state = st
+		_formation.visible = false
+	if _hall_wrap:
+		_hall_wrap.visible = true
+	if _detail_wrap:
+		_detail_wrap.visible = true
+	if _party_wrap:
+		_party_wrap.visible = true
 
 
-func _update_assign_count_label(label: Label) -> void:
-	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(_assign_kind, 5))
-	label.text = "선택 %d / %d" % [_draft_ids.size(), max_n]
+func _on_formation_closed() -> void:
+	if _formation and is_instance_valid(_formation):
+		var st: Variant = _formation.call("view_state")
+		if typeof(st) == TYPE_DICTIONARY:
+			_formation_state = st
+	_hide_formation()
+	_mode = MENU_MEMBERS
+	_refresh_all()
 
 
 func _open_detail_stats() -> void:
@@ -1307,7 +1255,7 @@ func _clear_overlay_body() -> void:
 
 func _close_overlay() -> void:
 	_overlay.visible = false
-	if _hall_layer:
+	if _hall_layer and not (_formation and _formation.visible):
 		_hall_layer.visible = true
 	_assign_kind = ""
 	_draft_ids.clear()
