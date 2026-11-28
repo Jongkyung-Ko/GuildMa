@@ -300,12 +300,13 @@ func _apply_responsive_layout() -> void:
 	var h := size.y
 	if w < 8.0 or h < 8.0:
 		return
-	# Top HUD ≤ ~8–10% of viewport height (guild info + town only).
-	var top_h := clampf(h * 0.09, 48.0, 64.0)
+	# Top HUD compact — guild info + town only (formation toolbar is separate).
+	# Keep HUD+formation header ≤ ~15% of 720 when combined (~108px).
+	var top_h := clampf(h * 0.07, 42.0, 52.0)
 	if _dense:
-		top_h = mini(top_h, 48.0)
-	var foot_h := 40.0 if _dense else 48.0
-	var toast_h := 16.0 if _dense else 20.0
+		top_h = mini(top_h, 42.0)
+	var foot_h := 36.0 if _dense else 44.0
+	var toast_h := 14.0 if _dense else 18.0
 
 	_top_bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
 	_top_bar.offset_left = pad
@@ -314,7 +315,11 @@ func _apply_responsive_layout() -> void:
 	_top_bar.offset_bottom = pad + top_h
 	_top_bar.clip_contents = true
 	_top_bar.custom_minimum_size = Vector2(0, top_h)
+	_top_bar.size = Vector2(maxf(w - pad * 2.0, 8.0), top_h)
 	_town_btn.text = "마을로"
+	_town_btn.custom_minimum_size = Vector2(64, maxf(24.0, top_h - 12.0))
+	if _top_info:
+		_top_info.add_theme_font_size_override("font_size", 11 if _dense else 12)
 
 	_toast.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	_toast.offset_left = pad
@@ -324,21 +329,23 @@ func _apply_responsive_layout() -> void:
 	var compact_actions := _body_host.get_node_or_null("CompactActions")
 	if compact_actions:
 		compact_actions.visible = false
-	_footer.visible = true
+	var formation_open := _formation != null and is_instance_valid(_formation) and _formation.visible
+	_footer.visible = not formation_open
 	_footer.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	_footer.offset_left = pad
 	_footer.offset_right = -pad
 	_footer.offset_top = -(pad + foot_h)
 	_footer.offset_bottom = -pad
-	_toast.offset_top = -(pad + foot_h + toast_h)
-	_toast.offset_bottom = -(pad + foot_h)
+	var bottom_reserve := (toast_h + 4.0) if formation_open else (foot_h + toast_h + 4.0)
+	_toast.offset_top = -(pad + bottom_reserve)
+	_toast.offset_bottom = -(pad + (4.0 if formation_open else foot_h))
 	_body_scroll.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	_body_scroll.offset_left = pad
 	_body_scroll.offset_right = -pad
 	# Clear the top bar fully (content can grow past top_h without clip alone).
 	var top_clear := maxf(top_h, _top_bar.size.y if _top_bar.size.y > 0.0 else top_h)
 	_body_scroll.offset_top = pad + top_clear + 4.0
-	_body_scroll.offset_bottom = -(pad + foot_h + toast_h + 4.0)
+	_body_scroll.offset_bottom = -(pad + bottom_reserve)
 	var body_h := _body_scroll.size.y if _body_scroll.size.y > 8.0 else h - top_h - foot_h - toast_h - 24.0
 	_layout_wide(w - pad * 2.0, body_h)
 
@@ -1162,6 +1169,10 @@ func _open_formation(kind: String) -> void:
 		_formation.closed.connect(_on_formation_closed)
 		_formation.saved.connect(func(_k): _refresh_party_cards())
 	_formation.visible = true
+	# Avoid duplicate bottom chrome while formation shows its own party strip + actions.
+	if _footer:
+		_footer.visible = false
+	_apply_responsive_layout()
 	_fit_formation()
 	if not _formation_state.is_empty() and str(_formation_state.get("party_kind", "")) == kind:
 		_formation.call("restore_view_state", _formation_state)
@@ -1240,12 +1251,15 @@ func _hide_formation() -> void:
 		if typeof(st) == TYPE_DICTIONARY:
 			_formation_state = st
 		_formation.visible = false
+	if _footer:
+		_footer.visible = true
 	if _hall_wrap:
 		_hall_wrap.visible = true
 	if _detail_wrap:
 		_detail_wrap.visible = true
 	if _party_wrap:
 		_party_wrap.visible = true
+	_apply_responsive_layout()
 
 
 func _on_formation_closed() -> void:
