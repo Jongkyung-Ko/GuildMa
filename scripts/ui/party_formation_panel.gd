@@ -298,7 +298,13 @@ func _skill_tex(skill_name: String) -> Texture2D:
 # Layout
 # ---------------------------------------------------------------------------
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and visible and _grid != null and is_instance_valid(_grid):
+		call_deferred("_layout_member_grid")
+
+
 var _shell_lock: Vector2 = Vector2.ZERO
+var _members_lock_w: float = 0.0
 
 
 func _apply_shell_size(fsize: Vector2) -> void:
@@ -328,8 +334,8 @@ func _pin_root_to_shell() -> void:
 	root.offset_bottom = 0
 	root.clip_contents = true
 	if _shell_lock != Vector2.ZERO:
-		size = _shell_lock
 		custom_minimum_size = _shell_lock
+		set_deferred("size", _shell_lock)
 
 
 func _rebuild() -> void:
@@ -346,7 +352,7 @@ func _rebuild() -> void:
 	clip_contents = true
 	if _shell_lock != Vector2.ZERO:
 		custom_minimum_size = _shell_lock
-		size = _shell_lock
+		set_deferred("size", _shell_lock)
 	var root := VBoxContainer.new()
 	root.name = "FormationRoot"
 	root.clip_contents = true
@@ -370,7 +376,7 @@ func _rebuild() -> void:
 	party.size_flags_vertical = Control.SIZE_SHRINK_END
 	party.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root.add_child(party)
-	call_deferred("_ensure_first_row_uncut")
+	# Mid-split first so list width is stable; it then reflows the card grid.
 	call_deferred("_layout_mid_split")
 	call_deferred("_pin_root_to_shell")
 
@@ -497,60 +503,113 @@ func _build_member_column() -> Control:
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vb.add_child(_grid_scroll)
-	var grid_center := CenterContainer.new()
-	grid_center.name = "GridCenter"
-	grid_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid_center.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_grid_scroll.add_child(grid_center)
+	# MarginContainer owns side gutters; GridContainer owns inter-card gaps.
+	# Avoid CenterContainer so size/align duties are not duplicated.
+	var grid_host := MarginContainer.new()
+	grid_host.name = "GridHost"
+	grid_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_host.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_grid_scroll.add_child(grid_host)
 	_grid = GridContainer.new()
 	_grid.columns = _member_grid_columns()
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_grid.add_theme_constant_override("h_separation", 8 if _dense else 10)
 	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
-	grid_center.add_child(_grid)
+	grid_host.add_child(_grid)
 	_populate_grid()
-	call_deferred("_fit_member_grid_width")
+	# Grid gutters are applied after mid-split knows the final list width.
 	return host
 
 
-func _fit_member_grid_width() -> void:
-	## Force column count and spread 4 cards across the list pane width.
+func _kit_card_base_size() -> Vector2:
+	return Vector2(148.0, 210.0) if _dense else Vector2(168.0, 232.0)
+
+
+func _uniform_kit_card_size() -> Vector2:
+	## One size for every KitNamecard currently in the grid.
+	var base := _kit_card_base_size()
+	if _grid == null or not is_instance_valid(_grid):
+		return base
+	for c in _grid.get_children():
+		if _is_kit_namecard(c):
+			var sz := (c as Control).custom_minimum_size
+			if sz.x > 8.0 and sz.y > 8.0:
+				return sz
+	return base
+
+
+func _is_kit_namecard(n: Node) -> bool:
+	return n is Control and (n as Control).has_meta("kit_namecard")
+
+
+func _layout_member_grid() -> void:
+	## Single alignment pass: equal card size, equal side margins, equal h_sep.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	if _grid_scroll.size.x < 32.0:
-		call_deferred("_fit_member_grid_width_retry")
+		call_deferred("_layout_member_grid_retry")
 		return
 	var cols := _member_grid_columns()
 	_grid.columns = cols
-	var center := _grid_scroll.get_node_or_null("GridCenter") as Control
-	if center:
-		# Expand center host to scroll width so the 4-card row is truly centered.
-		center.custom_minimum_size = Vector2(_grid_scroll.size.x, 0)
-		center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Even gaps between fixed-size cards (do not stretch/squash card art).
-	var card_w := 148.0 if _dense else 168.0
+	var card_sz := _uniform_kit_card_size()
+	# Lock every card to the same min size (layout owns actual size).
 	for c in _grid.get_children():
-		if c is Control and str((c as Control).name) == "KitNamecard":
-			card_w = (c as Control).custom_minimum_size.x
-			break
+		if not _is_kit_namecard(c):
+			continue
+		var card := c as Control
+		if absf(card.custom_minimum_size.x - card_sz.x) > 0.5 or absf(card.custom_minimum_size.y - card_sz.y) > 0.5:
+			card.custom_minimum_size = card_sz
+		card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var host := _grid_scroll.get_node_or_null("GridHost") as MarginContainer
+	# Always fill the current scroll viewport so left/right gutters match visually.
 	var avail := _grid_scroll.size.x
-	var gaps := maxi(cols - 1, 1)
-	var leftover := avail - float(cols) * card_w
-	var sep := int(clampf(leftover / float(gaps), 6.0, 28.0)) if leftover > 0.0 else (6 if _dense else 10)
+	if avail < 32.0:
+		call_deferred("_layout_member_grid_retry")
+		return
+	# Guard against content-size blow-up before mid-split settles.
+	if _members_lock_w > 64.0 and avail > _members_lock_w + 24.0:
+		avail = _members_lock_w
+	if host:
+		host.custom_minimum_size = Vector2(avail, 0)
+	# leftover = 2*side + (cols-1)*sep  with side == sep  →  (cols+1) equal gutters
+	# Equal gutters: left + between×(cols-1) + right  == leftover.
+	var leftover := maxf(0.0, avail - float(cols) * card_sz.x)
+	var gutters := cols + 1
+	var unit := leftover / float(gutters) if gutters > 0 else 0.0
+	# Prefer true equal spacing; only floor a tiny minimum when leftover is sparse.
+	if unit < 4.0 and leftover >= float(gutters) * 4.0:
+		unit = 4.0
+	var side := int(floor(unit + 0.5))
+	var sep := side
+	# Rebalance rounding so 2*side + (cols-1)*sep stays ≤ leftover.
+	var used := float(side * 2 + sep * maxi(cols - 1, 0))
+	if used > leftover and side > 0:
+		side = int(floor(leftover / float(gutters)))
+		sep = side
+	if host:
+		host.add_theme_constant_override("margin_left", side)
+		host.add_theme_constant_override("margin_right", side)
+		host.add_theme_constant_override("margin_top", 0)
+		host.add_theme_constant_override("margin_bottom", 0)
 	_grid.add_theme_constant_override("h_separation", sep)
 	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
+	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_grid.queue_sort()
 
 
-func _fit_member_grid_width_retry() -> void:
+func _layout_member_grid_retry() -> void:
 	if _grid_scroll == null or not is_instance_valid(_grid_scroll):
 		return
 	if _grid_scroll.size.x >= 32.0:
-		_fit_member_grid_width()
+		_layout_member_grid()
 
 
 var _ensure_row_tries: int = 0
 
 func _ensure_first_row_uncut() -> void:
-	## Scale kit namecards uniformly if the list viewport is shorter than one card.
+	## Scale kit namecards uniformly via custom_minimum_size only, then re-layout gaps.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	var view_h := _grid_scroll.size.y
@@ -561,23 +620,23 @@ func _ensure_first_row_uncut() -> void:
 		return
 	_ensure_row_tries = 0
 	var max_card_h := maxf(view_h - 8.0, 140.0)
+	var base := _kit_card_base_size()
+	var target := base
+	if base.y > max_card_h + 0.5:
+		var scale := max_card_h / maxf(base.y, 1.0)
+		target = Vector2(base.x * scale, max_card_h)
 	var changed := false
 	for c in _grid.get_children():
-		if not (c is Control):
+		if not _is_kit_namecard(c):
 			continue
 		var card := c as Control
-		if str(card.name) != "KitNamecard":
-			continue
-		# Only shrink when the viewport is shorter than the card; keep current aspect.
-		if card.custom_minimum_size.y <= max_card_h + 0.5:
-			continue
-		var scale := max_card_h / maxf(card.custom_minimum_size.y, 1.0)
-		var tw := card.custom_minimum_size.x * scale
-		card.custom_minimum_size = Vector2(tw, max_card_h)
-		card.size = Vector2(tw, max_card_h)
-		changed = true
-	if changed and is_instance_valid(_grid):
-		_grid.queue_sort()
+		if absf(card.custom_minimum_size.x - target.x) > 0.5 or absf(card.custom_minimum_size.y - target.y) > 0.5:
+			card.custom_minimum_size = target
+			changed = true
+	# Always re-run grid layout so h_sep/margins match the (possibly new) card width.
+	_layout_member_grid()
+	if changed:
+		call_deferred("_layout_member_grid")
 
 
 func _layout_mid_split() -> void:
@@ -589,7 +648,8 @@ func _layout_mid_split() -> void:
 	var members := find_child("MemberColumn", true, false) as Control
 	if mid == null or detail == null:
 		return
-	var avail := size.x if size.x > 64.0 else (_shell_lock.x if _shell_lock.x > 64.0 else 0.0)
+	# Prefer shell lock so rebuild/resize cannot inflate list width.
+	var avail := _shell_lock.x if _shell_lock.x > 64.0 else size.x
 	if avail < 64.0:
 		call_deferred("_layout_mid_split")
 		return
@@ -602,18 +662,21 @@ func _layout_mid_split() -> void:
 		detail_w = mini(detail_w, avail * 0.34)
 	detail_w = clampf(detail_w, 160.0 if _dense else 220.0, avail * 0.34)
 	var members_w := maxf(min_list if not _dense else 160.0, avail - detail_w - sep)
+	_members_lock_w = members_w
 	detail.custom_minimum_size = Vector2(detail_w, 0)
 	detail.size_flags_horizontal = Control.SIZE_SHRINK_END
 	detail.size_flags_stretch_ratio = 0.0
 	if members:
-		members.custom_minimum_size = Vector2(160, 0)
+		# Lock intended list width so GridHost gutters stay stable across rebuild.
+		members.custom_minimum_size = Vector2(members_w, 0)
 		members.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		members.size_flags_stretch_ratio = 1.0
 	mid.clip_contents = true
 	mid.custom_minimum_size = Vector2(0, 0)
 	if mid.size.x > avail + 1.0:
-		mid.size = Vector2(avail, mid.size.y)
-	call_deferred("_fit_member_grid_width")
+		mid.set_deferred("size", Vector2(avail, mid.size.y))
+	call_deferred("_layout_member_grid")
+	call_deferred("_ensure_first_row_uncut")
 
 
 func _build_detail_column() -> Control:
@@ -757,6 +820,8 @@ func _populate_grid() -> void:
 	# Every member uses the same kit namecard size/structure.
 	for m in list:
 		_grid.add_child(_make_kit_namecard(m))
+	# Defer until MemberColumn width is final (see _layout_mid_split).
+	call_deferred("_layout_member_grid")
 
 
 # ---------------------------------------------------------------------------
@@ -768,17 +833,18 @@ func _make_kit_namecard(m: Dictionary) -> Control:
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
-	var card_w := 148.0 if _dense else 168.0
-	var card_h := 210.0 if _dense else 232.0
+	var base := _kit_card_base_size()
+	var card_w := base.x
+	var card_h := base.y
 
 	var card := Button.new()
-	card.name = "KitNamecard"
+	card.name = "KitNamecard_%s" % mid
+	card.set_meta("kit_namecard", true)
 	card.flat = true
 	card.clip_contents = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	card.size = Vector2(card_w, card_h)
 	UIStyle.apply_button(card)
 	var flat_sb := StyleBoxEmpty.new()
 	card.add_theme_stylebox_override("normal", flat_sb)
