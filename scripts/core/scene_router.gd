@@ -124,3 +124,48 @@ func go_special_encounter(encounter_id: String) -> void:
 	if AudioManager:
 		AudioManager.on_enter_combat(true)
 	get_tree().change_scene_to_file(COMBAT)
+
+
+## World-map village → real boss path via data/world/village_boss_links.json.
+## Only open links launch; closed villages stay data-ready (no fake unlock).
+func go_village_expedition(village_id: String, force_new: bool = true) -> Dictionary:
+	if GameState == null:
+		return {"ok": false, "reason": "GameState 없음"}
+	var link: Dictionary = GameState.get_village_boss_link(village_id)
+	if link.is_empty():
+		return {"ok": false, "reason": "마을 연계 데이터 없음"}
+	if not bool(link.get("open", false)):
+		return {"ok": false, "reason": "아직 개방되지 않은 거점입니다."}
+	get_tree().root.set_meta("village_id", village_id)
+	get_tree().root.set_meta("village_boss_id", str(link.get("boss_id", "")))
+	var spawn := str(link.get("spawn", "hunt"))
+	match spawn:
+		"hunt":
+			var hid := str(link.get("hunt_id", ""))
+			if hid == "":
+				return {"ok": false, "reason": "hunt_id 없음"}
+			go_hunt(hid, force_new)
+			return {"ok": true, "spawn": spawn, "hunt_id": hid, "boss_id": str(link.get("boss_id", ""))}
+		"dungeon":
+			var did := str(link.get("dungeon_id", "shadow_crypt"))
+			var floor := int(link.get("floor", 1))
+			GameState.ensure_dungeon_progress(did)
+			# Unlock prior floors for playable boss floor entry (data-driven expedition).
+			for f in range(1, floor):
+				GameState.mark_dungeon_floor_cleared(did, f)
+			GameState.dungeon_set_floor(did, floor)
+			go_dungeon_combat(did, floor)
+			return {"ok": true, "spawn": spawn, "dungeon_id": did, "floor": floor, "boss_id": str(link.get("boss_id", ""))}
+		"special":
+			var eid := str(link.get("encounter_id", ""))
+			if eid == "":
+				return {"ok": false, "reason": "encounter_id 없음"}
+			var gate: Dictionary = GameState.can_start_special_encounter(eid)
+			if not bool(gate.get("ok", false)):
+				# Open village expedition may still launch for preview when gate fails?
+				# Brief: no fake open — respect gate for specials that aren't open villages.
+				return {"ok": false, "reason": str(gate.get("reason", "특수 조우 불가"))}
+			go_special_encounter(eid)
+			return {"ok": true, "spawn": spawn, "encounter_id": eid, "boss_id": str(link.get("boss_id", ""))}
+		_:
+			return {"ok": false, "reason": "알 수 없는 spawn=%s" % spawn}

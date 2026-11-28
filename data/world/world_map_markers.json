@@ -12,6 +12,7 @@
       "region_name": "North · Frostlands",
       "region_name_ko": "북부 · 프로스트랜드",
       "pos": [0.30, 0.16],
+      "boss_id": "fenrir",
       "blurb": "눈덮인 산기슭의 촌락. 빙하 사냥터로 이어진다."
     },
     {
@@ -23,6 +24,7 @@
       "region_name": "North · Frostlands",
       "region_name_ko": "북부 · 프로스트랜드",
       "pos": [0.42, 0.22],
+      "boss_id": "behemoth",
       "blurb": "절벽 요새 마을. 북부 관문을 지킨다."
     },
     {
@@ -34,6 +36,7 @@
       "region_name": "North · Frostlands",
       "region_name_ko": "북부 · 프로스트랜드",
       "pos": [0.62, 0.18],
+      "boss_id": "bone_golem",
       "blurb": "얼어붙은 묘역 인근 취락. 망자의 숨결이 감돈다."
     },
     {
@@ -61,7 +64,8 @@
       "region_name": "Central · Elderwilds",
       "region_name_ko": "중부 · 엘더와일즈",
       "pos": [0.22, 0.46],
-      "blurb": "길드의 출발 마을. 세계수 인근의 숲 촌락.",
+      "boss_id": "gorgon",
+      "blurb": "길드의 출발 마을. 세계수 인근의 숲 촌락. 습지 사냥터에서 고르곤과 맞선다.",
       "is_home": true
     },
     {
@@ -73,6 +77,7 @@
       "region_name": "Central · Elderwilds",
       "region_name_ko": "중부 · 엘더와일즈",
       "pos": [0.36, 0.56],
+      "boss_id": "lilith",
       "blurb": "달빛 호수 기슭의 마을. 안개 숲으로 이어진다."
     },
     {
@@ -84,6 +89,7 @@
       "region_name": "Central · Elderwilds",
       "region_name_ko": "중부 · 엘더와일즈",
       "pos": [0.66, 0.50],
+      "boss_id": "morgana",
       "blurb": "안개 계곡의 교역 거점."
     },
     {
@@ -111,6 +117,7 @@
       "region_name": "South · Abyss Peaks",
       "region_name_ko": "남부 · 어비스 픽스",
       "pos": [0.38, 0.76],
+      "boss_id": "malkav",
       "blurb": "용암 계곡의 전초기지."
     },
     {
@@ -122,6 +129,7 @@
       "region_name": "South · Abyss Peaks",
       "region_name_ko": "남부 · 어비스 픽스",
       "pos": [0.70, 0.68],
+      "boss_id": "malachi",
       "blurb": "화산 기슭의 잿빛 마을."
     },
     {
@@ -133,6 +141,7 @@
       "region_name": "South · Abyss Peaks",
       "region_name_ko": "남부 · 어비스 픽스",
       "pos": [0.20, 0.78],
+      "boss_id": "vorak",
       "blurb": "수정 동굴과 심연 입구를 잇는 관문 촌락."
     },
     {

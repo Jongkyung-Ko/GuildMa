@@ -1,8 +1,8 @@
 extends Control
 
 ## World map: painted continent + data-driven village/castle markers.
-## Selection shows a side panel; travel is limited to the home (start) town.
-## Does not invent new dungeon/siege flows.
+## Villages link to bosses via data/world/village_boss_links.json.
+## Only open villages (Elderwood→Gorgon) launch real expeditions; others stay data-ready.
 
 const MARKERS_PATH := "res://data/world/world_map_markers.json"
 const BG_PATH := "res://assets/backgrounds/world_map_background.jpg"
@@ -21,6 +21,8 @@ var _panel_kind: Label
 var _panel_body: Label
 var _panel_bosses: Label
 var _travel_btn: Button
+var _expedition_btn: Button
+var _status_label: Label
 var _marker_buttons: Dictionary = {}
 
 
@@ -157,13 +159,20 @@ func _build_select_panel() -> void:
 	_panel_bosses.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_panel_bosses)
 
-	var tip := UIStyle.label(
-		"다른 거점으로의 원정은 추후 개방됩니다. 지금은 출발 마을로만 복귀할 수 있습니다.",
+	_status_label = UIStyle.label(
+		"마을을 선택하면 연계 보스·사냥터가 표시됩니다. 개방된 거점만 출정할 수 있습니다.",
 		12,
 		UIStyle.TEXT_DIM
 	)
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(tip)
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_status_label)
+
+	_expedition_btn = Button.new()
+	_expedition_btn.text = "사냥 출정"
+	_expedition_btn.custom_minimum_size = Vector2(0, 42)
+	UIStyle.apply_button(_expedition_btn)
+	_expedition_btn.pressed.connect(_start_expedition)
+	box.add_child(_expedition_btn)
 
 	_travel_btn = Button.new()
 	_travel_btn.text = "출발 마을로 돌아가기"
@@ -315,6 +324,9 @@ func _select_marker(mid: String) -> void:
 	_panel_body.text = str(m.get("blurb", ""))
 
 	var bosses = m.get("bosses", [])
+	var link: Dictionary = {}
+	if GameState:
+		link = GameState.get_village_boss_link(mid)
 	if typeof(bosses) == TYPE_ARRAY and bosses.size() > 0:
 		var lines: PackedStringArray = PackedStringArray()
 		lines.append("관련 보스")
@@ -323,15 +335,36 @@ func _select_marker(mid: String) -> void:
 				continue
 			lines.append("· %s (%s)" % [str(b.get("name_ko", "")), str(b.get("name", ""))])
 		_panel_bosses.text = "\n".join(lines)
+	elif not link.is_empty():
+		var bid := str(link.get("boss_id", ""))
+		var bdef: Dictionary = GameState.get_boss_def(bid) if GameState else {}
+		var bname := str(bdef.get("name", bid))
+		_panel_bosses.text = "연계 보스 · %s\n%s" % [bname, str(link.get("label_ko", ""))]
 	else:
 		_panel_bosses.text = ""
 
-	if is_home:
-		_travel_btn.text = "출발 마을로 돌아가기"
-		_travel_btn.disabled = false
+	_travel_btn.text = "출발 마을로 돌아가기"
+	_travel_btn.disabled = false
+
+	if kind == "village" and not link.is_empty() and bool(link.get("open", false)):
+		_expedition_btn.visible = true
+		_expedition_btn.disabled = false
+		_expedition_btn.text = "출정 — %s" % str(link.get("label_ko", "사냥터"))
+		_status_label.text = "개방된 거점입니다. 출정 시 실제 보스 전투로 이어집니다."
+	elif kind == "village" and not link.is_empty():
+		_expedition_btn.visible = true
+		_expedition_btn.disabled = true
+		_expedition_btn.text = "미개방 — %s" % str(link.get("label_ko", "연계 준비됨"))
+		_status_label.text = "데이터는 준비되어 있으나 아직 출정할 수 없습니다. (가짜 개방 없음)"
 	else:
-		_travel_btn.text = "미개방 (출발 마을만 가능)"
-		_travel_btn.disabled = true
+		_expedition_btn.visible = kind == "village"
+		_expedition_btn.disabled = true
+		_expedition_btn.text = "연계 정보 없음" if kind == "village" else "성채는 정보 표시만"
+		_status_label.text = (
+			"성채는 보스 목록만 표시합니다."
+			if kind == "castle"
+			else "마을을 선택하세요."
+		)
 
 	# Selection chrome on markers.
 	for idk in _marker_buttons.keys():
@@ -349,6 +382,18 @@ func _return_home() -> void:
 	if AudioManager:
 		AudioManager.play_ui_click()
 	SceneRouter.go_town()
+
+
+func _start_expedition() -> void:
+	if AudioManager:
+		AudioManager.play_ui_click()
+	if _selected_id == "":
+		return
+	var result: Dictionary = SceneRouter.go_village_expedition(_selected_id, true)
+	if not bool(result.get("ok", false)):
+		if GameState:
+			GameState.emit_message(str(result.get("reason", "출정할 수 없습니다.")), true)
+		_status_label.text = str(result.get("reason", "출정 실패"))
 
 
 func _unhandled_input(event: InputEvent) -> void:
