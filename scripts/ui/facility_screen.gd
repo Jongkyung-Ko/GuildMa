@@ -65,7 +65,7 @@ func _build_shell() -> void:
 	town_btn.pressed.connect(func(): SceneRouter.go_town())
 	top_row.add_child(town_btn)
 
-	# Left nav — stretch with EXPAND tall viewports (fixed 560 left a huge empty void).
+	# Left nav — scroll so all facilities stay reachable at 844×390 / 1280 / 1366.
 	var nav := UIStyle.make_panel()
 	nav.name = "FacilityNav"
 	nav.anchor_left = 0.0
@@ -76,10 +76,20 @@ func _build_shell() -> void:
 	nav.offset_right = 188
 	nav.offset_top = 76
 	nav.offset_bottom = -40
+	nav.clip_contents = true
 	add_child(nav)
+	var nav_scroll := ScrollContainer.new()
+	nav_scroll.name = "FacilityNavScroll"
+	nav_scroll.set_anchors_preset(PRESET_FULL_RECT)
+	nav_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	nav_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	nav_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	nav.add_child(nav_scroll)
 	var nav_box := VBoxContainer.new()
 	nav_box.add_theme_constant_override("separation", 6)
-	nav.add_child(nav_box)
+	nav_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav_scroll.add_child(nav_box)
 	nav_box.add_child(UIStyle.label("시설", 16, UIStyle.TEXT_DIM))
 	for fid in FACILITY_ORDER:
 		var b := Button.new()
@@ -116,10 +126,8 @@ func _build_shell() -> void:
 		_main_box.add_child(_left_visual)
 		var interior := TextureRect.new()
 		interior.name = "InteriorTex"
-		interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
-		interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		interior.custom_minimum_size = Vector2(340, 280)
-		interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		UIStyle.apply_cover_texture(interior, load(INTERIOR.get(facility_id, INTERIOR["guild"])) as Texture2D)
 		_left_visual.add_child(interior)
 		_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
 		_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
@@ -192,10 +200,8 @@ func _ensure_default_layout() -> void:
 	_left_visual.custom_minimum_size = Vector2(340, 0)
 	_main_box.add_child(_left_visual)
 	var interior := TextureRect.new()
-	interior.texture = load(INTERIOR.get(facility_id, INTERIOR["guild"]))
-	interior.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	interior.custom_minimum_size = Vector2(340, 280)
-	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	UIStyle.apply_cover_texture(interior, load(INTERIOR.get(facility_id, INTERIOR["guild"])) as Texture2D)
 	_left_visual.add_child(interior)
 	_left_visual.add_child(UIStyle.label(UIStyle.facility_name(facility_id), 22, UIStyle.GOLD_BRIGHT))
 	_left_visual.add_child(UIStyle.label(_facility_blurb(), 14, UIStyle.TEXT_DIM))
@@ -264,18 +270,16 @@ func _build_guild() -> void:
 	for m in GameState.members:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
-		var portrait := TextureRect.new()
-		portrait.texture = _portrait_for(m.get("job"))
-		portrait.custom_minimum_size = Vector2(40, 40)
-		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		row.add_child(portrait)
+		# Hunt-quality idle frame (same sheet as combat) — not tiny soft portraits.
+		row.add_child(_make_member_sprite(str(m.get("job", "dps")), 72.0))
 		var info := "%s  |  %s  Lv.%d  EXP %d  %s" % [
 			m.get("name"), UIStyle.job_name(m.get("job")), m.get("level"), m.get("exp", 0),
 			"부상" if m.get("injured") else ("파티" if m.get("in_party") else "대기")
 		]
-		row.add_child(UIStyle.label(info, 14))
+		var info_l := UIStyle.label(info, 14)
+		info_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(info_l)
 		_content.add_child(row)
 
 	_content.add_child(HSeparator.new())
@@ -560,6 +564,29 @@ func _portrait_for(job: String) -> Texture2D:
 	if ResourceLoader.exists(path):
 		return load(path)
 	return load("res://assets/sprites/characters/portrait_lord.png")
+
+
+func _idle_frame_for(job: String) -> Texture2D:
+	## Prefer combat idle sheet (hunt visual) over low-res portrait thumbs.
+	var sheet := "res://assets/sprites/characters/%s/combat_00.png" % job
+	if ResourceLoader.exists(sheet):
+		return load(sheet) as Texture2D
+	return _portrait_for(job)
+
+
+func _make_member_sprite(job: String, size: float = 72.0) -> Control:
+	## Static hunt-sheet frame at NEAREST — matches combat art quality without anim cost.
+	var host := Control.new()
+	host.custom_minimum_size = Vector2(size, size)
+	host.clip_contents = true
+	var tr := TextureRect.new()
+	tr.texture = _idle_frame_for(job)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tr.set_anchors_preset(PRESET_FULL_RECT)
+	host.add_child(tr)
+	return host
 
 
 func _total_upkeep() -> int:

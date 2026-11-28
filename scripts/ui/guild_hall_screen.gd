@@ -5,9 +5,10 @@ extends Control
 
 const HALL_BG := "res://assets/backgrounds/guild_interior.png"
 const PORTRAIT_DIR := "res://assets/sprites/characters/"
-## Idle sheets are ~64px tall; scale up so actors read clearly in the hall.
-const SPRITE_SCALE := 1.05
-const LORD_SCALE := 1.28
+## Match hunt on-screen size (combat base 0.95 × COMBAT_RENDER_SCALE). Do not edit combat 0.8.
+const SPRITE_SCALE := 0.95 * CombatFieldBounds.COMBAT_RENDER_SCALE
+## Lord slightly larger than members (same relative emphasis as prior 1.28/1.05).
+const LORD_SCALE := 1.22 * CombatFieldBounds.COMBAT_RENDER_SCALE
 const HALL_MEMBER_CAP := 10
 ## Floor line as fraction of the interior texture height (stone floor / rug).
 const INTERIOR_FLOOR_T := 0.78
@@ -15,7 +16,7 @@ const INTERIOR_ASPECT := 720.0 / 520.0
 const ACTOR_FOOT_MARGIN := 32.0
 const NAMEPLATE_H := 16.0
 const SPRITE_FOOT_OFFSET_Y := -30.0
-## Mild zoom on pinned interior so furniture/actors fill the hall frame.
+## Mild zoom on centered cover so furniture/actors fill the hall frame.
 const INTERIOR_ZOOM := 1.14
 ## Target clear air between opaque sprite edges (combat_00 content, recentered).
 const VISUAL_GAP := 32.0
@@ -128,9 +129,17 @@ func _build_shell() -> void:
 	_body_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_body_scroll.add_child(_body_host)
 
+	# Scroll so all menu entries stay reachable at 844/1280/1366.
+	var nav_scroll := ScrollContainer.new()
+	nav_scroll.name = "NavScroll"
+	nav_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	nav_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	nav_scroll.clip_contents = true
+	_body_host.add_child(nav_scroll)
 	_nav_box = VBoxContainer.new()
 	_nav_box.add_theme_constant_override("separation", 6)
-	_body_host.add_child(_nav_box)
+	_nav_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nav_scroll.add_child(_nav_box)
 	_nav_box.add_child(UIStyle.label("길드 메뉴", 13, UIStyle.TEXT_DIM))
 	for entry in [
 		[MENU_MEMBERS, "길드원"],
@@ -162,7 +171,7 @@ func _build_shell() -> void:
 	interior.name = "Interior"
 	interior.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	interior.texture = load(HALL_BG)
-	# Manual cover + bottom-pin in _fit_interior so throne/floor stay in frame.
+	# Manual cover + true center in _fit_interior (no bottom-only crop).
 	interior.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	interior.stretch_mode = TextureRect.STRETCH_SCALE
 	interior.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -317,8 +326,12 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	var party_h := 132.0 if _dense else 156.0
 	var hall_h := maxf(200.0 if _dense else 240.0, content_h - party_h - gap)
 
-	_nav_box.position = Vector2(0, 0)
-	_nav_box.size = Vector2(nav_w, content_h)
+	var nav_scroll := _body_host.get_node_or_null("NavScroll") as ScrollContainer
+	if nav_scroll:
+		nav_scroll.position = Vector2(0, 0)
+		nav_scroll.size = Vector2(nav_w, content_h)
+		nav_scroll.custom_minimum_size = Vector2(nav_w, content_h)
+	_nav_box.custom_minimum_size = Vector2(nav_w - 4.0, 0)
 	for mid in _nav_buttons.keys():
 		var b: Button = _nav_buttons[mid]
 		if is_instance_valid(b):
@@ -354,28 +367,14 @@ func _hall_area() -> Vector2:
 
 
 func _fit_interior() -> void:
-	## Cover the hall panel while pinning the art bottom so the stone floor /
-	## throne stay visible (center-crop COVERED was cutting the floor away).
+	## Aspect-safe cover, centered on both axes (no bottom-only crop / Y nudge).
 	if _hall_root == null:
 		return
 	var interior := _hall_root.get_node_or_null("Interior") as TextureRect
 	if interior == null:
 		return
 	var area := _hall_area()
-	if area.x < 8.0 or area.y < 8.0:
-		return
-	var w := area.x * INTERIOR_ZOOM
-	var h := w / INTERIOR_ASPECT
-	if h < area.y:
-		h = area.y
-		w = h * INTERIOR_ASPECT
-	interior.anchor_left = 0.0
-	interior.anchor_top = 0.0
-	interior.anchor_right = 0.0
-	interior.anchor_bottom = 0.0
-	# Bottom-pin + horizontal center — throne/fireplace stay framed.
-	interior.position = Vector2((area.x - w) * 0.5, area.y - h)
-	interior.size = Vector2(w, h)
+	UIStyle.fit_texture_cover_centered(interior, area, INTERIOR_ASPECT, INTERIOR_ZOOM)
 
 
 func _ensure_nav_orientation(horizontal: bool) -> void:
@@ -1316,10 +1315,14 @@ func _close_overlay() -> void:
 
 
 func _portrait_for(job: String) -> Texture2D:
+	## Prefer hunt/combat idle sheet for quality; fall back to portrait thumbs.
+	var sheet := PORTRAIT_DIR + "%s/combat_00.png" % job
+	if ResourceLoader.exists(sheet):
+		return load(sheet) as Texture2D
 	var path := PORTRAIT_DIR + "portrait_%s.png" % job
 	if ResourceLoader.exists(path):
-		return load(path)
-	return load(PORTRAIT_DIR + "portrait_lord.png")
+		return load(path) as Texture2D
+	return load(PORTRAIT_DIR + "portrait_lord.png") as Texture2D
 
 
 func _unhandled_input(event: InputEvent) -> void:

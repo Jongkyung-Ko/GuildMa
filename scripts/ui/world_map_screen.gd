@@ -68,13 +68,12 @@ func _build_ui() -> void:
 
 	_bg = TextureRect.new()
 	_bg.name = "WorldMapBg"
-	if ResourceLoader.exists(BG_PATH):
-		_bg.texture = load(BG_PATH)
-	_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_bg.set_anchors_preset(PRESET_FULL_RECT)
-	_bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var map_tex: Texture2D = null
+	if ResourceLoader.exists(BG_PATH):
+		map_tex = load(BG_PATH) as Texture2D
+	UIStyle.apply_cover_texture(_bg, map_tex)
 	_map_host.add_child(_bg)
 
 	for m in _markers:

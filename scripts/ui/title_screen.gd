@@ -10,10 +10,8 @@ func _ready() -> void:
 
 func _build() -> void:
 	var bg := TextureRect.new()
-	bg.texture = load("res://assets/backgrounds/title_bg.png")
-	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	bg.set_anchors_preset(PRESET_FULL_RECT)
-	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	UIStyle.apply_cover_texture(bg, load("res://assets/backgrounds/title_bg.png") as Texture2D)
 	add_child(bg)
 
 	var dim := ColorRect.new()

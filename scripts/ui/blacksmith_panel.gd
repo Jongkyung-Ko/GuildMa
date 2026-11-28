@@ -91,11 +91,8 @@ class BlacksmithPanelRoot extends Control:
 		vb.add_child(stage)
 
 		var bg := TextureRect.new()
-		bg.texture = load("res://assets/backgrounds/smith_interior.png")
 		bg.set_anchors_preset(PRESET_FULL_RECT)
-		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		UIStyle.apply_cover_texture(bg, load("res://assets/backgrounds/smith_interior.png") as Texture2D)
 		stage.add_child(bg)
 
 		_furnace_glow = ColorRect.new()

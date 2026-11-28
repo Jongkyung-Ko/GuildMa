@@ -85,38 +85,73 @@ static func subcategory_label(subcategory: String) -> String:
 
 ## Path → Texture2D. Avoids repeat ResourceLoader work across shop category toggles.
 static var _icon_cache: Dictionary = {}
+static var _placeholder_icon: Texture2D = null
+
+
+static func _tex_area(tex: Texture2D) -> int:
+	if tex == null:
+		return 0
+	return int(tex.get_width()) * int(tex.get_height())
+
+
+static func _load_cached(path: String) -> Texture2D:
+	if path == "":
+		return null
+	if _icon_cache.has(path):
+		return _icon_cache[path] as Texture2D
+	if not ResourceLoader.exists(path):
+		return null
+	var tex: Texture2D = load(path) as Texture2D
+	if tex:
+		_icon_cache[path] = tex
+	return tex
+
+
+static func placeholder_icon() -> Texture2D:
+	## Neutral missing-art tile — never substitute another item's icon.
+	if _placeholder_icon != null:
+		return _placeholder_icon
+	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.12, 0.11, 0.14, 1.0))
+	for y in range(64):
+		for x in range(64):
+			if x < 2 or y < 2 or x >= 62 or y >= 62:
+				img.set_pixel(x, y, Color(0.55, 0.48, 0.28, 1.0))
+			elif (x + y) % 8 < 2:
+				img.set_pixel(x, y, Color(0.18, 0.16, 0.2, 1.0))
+	_placeholder_icon = ImageTexture.create_from_image(img)
+	_icon_cache["__placeholder__"] = _placeholder_icon
+	return _placeholder_icon
 
 
 static func load_icon(item: Dictionary) -> Texture2D:
+	## Prefer the highest-resolution existing source. No fake upscale; placeholder if none.
+	var candidates: Array = []
 	var path := str(item.get("icon", ""))
-	if path != "" and _icon_cache.has(path):
-		return _icon_cache[path] as Texture2D
-	if path != "" and ResourceLoader.exists(path):
-		var tex0: Texture2D = load(path) as Texture2D
-		if tex0:
-			_icon_cache[path] = tex0
-		return tex0
-	var by_id := "res://assets/items/%s.png" % str(item.get("id", ""))
-	if _icon_cache.has(by_id):
-		return _icon_cache[by_id] as Texture2D
-	if ResourceLoader.exists(by_id):
-		var tex1: Texture2D = load(by_id) as Texture2D
-		if tex1:
-			_icon_cache[by_id] = tex1
-		return tex1
-	var legacy := "res://assets/sprites/items/%s.png" % str(item.get("id", ""))
-	if _icon_cache.has(legacy):
-		return _icon_cache[legacy] as Texture2D
-	if ResourceLoader.exists(legacy):
-		var tex2: Texture2D = load(legacy) as Texture2D
-		if tex2:
-			_icon_cache[legacy] = tex2
-		return tex2
-	if ResourceLoader.exists("res://assets/items/iron_sword.png"):
-		return load("res://assets/items/iron_sword.png") as Texture2D
-	if ResourceLoader.exists("res://assets/sprites/icons/shop.png"):
-		return load("res://assets/sprites/icons/shop.png") as Texture2D
-	return null
+	if path != "":
+		candidates.append(path)
+	var iid := str(item.get("id", ""))
+	if iid != "":
+		candidates.append("res://assets/items/%s.png" % iid)
+		candidates.append("res://assets/sprites/items/%s.png" % iid)
+	var best: Texture2D = null
+	var best_area := 0
+	var seen: Dictionary = {}
+	for raw in candidates:
+		var p := str(raw)
+		if p == "" or seen.has(p):
+			continue
+		seen[p] = true
+		var tex := _load_cached(p)
+		if tex == null:
+			continue
+		var area := _tex_area(tex)
+		if area > best_area:
+			best = tex
+			best_area = area
+	if best != null:
+		return best
+	return placeholder_icon()
 
 
 static func deep_panel_style(active: bool = false, border: Color = UIStyle.GOLD) -> StyleBoxFlat:
@@ -157,9 +192,10 @@ static func make_icon_frame(item: Dictionary, size: float = 72.0, enhance: int =
 	var tex := TextureRect.new()
 	tex.texture = load_icon(item)
 	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	# Keep native aspect inside the square frame — never stretch-distort.
 	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# Painted icons look better with light filtering; nearest kept as fallback for tiny art.
-	tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	# Crisp pixel presentation; LINEAR mipmaps looked like soft fake-upscale.
+	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stack.add_child(tex)
 
@@ -197,7 +233,11 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 	cell.custom_minimum_size = Vector2(min_w, min_h)
 	cell.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(cell)
+	cell.set_meta("item_id", str(item.get("id", "")))
+	cell.set_meta("item_enhance", enhance)
+	cell.set_meta("item_rarity", str(item.get("rarity", "common")))
 	var wrap := PanelContainer.new()
+	wrap.name = "CardWrap"
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrap.add_theme_stylebox_override("panel", deep_panel_style(selected, rarity_color(str(item.get("rarity", "common")))))
 	wrap.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -235,6 +275,32 @@ static func make_item_card(item: Dictionary, opts: Dictionary = {}) -> Button:
 		sl.custom_minimum_size = Vector2(min_w - 18, 16)
 		vb.add_child(sl)
 	return cell
+
+
+static func set_card_selected(cell: Button, selected: bool) -> void:
+	## In-place chrome update — avoids tearing down TextureRects (shop flicker root).
+	if cell == null or not is_instance_valid(cell):
+		return
+	var wrap := cell.get_node_or_null("CardWrap") as PanelContainer
+	if wrap == null:
+		return
+	var rarity := str(cell.get_meta("item_rarity", "common"))
+	wrap.add_theme_stylebox_override("panel", deep_panel_style(selected, rarity_color(rarity)))
+	# Sync icon frame border if present.
+	for n in wrap.find_children("*", "PanelContainer", true, false):
+		var p := n as PanelContainer
+		if p == null or p == wrap:
+			continue
+		if p.custom_minimum_size.x < 40.0:
+			continue
+		var style := p.get_theme_stylebox("panel") as StyleBoxFlat
+		if style == null:
+			continue
+		var next := style.duplicate() as StyleBoxFlat
+		next.border_color = Color(1.0, 0.88, 0.45) if selected else rarity_color(rarity)
+		next.set_border_width_all(4 if selected else 3)
+		p.add_theme_stylebox_override("panel", next)
+		break
 
 
 static func stats_lines(item: Dictionary, enhance: int = 0) -> Array:
