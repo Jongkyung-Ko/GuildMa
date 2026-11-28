@@ -41,6 +41,7 @@ func _run() -> void:
 	_check_sprite_frames()
 	_check_other_bosses_idle_only()
 	_check_safezone_dynamic()
+	_check_safezone_viewports()
 	await _check_combat_runtime(gs)
 	_finish()
 
@@ -124,12 +125,13 @@ func _check_safezone_dynamic() -> void:
 		_fail("safe_rect degenerate %s" % str(r))
 		return
 	_pass("safe_rect default=%s" % str(r))
-	# Headroom must influence top when the field is not fully crushed to min band.
+	# Headroom must influence top — top must NOT be relaxed to a shared min-field value.
 	var top_a := CombatFieldBounds.top_y(null, 20.0)
 	var top_b := CombatFieldBounds.top_y(null, 160.0)
-	# On very short viewports both may compress to the same min-field top — still require clamp works.
 	if is_equal_approx(top_a, top_b):
-		_pass("top_y compressed equally on this viewport (%.1f) — min-field path" % top_a)
+		_fail("top_y ignores headroom (%s == %s) — top was relaxed" % [top_a, top_b])
+	elif top_b < top_a:
+		_fail("larger headroom produced lower top (%.1f < %.1f)" % [top_b, top_a])
 	else:
 		_pass("top_y scales with headroom (%.1f vs %.1f)" % [top_a, top_b])
 	var top := CombatFieldBounds.top_y(null, 110.0)
@@ -138,7 +140,6 @@ func _check_safezone_dynamic() -> void:
 		_fail("clamp_point allowed above top bound %s (top=%.1f)" % [str(p), top])
 	else:
 		_pass("clamp_point rejects Y above top (got %s, top=%.1f)" % [str(p), top])
-	# Must not be the old fixed Y=100-only path: rect top differs from literal 100 unless coincidental.
 	if is_equal_approx(r.position.y, 100.0) and is_equal_approx(r.position.x, 40.0) and is_equal_approx(r.end.y, 600.0):
 		_fail("safe_rect looks like legacy fixed clamps")
 	else:
@@ -147,6 +148,57 @@ func _check_safezone_dynamic() -> void:
 		_fail("debug_draw_enabled must default false")
 	else:
 		_pass("debug draw off by default")
+
+
+func _check_safezone_viewports() -> void:
+	## Must exercise real 844 / 1366 / 1280 sizes — do not PASS mobile from 1280-only math.
+	var sizes: Array = [
+		Vector2(844, 390),
+		Vector2(1366, 768),
+		Vector2(1280, 720),
+	]
+	var cam := Vector2(640, 360)
+	var zoom := Vector2.ONE
+	var fenrir_head_px := 140.0
+	var wolf_head_px := 72.0
+	for sz in sizes:
+		var vp: Vector2 = sz
+		var r_f: Rect2 = CombatFieldBounds.safe_rect_for_view(vp, cam, zoom, null, fenrir_head_px)
+		var r_w: Rect2 = CombatFieldBounds.safe_rect_for_view(vp, cam, zoom, null, wolf_head_px)
+		var world_tl_y := cam.y - vp.y * 0.5
+		var desired_f := world_tl_y + CombatFieldBounds.DEFAULT_HUD_TOP_PX + fenrir_head_px
+		# Top must equal full HUD+headroom (never relaxed downward toward world_tl).
+		if r_f.position.y < desired_f - 1.0:
+			_fail(
+				"vp %dx%d Fenrir top relaxed: got %.1f want >= %.1f"
+				% [int(vp.x), int(vp.y), r_f.position.y, desired_f]
+			)
+		elif absf(r_f.position.y - desired_f) > 1.0:
+			_fail(
+				"vp %dx%d Fenrir top mismatch: got %.1f want %.1f"
+				% [int(vp.x), int(vp.y), r_f.position.y, desired_f]
+			)
+		else:
+			_pass("vp %dx%d Fenrir top=%.1f (HUD+head kept)" % [int(vp.x), int(vp.y), r_f.position.y])
+		if r_f.position.y <= r_w.position.y + 0.5:
+			_fail(
+				"vp %dx%d Fenrir top %.1f should exceed wolf %.1f"
+				% [int(vp.x), int(vp.y), r_f.position.y, r_w.position.y]
+			)
+		else:
+			_pass(
+				"vp %dx%d Fenrir top %.1f > wolf %.1f"
+				% [int(vp.x), int(vp.y), r_f.position.y, r_w.position.y]
+			)
+		# 844 must not silently reuse 1280 math.
+		if int(vp.x) == 844:
+			var r_1280: Rect2 = CombatFieldBounds.safe_rect_for_view(
+				Vector2(1280, 720), cam, zoom, null, fenrir_head_px
+			)
+			if is_equal_approx(r_f.position.y, r_1280.position.y) and is_equal_approx(r_f.size.y, r_1280.size.y):
+				_fail("844×390 safe_rect identical to 1280×720 — viewport not applied")
+			else:
+				_pass("844×390 safe_rect differs from 1280×720")
 
 
 func _check_combat_runtime(gs: Node) -> void:
@@ -235,25 +287,63 @@ func _check_combat_runtime(gs: Node) -> void:
 		else:
 			_fail("attack damage not applied (frame=%s)" % fr)
 
-	# Hit reaction must not soft-lock: after hit, physics still ticks and returns to idle.
-	if not boss.is_dead:
-		boss.hp = maxf(boss.hp, 50.0)
+	# Hit reaction: damage, HIT lock blocks attack override, multi-hit refresh, return to idle.
+	if not boss.is_dead and ally != null:
+		boss.hp = maxf(boss.hp, 200.0)
+		# Leave any prior attack recovery so HIT path is exercised cleanly.
+		boss._finish_attack_cycle()
+		boss._atk_timer = 0.0
+		boss.set("_telegraph_t", 0.0)
+		boss.set("_pending_skill_id", "")
 		var hp_before: float = float(boss.hp)
 		boss.take_damage(5.0, ally, {})
 		if float(boss.hp) >= hp_before:
 			_fail("hit did not apply damage")
 		else:
 			_pass("hit applied damage")
-		var returned := false
-		for _j in range(60):
-			await process_frame
-			if boss.get_anim_state_name() != "HIT" and boss._sprite and boss._sprite.animation == "idle":
-				returned = true
-				break
-		if returned or boss.get_anim_state_name() != "HIT":
-			_pass("hit returned to combat state (no freeze)")
+		if boss.get_anim_state_name() != "HIT":
+			_fail("expected HIT state after damage, got %s" % boss.get_anim_state_name())
 		else:
-			_fail("stuck in HIT")
+			_pass("entered HIT state")
+		if not boss._is_hit_locked():
+			_fail("hit lock not armed")
+		else:
+			_pass("hit lock armed (t=%.2f)" % float(boss._hit_lock_t))
+		# Attack must NOT override HIT while locked.
+		boss._atk_timer = 0.0
+		var blocked: bool = not boss._can_start_attack()
+		boss._perform_attack(ally)
+		if str(boss._sprite.animation) == "attack" and boss.get_anim_state_name() != "HIT":
+			_fail("attack overrode HIT anim")
+		elif not blocked:
+			_fail("_can_start_attack true during HIT")
+		else:
+			_pass("HIT blocks attack start")
+		# Multi-hit refreshes HIT / lock.
+		var lock_before: float = float(boss._hit_lock_t)
+		boss.take_damage(3.0, ally, {})
+		if boss.get_anim_state_name() != "HIT":
+			_fail("multi-hit left HIT state")
+		elif float(boss._hit_lock_t) < lock_before - 0.001 and float(boss._hit_lock_t) <= 0.0:
+			_fail("multi-hit cleared lock")
+		else:
+			_pass("multi-hit refreshed HIT lock (%.2f)" % float(boss._hit_lock_t))
+		# Force finish hit anim → idle; ASPD timer path still usable after.
+		boss._hit_lock_t = 0.0
+		boss._on_anim_finished()
+		if boss.get_anim_state_name() == "HIT":
+			# Fallback clear
+			boss._set_anim_state(boss.AnimState.IDLE)
+			boss._play_anim("idle", true)
+		if boss.get_anim_state_name() == "HIT":
+			_fail("stuck in HIT after finish")
+		else:
+			_pass("hit returned to combat state (no freeze)")
+		boss._atk_timer = 0.0
+		if not boss._can_start_attack():
+			_fail("ASPD/attack still blocked after HIT cleared")
+		else:
+			_pass("attack allowed after HIT cleared")
 
 	# Death once: kill Fenrir, ensure died emits exactly once after anim/timeout.
 	var died_count := [0]

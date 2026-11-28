@@ -221,6 +221,12 @@ func _physics_process(delta: float) -> void:
 			move_speed = _base_move
 
 	if _telegraph_t > 0.0:
+		# Hold telegraph while HIT so skill attack anim cannot override hit reaction.
+		if _is_hit_locked():
+			velocity = Vector2.ZERO
+			_apply_separation(delta)
+			_clamp_to_field()
+			return
 		_telegraph_t -= delta
 		velocity = Vector2.ZERO
 		if _telegraph_t <= 0.0 and _pending_skill_id != "":
@@ -241,14 +247,20 @@ func _physics_process(delta: float) -> void:
 
 func _can_start_attack() -> bool:
 	# Boss basic swing still uses interval; skills are separate.
+	# HIT lock blocks basic + skill starts without changing ASPD timers.
 	var interval := attack_interval
 	if _aspd_buff > 0.0:
 		interval = maxf(0.45, interval / (1.0 + _aspd_buff))
-	return _atk_timer <= 0.0 and not _is_attacking() and _telegraph_t <= 0.0
+	return (
+		_atk_timer <= 0.0
+		and not _is_attacking()
+		and not _is_hit_locked()
+		and _telegraph_t <= 0.0
+	)
 
 
 func _try_start_skill() -> bool:
-	if _is_attacking() or not _can_start_attack():
+	if _is_attacking() or _is_hit_locked() or not _can_start_attack():
 		return false
 	var ph := current_phase()
 	var skill_ids: Array = ph.get("skills", [])
@@ -285,6 +297,9 @@ func _try_start_skill() -> bool:
 
 
 func _resolve_skill(skill_id: String, skill: Dictionary) -> void:
+	# Never stomp an active HIT reaction with a skill attack anim.
+	if _is_hit_locked() or is_dead:
+		return
 	if _sprite and not boss_def.is_empty():
 		_apply_tint_from_data(boss_def)
 	var cd := float(skill.get("cooldown", 5.0))

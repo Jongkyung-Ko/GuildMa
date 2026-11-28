@@ -432,6 +432,7 @@ func _on_anim_finished() -> void:
 		_finish_attack_cycle()
 		return
 	if _anim_state == AnimState.HIT:
+		_hit_lock_t = 0.0
 		_set_anim_state(AnimState.IDLE)
 		_play_anim("idle", true)
 
@@ -758,13 +759,46 @@ func _find_heal_target() -> CombatCharacter:
 	return best
 
 
+func _is_hit_locked() -> bool:
+	## HIT anim / lock blocks starting a new attack without freezing movement AI.
+	return _anim_state == AnimState.HIT or _hit_lock_t > 0.0
+
+
+func _attack_blocks_hit_reaction() -> bool:
+	## Keep the swing readable through windup/active; recovery may flinch into HIT.
+	return _anim_state in [
+		AnimState.ATTACK_START,
+		AnimState.ATTACK_WINDUP,
+		AnimState.ATTACK_ACTIVE,
+		AnimState.APPLY_DAMAGE,
+	]
+
+
 func _can_start_attack() -> bool:
-	return (not _is_attacking()) and _atk_timer <= 0.0
+	return (not _is_attacking()) and (not _is_hit_locked()) and _atk_timer <= 0.0
 
 
 func _arm_attack_cooldown() -> void:
 	_atk_timer = attack_interval
 	attacks_started += 1
+
+
+func _begin_hit_reaction() -> void:
+	## Enter/refresh HIT; lock duration matches hit anim (capped) so ASPD can resume.
+	if is_dead or _anim_state == AnimState.DEATH:
+		return
+	if _sprite == null:
+		return
+	_set_anim_state(AnimState.HIT)
+	var lock := 0.15
+	if _sprite.sprite_frames and _sprite.sprite_frames.has_animation("hit"):
+		var n := _sprite.sprite_frames.get_frame_count("hit")
+		var fps := _sprite.sprite_frames.get_animation_speed("hit")
+		if n > 0 and fps > 0.0:
+			# Cap so multi-hit refresh stays responsive and ASPD isn't stalled.
+			lock = clampf(float(n) / fps, 0.12, 0.40)
+	_hit_lock_t = lock
+	_play_anim("hit", true)
 
 
 func _perform_attack(target: CombatCharacter) -> void:
@@ -976,13 +1010,13 @@ func take_damage(amount: float, attacker: CombatCharacter = null, opts: Dictiona
 				global_position + away.normalized() * kb, self
 			)
 
-	if not _is_attacking() and _sprite:
-		_set_anim_state(AnimState.HIT)
-		# Short lock only — multi-frame hit must not freeze combat AI.
-		_hit_lock_t = 0.12
-		_play_anim("hit", true)
 	if hp <= 0.0:
 		_die()
+		return
+	# No hit while dying. Committed swing (windup/active) keeps attack; recovery may flinch.
+	# Refresh HIT on multi-hit so a new attack cannot override the reaction.
+	if not _attack_blocks_hit_reaction():
+		_begin_hit_reaction()
 
 
 func receive_heal(amount: float, _healer: CombatCharacter = null) -> void:
