@@ -167,6 +167,12 @@ func _build_hud() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 
+	var map_btn := Button.new()
+	map_btn.text = "세계 지도"
+	UIStyle.apply_button(map_btn)
+	map_btn.pressed.connect(func(): SceneRouter.go_world_map())
+	row.add_child(map_btn)
+
 	var save_btn := Button.new()
 	save_btn.text = "저장"
 	UIStyle.apply_button(save_btn)

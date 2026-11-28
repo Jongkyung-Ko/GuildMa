@@ -2,6 +2,7 @@ extends Node
 
 const TITLE := "res://scenes/title/title.tscn"
 const TOWN := "res://scenes/town/town.tscn"
+const WORLD_MAP := "res://scenes/world_map/world_map.tscn"
 const SETTINGS := "res://scenes/title/settings.tscn"
 const FACILITY := "res://scenes/facilities/facility.tscn"
 const GUILD_HALL := "res://scenes/facilities/guild_hall.tscn"
@@ -28,6 +29,15 @@ func go_town() -> void:
 	if AudioManager:
 		AudioManager.on_enter_town()
 	get_tree().change_scene_to_file(TOWN)
+
+
+func go_world_map() -> void:
+	current_facility = ""
+	if GameState and GameState.active_hunt_id != "":
+		GameState.leave_hunt_session()
+	if AudioManager:
+		AudioManager.on_enter_world_map()
+	get_tree().change_scene_to_file(WORLD_MAP)
 
 
 func go_settings(from_title: bool = true) -> void:
