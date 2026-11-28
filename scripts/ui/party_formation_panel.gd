@@ -366,12 +366,16 @@ func _populate_grid() -> void:
 
 
 func _make_member_card(m: Dictionary) -> Control:
+	## Namecard: top ~70% identity/stats, bottom ~30% equal 3-col skill grid.
+	## Skills stay subordinate — small squares + captions; no oversized chips.
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
+	var card_w := 158.0 if _dense else 176.0
+	var card_h := 188.0 if _dense else 220.0
 	var card := Button.new()
 	card.flat = true
-	card.custom_minimum_size = Vector2(150 if _dense else 168, 168 if _dense else 196)
+	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	UIStyle.apply_button(card)
 	var wrap := PanelContainer.new()
@@ -382,23 +386,36 @@ func _make_member_card(m: Dictionary) -> Control:
 	sb.border_color = UIStyle.GOLD_BRIGHT if (in_draft or focused) else UIStyle.GOLD
 	sb.set_border_width_all(3 if (in_draft or focused) else 2)
 	sb.set_corner_radius_all(8)
-	sb.content_margin_left = 8
-	sb.content_margin_right = 8
-	sb.content_margin_top = 6
-	sb.content_margin_bottom = 6
+	sb.content_margin_left = 7
+	sb.content_margin_right = 7
+	sb.content_margin_top = 5
+	sb.content_margin_bottom = 5
 	wrap.add_theme_stylebox_override("panel", sb)
 	card.add_child(wrap)
-	var vb := VBoxContainer.new()
-	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vb.add_theme_constant_override("separation", 3)
-	wrap.add_child(vb)
+
+	var root := VBoxContainer.new()
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_theme_constant_override("separation", 4)
+	root.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wrap.add_child(root)
+
+	# --- Top ~70%: portrait + name/job/level + HP/ATK/DEF ---
+	var top := VBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_theme_constant_override("separation", 3)
+	top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top.size_flags_stretch_ratio = 7.0
+	root.add_child(top)
 
 	var head := HBoxContainer.new()
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vb.add_child(head)
+	head.add_theme_constant_override("separation", 6)
+	head.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	top.add_child(head)
 	var tr := TextureRect.new()
 	tr.texture = _portrait_for(str(m.get("job", "dps")))
-	tr.custom_minimum_size = Vector2(48 if _dense else 56, 48 if _dense else 56)
+	tr.custom_minimum_size = Vector2(52 if _dense else 64, 52 if _dense else 64)
+	tr.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -407,46 +424,37 @@ func _make_member_card(m: Dictionary) -> Control:
 	var meta := VBoxContainer.new()
 	meta.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	meta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	meta.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	meta.add_theme_constant_override("separation", 2)
 	head.add_child(meta)
-	meta.add_child(UIStyle.label(str(m.get("name", "")), 13, UIStyle.GOLD_BRIGHT))
+	meta.add_child(UIStyle.label(str(m.get("name", "")), 13 if not _dense else 12, UIStyle.GOLD_BRIGHT))
 	meta.add_child(UIStyle.label("%s Lv.%d" % [UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))], 11, UIStyle.TEXT))
 	if in_draft:
-		var mark := UIStyle.label("✓ 선택", 11, UIStyle.OK)
-		meta.add_child(mark)
+		meta.add_child(UIStyle.label("✓ 선택", 10, UIStyle.OK))
 
 	var preview := GameState.compute_combat_preview(m)
-	vb.add_child(UIStyle.label("HP %d · ATK %d · DEF %d" % [
+	var stats_l := UIStyle.label("HP %d · ATK %d · DEF %d" % [
 		int(preview.get("hp", 0)), int(preview.get("atk", 0)), int(preview.get("def", 0))
-	], 11, UIStyle.TEXT_DIM))
+	], 10 if _dense else 11, UIStyle.TEXT_DIM)
+	stats_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	top.add_child(stats_l)
 
-	var skills: Array = m.get("skills", [])
-	var skill_row := HBoxContainer.new()
-	skill_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	skill_row.add_theme_constant_override("separation", 4)
-	vb.add_child(skill_row)
-	var shown := 0
-	for sk in skills:
-		if shown >= 3:
-			break
-		var chip := PanelContainer.new()
-		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var csb := StyleBoxFlat.new()
-		csb.bg_color = Color(0.14, 0.12, 0.08, 0.95)
-		csb.border_color = UIStyle.GOLD
-		csb.set_border_width_all(1)
-		csb.set_corner_radius_all(4)
-		csb.content_margin_left = 4
-		csb.content_margin_right = 4
-		csb.content_margin_top = 2
-		csb.content_margin_bottom = 2
-		chip.add_theme_stylebox_override("panel", csb)
-		chip.add_child(UIStyle.label(str(sk), 10, UIStyle.TEXT))
-		skill_row.add_child(chip)
-		shown += 1
-	if shown == 0:
-		vb.add_child(UIStyle.label("스킬 없음", 10, UIStyle.TEXT_DIM))
+	# Divider between identity block and skill zone.
+	var div := HSeparator.new()
+	div.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(div)
 
-	# Focus on press; toggle party membership with a dedicated affordance via second click when focused.
+	# --- Bottom ~30%: full-width equal 3-column skill grid ---
+	var skill_zone := VBoxContainer.new()
+	skill_zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skill_zone.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	skill_zone.size_flags_stretch_ratio = 3.0
+	# Lock a true ~30% floor so skills never collapse into oversized chips again.
+	skill_zone.custom_minimum_size = Vector2(0, card_h * 0.28)
+	skill_zone.add_theme_constant_override("separation", 2)
+	root.add_child(skill_zone)
+	skill_zone.add_child(_build_card_skill_grid(m.get("skills", [])))
+
 	card.pressed.connect(func():
 		if _focus_id == mid:
 			_toggle_draft(mid)
@@ -457,6 +465,98 @@ func _make_member_card(m: Dictionary) -> Control:
 		_refresh_lists_only()
 	)
 	return card
+
+
+func _build_card_skill_grid(skills_raw: Variant) -> Control:
+	## Equal-width 3 columns; max 3 real skills; empty slots keep the grid stable.
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 4)
+	grid.add_theme_constant_override("v_separation", 2)
+
+	var skills: Array = skills_raw if typeof(skills_raw) == TYPE_ARRAY else []
+	for i in 3:
+		var cell := VBoxContainer.new()
+		cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.alignment = BoxContainer.ALIGNMENT_CENTER
+		cell.add_theme_constant_override("separation", 2)
+
+		var icon_sz := 20.0 if _dense else 24.0
+		var icon := PanelContainer.new()
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.custom_minimum_size = Vector2(icon_sz, icon_sz)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var isb := StyleBoxFlat.new()
+		isb.set_corner_radius_all(4)
+		isb.set_border_width_all(1)
+		isb.content_margin_left = 1
+		isb.content_margin_right = 1
+		isb.content_margin_top = 1
+		isb.content_margin_bottom = 1
+
+		var caption := Label.new()
+		caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption.autowrap_mode = TextServer.AUTOWRAP_OFF
+		caption.clip_text = true
+		caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		caption.add_theme_font_size_override("font_size", 9 if _dense else 10)
+		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		caption.custom_minimum_size = Vector2(0, 14)
+
+		if i < skills.size() and str(skills[i]) != "":
+			var sk := str(skills[i])
+			isb.bg_color = _skill_icon_color(sk)
+			isb.border_color = UIStyle.GOLD
+			icon.add_theme_stylebox_override("panel", isb)
+			var glyph := UIStyle.label(_skill_glyph(sk), 10 if _dense else 11, Color(0.98, 0.95, 0.88))
+			glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			glyph.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icon.add_child(glyph)
+			caption.text = sk
+			caption.add_theme_color_override("font_color", UIStyle.TEXT)
+		else:
+			isb.bg_color = Color(0.08, 0.08, 0.1, 0.7)
+			isb.border_color = Color(0.35, 0.32, 0.28, 0.55)
+			icon.add_theme_stylebox_override("panel", isb)
+			caption.text = "—"
+			caption.add_theme_color_override("font_color", UIStyle.TEXT_DIM)
+
+		cell.add_child(icon)
+		cell.add_child(caption)
+		grid.add_child(cell)
+	return grid
+
+
+func _skill_glyph(skill_name: String) -> String:
+	var s := skill_name.strip_edges()
+	if s.is_empty():
+		return "·"
+	return s.substr(0, 1)
+
+
+func _skill_icon_color(skill_name: String) -> Color:
+	## Tiny tinted tile — not a fake catalog icon; keeps skills readable without dominating.
+	var key := skill_name
+	if SKILL_INFO.has(key):
+		var pattern := str(SKILL_INFO[key].get("pattern", ""))
+		match pattern:
+			"원거리":
+				return Color(0.28, 0.22, 0.42, 1)
+			"지원":
+				return Color(0.18, 0.36, 0.28, 1)
+			"방어", "유틸":
+				return Color(0.22, 0.28, 0.38, 1)
+			"돌진":
+				return Color(0.38, 0.22, 0.18, 1)
+			_:
+				return Color(0.32, 0.26, 0.14, 1)
+	return Color(0.22, 0.2, 0.18, 1)
 
 
 func _populate_detail() -> void:
