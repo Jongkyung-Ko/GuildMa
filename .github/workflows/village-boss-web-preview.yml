@@ -87,7 +87,10 @@ jobs:
           restore-keys: |
             village-boss-vercel-anonymous-
 
+      # Orphan GitHub branch may fail when index.pck > 100MB (GH file limit).
+      # Never block the Vercel temporary deploy on that push.
       - name: Publish artifact branch preview-village-boss
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -99,7 +102,6 @@ jobs:
 
       - name: Deploy anonymous Vercel temporary preview
         id: vercel
-        continue-on-error: true
         working-directory: build/web
         env:
           CI: ""
@@ -107,6 +109,8 @@ jobs:
           VERCEL_FORCE_NO_BUILD_CACHE: "1"
         run: |
           set -euo pipefail
+          PCK_MB=$(python3 -c "import pathlib; print(round(pathlib.Path('index.pck').stat().st_size/1e6,2))")
+          echo "index.pck_mb=$PCK_MB (anonymous Vercel file limit 100MB)"
           npx --yes vercel deploy --temporary --yes | tee /tmp/vercel-out.txt
           python3 <<'PY'
           import json, pathlib, re
@@ -135,6 +139,8 @@ jobs:
           if claim:
               pathlib.Path("PREVIEW_CLAIM_URL.txt").write_text(claim.strip() + "\n", encoding="utf-8")
           print(f"PREVIEW_URL={url}")
+          if claim:
+              print(f"PREVIEW_CLAIM_URL={claim}")
           PY
           URL=$(tr -d '\n' < PREVIEW_URL.txt)
           echo "url=$URL" >> "$GITHUB_OUTPUT"
@@ -142,6 +148,7 @@ jobs:
 
       - name: Refresh preview branch with Vercel URL metadata
         if: steps.vercel.outcome == 'success'
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
