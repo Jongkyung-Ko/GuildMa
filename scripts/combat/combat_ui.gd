@@ -17,6 +17,7 @@ var _enemy_box: VBoxContainer
 var _log: RichTextLabel
 var _pause_btn: Button
 var _town_btn: Button
+var _speed_btn: Button
 var _auto_label: Label
 var _hunt_mini: Control = null
 var _dungeon_mini: Control = null
@@ -71,6 +72,13 @@ func _build() -> void:
 	_auto_label = UIStyle.label("자동전투", 15, UIStyle.OK)
 	top_row.add_child(_auto_label)
 
+	_speed_btn = Button.new()
+	_speed_btn.text = "속도 ×1"
+	_speed_btn.tooltip_text = "전투 속도 순환 (1x → 2x → 4x)"
+	UIStyle.apply_button(_speed_btn)
+	_speed_btn.pressed.connect(_on_speed)
+	top_row.add_child(_speed_btn)
+
 	_pause_btn = Button.new()
 	_pause_btn.text = "일시정지 (Esc)"
 	UIStyle.apply_button(_pause_btn)
@@ -82,6 +90,7 @@ func _build() -> void:
 	UIStyle.apply_button(_town_btn)
 	_town_btn.pressed.connect(_on_town)
 	top_row.add_child(_town_btn)
+	_refresh_speed_btn()
 
 	# Right status panel
 	var right := PanelContainer.new()
@@ -249,6 +258,7 @@ func refresh() -> void:
 	if _modal != null and is_instance_valid(_modal) and _modal.has_method("set_combat_active"):
 		_modal.set_combat_active(pname == "fighting")
 	_refresh_dir_pad(pname)
+	_refresh_speed_btn()
 
 
 func _refresh_dir_pad(pname: String) -> void:
@@ -303,6 +313,26 @@ func _fill_list(box: VBoxContainer, units: Array, is_ally: bool) -> void:
 		row.add_child(hp_l)
 		col.add_child(row)
 		box.add_child(col)
+
+
+func _refresh_speed_btn() -> void:
+	if _speed_btn == null:
+		return
+	var spd := 1.0
+	if _manager != null:
+		# Show selected multiplier even while paused (stored combat_speed).
+		spd = float(_manager.get("combat_speed"))
+		if spd < 0.5:
+			spd = 1.0
+	_speed_btn.text = "속도 ×%d" % int(round(spd))
+	_speed_btn.disabled = false
+
+
+func _on_speed() -> void:
+	if _manager and _manager.has_method("cycle_combat_speed"):
+		_manager.cycle_combat_speed()
+		_refresh_speed_btn()
+		refresh()
 
 
 func _on_pause() -> void:
