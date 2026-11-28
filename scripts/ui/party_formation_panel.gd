@@ -1346,131 +1346,209 @@ func _build_card_skill_grid(skills_raw: Variant) -> Control:
 # Detail panel
 # ---------------------------------------------------------------------------
 
+func _stat_bar_caps(job: String) -> Dictionary:
+	## Display caps from combat balance rules; lord gets the HP bonus branch.
+	## Caps are high-end reference (not fake stats) so bars read proportionally.
+	var is_lord := job == "lord"
+	return {
+		"hp": 340 if is_lord else 300,
+		"atk": 80,
+		"def": 60,
+	}
+
+
 func _populate_detail() -> void:
+	## Design A — right panel only: ~50% hero / ~25% stats / ~25% skills.
 	if _detail_box == null:
 		return
 	for c in _detail_box.get_children():
 		c.free()
+	_demo_sprite = null
 	var m := GameState.get_member_by_id(_focus_id)
 	if m.is_empty() and not GameState.members.is_empty():
 		m = GameState.members[0]
 		_focus_id = str(m.get("id", ""))
 	if m.is_empty():
 		_detail_box.add_child(UIStyle.label("길드원을 선택하세요.", 13, INK_DIM))
+		_skill_desc = null
+		_demo_host = null
+		_demo_note = null
 		return
 
-	_detail_box.add_child(UIStyle.label(str(m.get("name", "")), 17 if not _dense else 14, METAL_GOLD_BRIGHT))
-	_detail_box.add_child(UIStyle.label("%s · Lv.%d" % [
-		UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
-	], 12, INK))
+	_detail_box.add_theme_constant_override("separation", 8 if not _dense else 5)
+	var job := str(m.get("job", "dps"))
+	var preview := GameState.compute_combat_preview(m)
+	var caps := _stat_bar_caps(job)
 
-	# Compact detail face (list card already shows the framed hero). Sharp NEAREST, not blown up.
+	# --- ~50% hero: real portrait, aspect locked, NEAREST ---
+	var hero := VBoxContainer.new()
+	hero.add_theme_constant_override("separation", 4 if not _dense else 2)
+	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero.custom_minimum_size = Vector2(0, 200 if not _dense else 118)
+	_detail_box.add_child(hero)
+
 	var stage := PanelContainer.new()
+	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stage.custom_minimum_size = Vector2(0, 150 if not _dense else 84)
 	stage.add_theme_stylebox_override("panel", _style_inset())
-	stage.custom_minimum_size = Vector2(0, 72 if _dense else 88)
-	_detail_box.add_child(stage)
+	hero.add_child(stage)
 	var stage_center := CenterContainer.new()
 	stage_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage.add_child(stage_center)
 	var pface := TextureRect.new()
-	pface.texture = _card_portrait_for(str(m.get("job", "dps")))
-	pface.custom_minimum_size = Vector2(64 if _dense else 80, 64 if _dense else 80)
+	pface.texture = _card_portrait_for(job)
+	var face_side := 156.0 if not _dense else 88.0
+	pface.custom_minimum_size = Vector2(face_side, face_side)
 	pface.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pface.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	pface.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	stage_center.add_child(pface)
 
-	var preview := GameState.compute_combat_preview(m)
-	_detail_box.add_child(UIStyle.label("능력치", 12, METAL_GOLD))
-	_detail_box.add_child(_bar_stat("HP", int(preview.get("hp", 0)), 300, Color(0.75, 0.28, 0.28)))
-	_detail_box.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), 80, Color(0.85, 0.65, 0.25)))
-	_detail_box.add_child(_bar_stat("DEF", int(preview.get("def", 0)), 60, Color(0.35, 0.55, 0.85)))
+	var name_l := UIStyle.label(str(m.get("name", "")), 18 if not _dense else 14, METAL_GOLD_BRIGHT)
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero.add_child(name_l)
+	var meta_l := UIStyle.label("%s · Lv.%d" % [UIStyle.job_name(job), int(m.get("level", 1))], 12 if not _dense else 10, INK)
+	meta_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero.add_child(meta_l)
 
-	_detail_box.add_child(UIStyle.label("대표 스킬", 12, METAL_GOLD))
+	# --- ~25% stats: real compute_combat_preview + lord/member bar caps ---
+	var stats_sec := VBoxContainer.new()
+	stats_sec.add_theme_constant_override("separation", 4 if not _dense else 3)
+	stats_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stats_sec.custom_minimum_size = Vector2(0, 96 if not _dense else 78)
+	_detail_box.add_child(stats_sec)
+	stats_sec.add_child(UIStyle.label("능력치", 12 if not _dense else 11, METAL_GOLD))
+	stats_sec.add_child(_bar_stat("HP", int(preview.get("hp", 0)), int(caps.get("hp", 300)), Color(0.75, 0.28, 0.28)))
+	stats_sec.add_child(_bar_stat("ATK", int(preview.get("atk", 0)), int(caps.get("atk", 80)), Color(0.85, 0.65, 0.25)))
+	stats_sec.add_child(_bar_stat("DEF", int(preview.get("def", 0)), int(caps.get("def", 60)), Color(0.35, 0.55, 0.85)))
+
+	# --- ~25% skills: real member skills, ≤3 / row, icon + name; desc on select ---
+	var skills_sec := VBoxContainer.new()
+	skills_sec.add_theme_constant_override("separation", 4 if not _dense else 3)
+	skills_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skills_sec.custom_minimum_size = Vector2(0, 110 if not _dense else 88)
+	_detail_box.add_child(skills_sec)
+	skills_sec.add_child(UIStyle.label("스킬", 12 if not _dense else 11, METAL_GOLD))
+
 	var skills: Array = m.get("skills", [])
+	if typeof(skills) != TYPE_ARRAY:
+		skills = []
 	if skills.is_empty():
-		_detail_box.add_child(UIStyle.label("(등록된 스킬 없음)", 12, INK_DIM))
+		skills_sec.add_child(UIStyle.label("(등록된 스킬 없음)", 11, INK_DIM))
 		_skill_desc = null
 		_demo_host = null
 		_demo_note = null
-	else:
-		var sk_row := HBoxContainer.new()
-		sk_row.add_theme_constant_override("separation", 6)
-		_detail_box.add_child(sk_row)
-		if _selected_skill == "" or not skills.has(_selected_skill):
-			_selected_skill = str(skills[0])
-		for sk in skills:
-			var sb := Button.new()
-			sb.custom_minimum_size = Vector2(52 if _dense else 58, 46 if _dense else 52)
-			_apply_metal_button(sb)
-			if str(sk) == _selected_skill:
-				sb.add_theme_stylebox_override("normal", UIStyle.button_pressed())
-			var inner := VBoxContainer.new()
-			inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			inner.alignment = BoxContainer.ALIGNMENT_CENTER
-			sb.add_child(inner)
-			var tex := _skill_tex(str(sk))
-			if tex:
-				var ir := TextureRect.new()
-				ir.texture = tex
-				ir.custom_minimum_size = Vector2(20, 20)
-				ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-				ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-				ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-				ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
-				ir.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-				inner.add_child(ir)
-			var cap := UIStyle.label(str(sk), 9, INK)
-			cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			inner.add_child(cap)
-			var sk_name := str(sk)
-			sb.pressed.connect(func():
-				_selected_skill = sk_name
-				_populate_detail()
-			)
-			sk_row.add_child(sb)
+		return
 
-		_skill_desc = UIStyle.label("", 10, INK)
-		_skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_detail_box.add_child(_skill_desc)
-		_update_skill_desc()
+	if _selected_skill == "" or not skills.has(_selected_skill):
+		_selected_skill = str(skills[0])
 
-		_demo_host = Control.new()
-		_demo_host.custom_minimum_size = Vector2(0, 56 if _dense else 64)
-		_demo_host.clip_contents = true
-		var demo_bg := PanelContainer.new()
-		demo_bg.set_anchors_preset(PRESET_FULL_RECT)
-		demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		demo_bg.add_theme_stylebox_override("panel", _style_inset())
-		_demo_host.add_child(demo_bg)
-		_detail_box.add_child(_demo_host)
-		_demo_note = UIStyle.label("미리보기 전용", 9, INK_DIM)
-		_detail_box.add_child(_demo_note)
-		var demo_btn := Button.new()
-		demo_btn.text = "스킬 미리보기"
-		demo_btn.custom_minimum_size = Vector2(0, 26)
-		_apply_metal_button(demo_btn)
-		demo_btn.pressed.connect(_play_skill_demo)
-		_detail_box.add_child(demo_btn)
+	var sk_grid := GridContainer.new()
+	sk_grid.columns = mini(3, maxi(skills.size(), 1))
+	sk_grid.add_theme_constant_override("h_separation", 6 if not _dense else 4)
+	sk_grid.add_theme_constant_override("v_separation", 6 if not _dense else 4)
+	sk_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skills_sec.add_child(sk_grid)
+
+	var icon_sz := 28.0 if not _dense else 22.0
+	for sk in skills:
+		var sk_name := str(sk)
+		if sk_name == "":
+			continue
+		var sb := Button.new()
+		sb.custom_minimum_size = Vector2(86 if not _dense else 64, 66 if not _dense else 54)
+		sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_apply_metal_button(sb)
+		if sk_name == _selected_skill:
+			sb.add_theme_stylebox_override("normal", UIStyle.button_pressed())
+		var inner := VBoxContainer.new()
+		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.alignment = BoxContainer.ALIGNMENT_CENTER
+		inner.add_theme_constant_override("separation", 2)
+		sb.add_child(inner)
+		# Square icon well
+		var well := PanelContainer.new()
+		well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		well.custom_minimum_size = Vector2(icon_sz + 4.0, icon_sz + 4.0)
+		well.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var wsb := StyleBoxFlat.new()
+		wsb.bg_color = Color(0.08, 0.06, 0.04, 1)
+		wsb.border_color = METAL_GOLD if sk_name == _selected_skill else BRONZE_DIM
+		wsb.set_border_width_all(1)
+		wsb.set_corner_radius_all(3)
+		wsb.content_margin_left = 2
+		wsb.content_margin_right = 2
+		wsb.content_margin_top = 2
+		wsb.content_margin_bottom = 2
+		well.add_theme_stylebox_override("panel", wsb)
+		inner.add_child(well)
+		var tex := _skill_tex(sk_name)
+		if tex:
+			var ir := TextureRect.new()
+			ir.texture = tex
+			ir.custom_minimum_size = Vector2(icon_sz, icon_sz)
+			ir.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ir.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ir.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			ir.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			well.add_child(ir)
+		else:
+			well.add_child(UIStyle.label(sk_name.substr(0, 1), 11, INK))
+		var cap := UIStyle.label(sk_name, 10 if not _dense else 9, INK)
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cap.clip_text = true
+		cap.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(cap)
+		sb.pressed.connect(func():
+			_selected_skill = sk_name
+			_populate_detail()
+		)
+		sk_grid.add_child(sb)
+
+	_skill_desc = UIStyle.label("", 10 if not _dense else 9, INK)
+	_skill_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_skill_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	skills_sec.add_child(_skill_desc)
+	_update_skill_desc()
+
+	# Compact skill demo (existing preview-only path — not Design A chrome change).
+	_demo_host = Control.new()
+	_demo_host.custom_minimum_size = Vector2(0, 48 if _dense else 56)
+	_demo_host.clip_contents = true
+	var demo_bg := PanelContainer.new()
+	demo_bg.set_anchors_preset(PRESET_FULL_RECT)
+	demo_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	demo_bg.add_theme_stylebox_override("panel", _style_inset())
+	_demo_host.add_child(demo_bg)
+	skills_sec.add_child(_demo_host)
+	_demo_note = UIStyle.label("미리보기 전용", 9, INK_DIM)
+	skills_sec.add_child(_demo_note)
+	var demo_btn := Button.new()
+	demo_btn.text = "스킬 미리보기"
+	demo_btn.custom_minimum_size = Vector2(0, 24 if _dense else 26)
+	_apply_metal_button(demo_btn)
+	demo_btn.pressed.connect(_play_skill_demo)
+	skills_sec.add_child(demo_btn)
 
 
 func _bar_stat(label: String, value: int, cap: int, fill: Color = Color(0.55, 0.72, 0.35)) -> Control:
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
 	var head := HBoxContainer.new()
-	head.add_child(UIStyle.label(label, 11, INK_DIM))
+	head.add_child(UIStyle.label(label, 11 if not _dense else 10, INK_DIM))
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(sp)
-	head.add_child(UIStyle.label(str(value), 11, INK))
+	head.add_child(UIStyle.label(str(value), 11 if not _dense else 10, INK))
 	row.add_child(head)
 	var bar := ProgressBar.new()
 	bar.min_value = 0
 	bar.max_value = maxf(1.0, float(cap))
-	bar.value = float(value)
-	bar.custom_minimum_size = Vector2(0, 11)
+	bar.value = clampf(float(value), 0.0, float(cap))
+	bar.custom_minimum_size = Vector2(0, 12 if not _dense else 10)
 	bar.show_percentage = false
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.12, 0.10, 0.08, 1)
@@ -1508,11 +1586,9 @@ func _update_skill_desc() -> void:
 		return
 	var info: Dictionary = SKILL_INFO.get(_selected_skill, {})
 	if info.is_empty():
-		_skill_desc.text = "%s\n(상세 수치 데이터 없음 — 이름만 보유. 데모는 직업 공격 애니로 대체하거나 불가 표시.)" % _selected_skill
+		_skill_desc.text = "%s — 등록된 짧은 설명이 없습니다." % _selected_skill
 	else:
-		_skill_desc.text = "%s\n%s\n패턴: %s · 미리보기 전용(전투 HP/MP/CD 영향 없음)" % [
-			_selected_skill, str(info.get("desc", "")), str(info.get("pattern", ""))
-		]
+		_skill_desc.text = "%s — %s" % [_selected_skill, str(info.get("desc", ""))]
 
 
 func _play_skill_demo() -> void:
