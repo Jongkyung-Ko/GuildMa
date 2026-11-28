@@ -1,6 +1,9 @@
 {
   "version": 1,
-  "phase_thresholds": [0.7, 0.3],
+  "phase_thresholds": [
+    0.7,
+    0.3
+  ],
   "notes": "Skill display names are editable data. 3020.jpg boss sheet missing at ship — sprites use placeholders (tint + fallback monster frames).",
   "bosses": [
     {
@@ -8,8 +11,8 @@
       "enemy_id": "boss_fenrir",
       "name": "펜리르",
       "name_en": "Fenrir",
-      "sprite": "wolf",
-      "placeholder_art": true,
+      "sprite": "bosses/fenrir",
+      "placeholder_art": false,
       "scale": 1.55,
       "hp": 520,
       "atk": 18,
@@ -18,7 +21,12 @@
       "aspd": 1.05,
       "aggro_range": 1300,
       "attack_range": 56,
-      "color": [0.55, 0.72, 1.0, 1.0],
+      "color": [
+        0.55,
+        0.72,
+        1.0,
+        1.0
+      ],
       "spawn": {
         "kind": "hunt_goal",
         "hunt_id": "beginner_forest",
@@ -29,19 +37,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "추적",
-          "skills": ["fenrir_bite", "fenrir_howl"]
+          "skills": [
+            "fenrir_bite",
+            "fenrir_howl"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "광기",
-          "skills": ["fenrir_bite", "fenrir_pack_rush", "fenrir_frost_fang"]
+          "skills": [
+            "fenrir_bite",
+            "fenrir_pack_rush",
+            "fenrir_frost_fang"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "달빛 폭주",
-          "skills": ["fenrir_lunar_frenzy", "fenrir_pack_rush", "fenrir_frost_fang"]
+          "skills": [
+            "fenrir_lunar_frenzy",
+            "fenrir_pack_rush",
+            "fenrir_frost_fang"
+          ]
         }
       ],
       "skills": {
@@ -92,19 +111,30 @@
         "gold_max": 120,
         "exp": 120,
         "materials": [
-          {"id": "hide_wolf", "qty": 2},
-          {"id": "crystal_ice", "qty": 1},
-          {"id": "enhance_stone", "qty": 1}
+          {
+            "id": "hide_wolf",
+            "qty": 2
+          },
+          {
+            "id": "crystal_ice",
+            "qty": 1
+          },
+          {
+            "id": "enhance_stone",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/fenrir/idle.png",
+      "painted_idle": true
     },
     {
       "id": "malkav",
       "enemy_id": "boss_malkav",
       "name": "말카브",
       "name_en": "Malkav",
-      "sprite": "goblin",
-      "placeholder_art": true,
+      "sprite": "bosses/malkav",
+      "placeholder_art": false,
       "scale": 1.45,
       "hp": 640,
       "atk": 20,
@@ -113,7 +143,12 @@
       "aspd": 1.1,
       "aggro_range": 1250,
       "attack_range": 52,
-      "color": [0.75, 0.35, 0.85, 1.0],
+      "color": [
+        0.75,
+        0.35,
+        0.85,
+        1.0
+      ],
       "spawn": {
         "kind": "hunt_goal",
         "hunt_id": "blue_meadow",
@@ -124,19 +159,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "환영",
-          "skills": ["malkav_slash", "malkav_mirage"]
+          "skills": [
+            "malkav_slash",
+            "malkav_mirage"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "광소",
-          "skills": ["malkav_slash", "malkav_chaos_bolt", "malkav_mirage"]
+          "skills": [
+            "malkav_slash",
+            "malkav_chaos_bolt",
+            "malkav_mirage"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "붕괴",
-          "skills": ["malkav_madness", "malkav_chaos_bolt", "malkav_slash"]
+          "skills": [
+            "malkav_madness",
+            "malkav_chaos_bolt",
+            "malkav_slash"
+          ]
         }
       ],
       "skills": {
@@ -177,19 +223,30 @@
         "gold_max": 160,
         "exp": 160,
         "materials": [
-          {"id": "crystal_shadow", "qty": 1},
-          {"id": "cloth_silk", "qty": 1},
-          {"id": "special_guild_token", "qty": 1}
+          {
+            "id": "crystal_shadow",
+            "qty": 1
+          },
+          {
+            "id": "cloth_silk",
+            "qty": 1
+          },
+          {
+            "id": "special_guild_token",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/malkav/idle.png",
+      "painted_idle": true
     },
     {
       "id": "malachi",
       "enemy_id": "boss_malachi",
       "name": "말라키",
       "name_en": "Malachi",
-      "sprite": "goblin",
-      "placeholder_art": true,
+      "sprite": "bosses/malachi",
+      "placeholder_art": false,
       "scale": 1.5,
       "hp": 780,
       "atk": 24,
@@ -198,7 +255,12 @@
       "aspd": 0.95,
       "aggro_range": 1300,
       "attack_range": 58,
-      "color": [0.95, 0.75, 0.25, 1.0],
+      "color": [
+        0.95,
+        0.75,
+        0.25,
+        1.0
+      ],
       "spawn": {
         "kind": "hunt_goal",
         "hunt_id": "twilight_ruins",
@@ -209,19 +271,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "성역",
-          "skills": ["malachi_smite", "malachi_ward"]
+          "skills": [
+            "malachi_smite",
+            "malachi_ward"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "심판",
-          "skills": ["malachi_smite", "malachi_judgment", "malachi_ward"]
+          "skills": [
+            "malachi_smite",
+            "malachi_judgment",
+            "malachi_ward"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "파멸 선고",
-          "skills": ["malachi_verdict", "malachi_judgment", "malachi_smite"]
+          "skills": [
+            "malachi_verdict",
+            "malachi_judgment",
+            "malachi_smite"
+          ]
         }
       ],
       "skills": {
@@ -262,19 +335,30 @@
         "gold_max": 200,
         "exp": 210,
         "materials": [
-          {"id": "crystal_light", "qty": 2},
-          {"id": "ore_silver", "qty": 1},
-          {"id": "enhance_stone", "qty": 2}
+          {
+            "id": "crystal_light",
+            "qty": 2
+          },
+          {
+            "id": "ore_silver",
+            "qty": 1
+          },
+          {
+            "id": "enhance_stone",
+            "qty": 2
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/malachi/idle.png",
+      "painted_idle": true
     },
     {
       "id": "gorgon",
       "enemy_id": "boss_gorgon",
       "name": "고르곤",
       "name_en": "Gorgon",
-      "sprite": "slime",
-      "placeholder_art": true,
+      "sprite": "bosses/gorgon",
+      "placeholder_art": false,
       "scale": 1.6,
       "hp": 900,
       "atk": 22,
@@ -283,7 +367,12 @@
       "aspd": 0.9,
       "aggro_range": 1200,
       "attack_range": 64,
-      "color": [0.35, 0.85, 0.45, 1.0],
+      "color": [
+        0.35,
+        0.85,
+        0.45,
+        1.0
+      ],
       "spawn": {
         "kind": "hunt_goal",
         "hunt_id": "cursed_marsh",
@@ -294,19 +383,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "석화",
-          "skills": ["gorgon_lash", "gorgon_gaze"]
+          "skills": [
+            "gorgon_lash",
+            "gorgon_gaze"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "독안개",
-          "skills": ["gorgon_lash", "gorgon_venom", "gorgon_gaze"]
+          "skills": [
+            "gorgon_lash",
+            "gorgon_venom",
+            "gorgon_gaze"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "메두사 진노",
-          "skills": ["gorgon_petrify", "gorgon_venom", "gorgon_lash"]
+          "skills": [
+            "gorgon_petrify",
+            "gorgon_venom",
+            "gorgon_lash"
+          ]
         }
       ],
       "skills": {
@@ -350,19 +450,30 @@
         "gold_max": 250,
         "exp": 280,
         "materials": [
-          {"id": "crystal_nature", "qty": 2},
-          {"id": "powder_grind", "qty": 2},
-          {"id": "special_old_map", "qty": 1}
+          {
+            "id": "crystal_nature",
+            "qty": 2
+          },
+          {
+            "id": "powder_grind",
+            "qty": 2
+          },
+          {
+            "id": "special_old_map",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/gorgon/idle.png",
+      "painted_idle": true
     },
     {
       "id": "lilith",
       "enemy_id": "boss_lilith",
       "name": "릴리스",
       "name_en": "Lilith",
-      "sprite": "wolf",
-      "placeholder_art": true,
+      "sprite": "bosses/lilith",
+      "placeholder_art": false,
       "scale": 1.65,
       "hp": 1100,
       "atk": 28,
@@ -371,7 +482,12 @@
       "aspd": 1.15,
       "aggro_range": 1400,
       "attack_range": 70,
-      "color": [0.85, 0.2, 0.45, 1.0],
+      "color": [
+        0.85,
+        0.2,
+        0.45,
+        1.0
+      ],
       "spawn": {
         "kind": "hunt_goal",
         "hunt_id": "abyss_border",
@@ -382,19 +498,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "유혹",
-          "skills": ["lilith_claw", "lilith_charm"]
+          "skills": [
+            "lilith_claw",
+            "lilith_charm"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "흡혈",
-          "skills": ["lilith_claw", "lilith_drain", "lilith_charm"]
+          "skills": [
+            "lilith_claw",
+            "lilith_drain",
+            "lilith_charm"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "심연 여왕",
-          "skills": ["lilith_abyss_song", "lilith_drain", "lilith_claw"]
+          "skills": [
+            "lilith_abyss_song",
+            "lilith_drain",
+            "lilith_claw"
+          ]
         }
       ],
       "skills": {
@@ -436,20 +563,34 @@
         "gold_max": 320,
         "exp": 360,
         "materials": [
-          {"id": "crystal_shadow", "qty": 2},
-          {"id": "crystal_fire", "qty": 1},
-          {"id": "special_memory_shard", "qty": 1},
-          {"id": "ore_mithril", "qty": 1}
+          {
+            "id": "crystal_shadow",
+            "qty": 2
+          },
+          {
+            "id": "crystal_fire",
+            "qty": 1
+          },
+          {
+            "id": "special_memory_shard",
+            "qty": 1
+          },
+          {
+            "id": "ore_mithril",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/lilith/idle.png",
+      "painted_idle": true
     },
     {
       "id": "bone_golem",
       "enemy_id": "boss_bone_golem",
       "name": "본 골렘",
       "name_en": "Bone Golem",
-      "sprite": "goblin",
-      "placeholder_art": true,
+      "sprite": "bosses/bone_golem",
+      "placeholder_art": false,
       "scale": 1.8,
       "hp": 1400,
       "atk": 26,
@@ -458,7 +599,12 @@
       "aspd": 0.75,
       "aggro_range": 1100,
       "attack_range": 60,
-      "color": [0.9, 0.88, 0.78, 1.0],
+      "color": [
+        0.9,
+        0.88,
+        0.78,
+        1.0
+      ],
       "spawn": {
         "kind": "dungeon_floor",
         "dungeon_id": "shadow_crypt",
@@ -470,19 +616,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "중갑",
-          "skills": ["golem_slam", "golem_bone_wall"]
+          "skills": [
+            "golem_slam",
+            "golem_bone_wall"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "분쇄",
-          "skills": ["golem_slam", "golem_bone_rain", "golem_bone_wall"]
+          "skills": [
+            "golem_slam",
+            "golem_bone_rain",
+            "golem_bone_wall"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "붕괴",
-          "skills": ["golem_collapse", "golem_bone_rain", "golem_slam"]
+          "skills": [
+            "golem_collapse",
+            "golem_bone_rain",
+            "golem_slam"
+          ]
         }
       ],
       "skills": {
@@ -524,19 +681,30 @@
         "gold_max": 280,
         "exp": 300,
         "materials": [
-          {"id": "part_gear", "qty": 2},
-          {"id": "ore_iron", "qty": 2},
-          {"id": "special_dungeon_key", "qty": 1}
+          {
+            "id": "part_gear",
+            "qty": 2
+          },
+          {
+            "id": "ore_iron",
+            "qty": 2
+          },
+          {
+            "id": "special_dungeon_key",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/bone_golem/idle.png",
+      "painted_idle": true
     },
     {
       "id": "behemoth",
       "enemy_id": "boss_behemoth",
       "name": "베히모스",
       "name_en": "Behemoth",
-      "sprite": "wolf",
-      "placeholder_art": true,
+      "sprite": "bosses/behemoth",
+      "placeholder_art": false,
       "scale": 2.0,
       "hp": 1800,
       "atk": 32,
@@ -545,7 +713,12 @@
       "aspd": 0.85,
       "aggro_range": 1350,
       "attack_range": 72,
-      "color": [0.65, 0.4, 0.25, 1.0],
+      "color": [
+        0.65,
+        0.4,
+        0.25,
+        1.0
+      ],
       "spawn": {
         "kind": "dungeon_floor",
         "dungeon_id": "shadow_crypt",
@@ -557,19 +730,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "육중",
-          "skills": ["behemoth_stomp", "behemoth_roar"]
+          "skills": [
+            "behemoth_stomp",
+            "behemoth_roar"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "돌진",
-          "skills": ["behemoth_stomp", "behemoth_charge", "behemoth_roar"]
+          "skills": [
+            "behemoth_stomp",
+            "behemoth_charge",
+            "behemoth_roar"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "대지 분쇄",
-          "skills": ["behemoth_quake", "behemoth_charge", "behemoth_stomp"]
+          "skills": [
+            "behemoth_quake",
+            "behemoth_charge",
+            "behemoth_stomp"
+          ]
         }
       ],
       "skills": {
@@ -611,20 +795,34 @@
         "gold_max": 420,
         "exp": 450,
         "materials": [
-          {"id": "hide_boar", "qty": 3},
-          {"id": "ore_gold", "qty": 1},
-          {"id": "part_core", "qty": 1},
-          {"id": "special_seal_royal", "qty": 1}
+          {
+            "id": "hide_boar",
+            "qty": 3
+          },
+          {
+            "id": "ore_gold",
+            "qty": 1
+          },
+          {
+            "id": "part_core",
+            "qty": 1
+          },
+          {
+            "id": "special_seal_royal",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/behemoth/idle.png",
+      "painted_idle": true
     },
     {
       "id": "vorak",
       "enemy_id": "boss_vorak",
       "name": "보락",
       "name_en": "Vorak",
-      "sprite": "slime",
-      "placeholder_art": true,
+      "sprite": "bosses/vorak",
+      "placeholder_art": false,
       "scale": 1.7,
       "hp": 1250,
       "atk": 30,
@@ -633,7 +831,12 @@
       "aspd": 1.2,
       "aggro_range": 1450,
       "attack_range": 66,
-      "color": [0.45, 0.55, 1.0, 1.0],
+      "color": [
+        0.45,
+        0.55,
+        1.0,
+        1.0
+      ],
       "spawn": {
         "kind": "special_encounter",
         "encounter_id": "vorak_rift",
@@ -645,19 +848,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "균열",
-          "skills": ["vorak_cut", "vorak_rift_step"]
+          "skills": [
+            "vorak_cut",
+            "vorak_rift_step"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "공허",
-          "skills": ["vorak_cut", "vorak_void_lance", "vorak_rift_step"]
+          "skills": [
+            "vorak_cut",
+            "vorak_void_lance",
+            "vorak_rift_step"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "균열 폭풍",
-          "skills": ["vorak_storm", "vorak_void_lance", "vorak_cut"]
+          "skills": [
+            "vorak_storm",
+            "vorak_void_lance",
+            "vorak_cut"
+          ]
         }
       ],
       "skills": {
@@ -696,19 +910,30 @@
         "gold_max": 340,
         "exp": 380,
         "materials": [
-          {"id": "crystal_shadow", "qty": 2},
-          {"id": "special_memory_shard", "qty": 1},
-          {"id": "part_core", "qty": 1}
+          {
+            "id": "crystal_shadow",
+            "qty": 2
+          },
+          {
+            "id": "special_memory_shard",
+            "qty": 1
+          },
+          {
+            "id": "part_core",
+            "qty": 1
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/vorak/idle.png",
+      "painted_idle": true
     },
     {
       "id": "morgana",
       "enemy_id": "boss_morgana",
       "name": "모르가나",
       "name_en": "Morgana",
-      "sprite": "goblin",
-      "placeholder_art": true,
+      "sprite": "bosses/morgana",
+      "placeholder_art": false,
       "scale": 1.6,
       "hp": 1600,
       "atk": 34,
@@ -717,11 +942,19 @@
       "aspd": 1.05,
       "aggro_range": 1500,
       "attack_range": 80,
-      "color": [0.55, 0.25, 0.75, 1.0],
+      "color": [
+        0.55,
+        0.25,
+        0.75,
+        1.0
+      ],
       "spawn": {
         "kind": "special_encounter",
         "encounter_id": "morgana_sanctum",
-        "requires_boss_cleared": ["lilith", "behemoth"],
+        "requires_boss_cleared": [
+          "lilith",
+          "behemoth"
+        ],
         "exclusive": true
       },
       "phases": [
@@ -729,19 +962,30 @@
           "id": "p1",
           "hp_ratio_min": 0.7,
           "label": "저주",
-          "skills": ["morgana_bolt", "morgana_hex"]
+          "skills": [
+            "morgana_bolt",
+            "morgana_hex"
+          ]
         },
         {
           "id": "p2",
           "hp_ratio_min": 0.3,
           "label": "마법진",
-          "skills": ["morgana_bolt", "morgana_circle", "morgana_hex"]
+          "skills": [
+            "morgana_bolt",
+            "morgana_circle",
+            "morgana_hex"
+          ]
         },
         {
           "id": "p3",
           "hp_ratio_min": 0.0,
           "label": "최후의 주문",
-          "skills": ["morgana_finale", "morgana_circle", "morgana_bolt"]
+          "skills": [
+            "morgana_finale",
+            "morgana_circle",
+            "morgana_bolt"
+          ]
         }
       ],
       "skills": {
@@ -783,12 +1027,26 @@
         "gold_max": 520,
         "exp": 560,
         "materials": [
-          {"id": "crystal_fire", "qty": 2},
-          {"id": "crystal_shadow", "qty": 2},
-          {"id": "special_blessing", "qty": 1},
-          {"id": "ore_mithril", "qty": 2}
+          {
+            "id": "crystal_fire",
+            "qty": 2
+          },
+          {
+            "id": "crystal_shadow",
+            "qty": 2
+          },
+          {
+            "id": "special_blessing",
+            "qty": 1
+          },
+          {
+            "id": "ore_mithril",
+            "qty": 2
+          }
         ]
-      }
+      },
+      "texture": "res://assets/sprites/monsters/bosses/morgana/idle.png",
+      "painted_idle": true
     }
   ]
 }

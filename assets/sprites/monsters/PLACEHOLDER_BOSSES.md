@@ -1,21 +1,12 @@
-# Boss / elite art placeholders
+# Boss art status (PR #24)
 
-`3020.jpg` (boss concept sheet) was **not available** when this content shipped.
+Painted **idle** PNGs are installed under `assets/sprites/monsters/bosses/<id>/idle.png` (512×512 RGBA).
 
-Until real splits are imported:
+Source pack: `GuildMaster_Boss_Assets_PR24.zip` + `data/combat/boss_manifest.json`.
+Concept reference: `assets/art_reference/bosses_pr24/3020_original_concept_sheet.jpg`.
 
-| Boss | Runtime sprite fallback | Tint |
-|---|---|---|
-| Fenrir | `wolf` | blue |
-| Malkav | `goblin` | purple |
-| Malachi | `goblin` | gold |
-| Gorgon | `slime` | green |
-| Lilith | `wolf` | crimson |
-| Bone Golem | `goblin` | bone |
-| Behemoth | `wolf` | brown |
-| Vorak | `slime` | blue-void |
-| Morgana | `goblin` | violet |
+Still missing (not in pack):
+- Attack / hit / death animation frame sequences per boss
+- Dedicated skill VFX art
 
-Elites / new normals (`boar`, `skeleton`, `wraith`, `demonling`) also reuse wolf/goblin/slime frames with tints (`placeholder_art: true` in `enemies.json` / `bosses.json`).
-
-Do **not** claim painted boss animations exist until `3020.jpg` (or dedicated frames) are wired under `assets/sprites/monsters/<boss_id>/`.
+Runtime reuses the idle texture for walk/attack/hit/death until anim packs land.

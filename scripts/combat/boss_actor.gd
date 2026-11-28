@@ -1,7 +1,7 @@
 extends "res://scripts/combat/enemy_base.gd"
 
 ## Data-driven boss: phases (100–70 / 70–30 / ≤30), skill cooldowns, unique kits.
-## Art may be placeholder (tinted fallback monster frames) until 3020.jpg splits land.
+## Painted idle PNGs under assets/sprites/monsters/bosses/<id>/idle.png when present.
 
 signal phase_changed(phase_id: String, label: String)
 signal skill_used(skill_id: String, skill_name: String)
@@ -20,23 +20,28 @@ var _telegraph_t: float = 0.0
 var _pending_skill_id: String = ""
 var _pending_skill: Dictionary = {}
 var sprite_scale_mult: float = 1.0
+var _art_fit_scale: float = 0.0
+var _art_sprite_local_y: float = -30.0
 
 
 func setup_from_boss(def: Dictionary, enemy_fallback: Dictionary = {}) -> void:
 	boss_def = def.duplicate(true)
 	boss_id = str(def.get("id", ""))
 	var merged: Dictionary = enemy_fallback.duplicate(true) if not enemy_fallback.is_empty() else {}
-	for k in ["hp", "atk", "def", "move", "aspd", "aggro_range", "attack_range", "sprite", "name", "color"]:
+	for k in ["hp", "atk", "def", "move", "aspd", "aggro_range", "attack_range", "sprite", "name", "color", "texture", "placeholder_art", "painted_idle"]:
 		if def.has(k):
 			merged[k] = def[k]
+	# Prefer explicit texture / bosses/<id> sprite for art path wiring.
+	if str(merged.get("sprite", "")).is_empty() or str(merged.get("sprite", "")) in ["wolf", "goblin", "slime"]:
+		if def.has("sprite"):
+			merged["sprite"] = def.get("sprite")
 	merged["id"] = str(def.get("enemy_id", boss_id))
 	merged["tier"] = str(merged.get("tier", "boss_hunt"))
 	merged["boss_id"] = boss_id
 	merged["behavior"] = "boss"
 	setup_from_enemy(merged)
 	sprite_scale_mult = float(def.get("scale", 1.5))
-	if _visual_root:
-		_visual_root.scale = Vector2(sprite_scale_mult, sprite_scale_mult)
+	_apply_boss_art_display()
 	_base_move = move_speed
 	_skill_cds.clear()
 	var skills: Dictionary = def.get("skills", {})
@@ -48,10 +53,26 @@ func setup_from_boss(def: Dictionary, enemy_fallback: Dictionary = {}) -> void:
 func setup_from_enemy(data: Dictionary) -> void:
 	super.setup_from_enemy(data)
 	boss_id = str(data.get("boss_id", boss_id))
-	_apply_tint_from_data(data)
+	_apply_boss_art_display()
+
+
+func _uses_painted_idle() -> bool:
+	if SpriteFactory.has_boss_idle(enemy_kind):
+		return true
+	if boss_id != "" and SpriteFactory.has_boss_idle(boss_id):
+		return true
+	if boss_id != "" and SpriteFactory.has_boss_idle("bosses/%s" % boss_id):
+		return true
+	return bool(boss_def.get("painted_idle", false)) and not bool(boss_def.get("placeholder_art", true))
 
 
 func _apply_tint_from_data(data: Dictionary) -> void:
+	## Painted idle art keeps natural colors; placeholder fallbacks may tint.
+	if _uses_painted_idle():
+		if _sprite:
+			_sprite.modulate = Color(1, 1, 1, 1)
+		_enemy_tint = Color(1, 1, 1, 1)
+		return
 	var c = data.get("color", null)
 	if c == null and boss_def.has("color"):
 		c = boss_def.get("color")
@@ -60,12 +81,71 @@ func _apply_tint_from_data(data: Dictionary) -> void:
 		_sprite.modulate = Color(float(c[0]), float(c[1]), float(c[2]), a)
 
 
+func _apply_boss_art_display() -> void:
+	## Art display only: centered, aspect preserved, larger than normals, avoid clip.
+	if _sprite == null or _visual_root == null:
+		return
+	_apply_tint_from_data(boss_def if not boss_def.is_empty() else {})
+	if not _uses_painted_idle():
+		_art_fit_scale = 0.0
+		if sprite_scale_mult > 0.0:
+			_visual_root.scale = Vector2(sprite_scale_mult, sprite_scale_mult)
+		return
+	# 512 idle → ~150px tall (normals ~90); keeps head inside 844×390.
+	var tex: Texture2D = null
+	if _sprite.sprite_frames and _sprite.sprite_frames.get_frame_count("idle") > 0:
+		tex = _sprite.sprite_frames.get_frame_texture("idle", 0)
+	var tex_h := 512.0
+	if tex:
+		tex_h = maxf(1.0, float(tex.get_height()))
+	var target_h := 150.0
+	var rel := clampf(sprite_scale_mult / 1.5, 0.85, 1.25)
+	_art_fit_scale = (target_h / tex_h) * rel
+	_visual_root.scale = Vector2(_art_fit_scale, _art_fit_scale)
+	_sprite.centered = true
+	# Local Y (pre-scale): place feet near actor origin.
+	_art_sprite_local_y = -tex_h * 0.45
+	_sprite.position = Vector2(0, _art_sprite_local_y)
+	_shake_base = _sprite.position
+
+
+func _apply_facing() -> void:
+	## Preserve painted idle fit scale — base enemy path resets visual_root to 0.95.
+	if _uses_painted_idle() and _art_fit_scale > 0.0 and _visual_root != null and _sprite != null:
+		_visual_root.scale = Vector2(_art_fit_scale, _art_fit_scale)
+		_sprite.flip_h = not _face_right
+		_sprite.centered = true
+		_sprite.position = Vector2(0, _art_sprite_local_y)
+		_shake_base = _sprite.position
+		return
+	super._apply_facing()
+
+
+func _ready() -> void:
+	super._ready()
+	call_deferred("_clamp_boss_on_screen")
+
+
+func _clamp_boss_on_screen() -> void:
+	## Keep painted boss fully inside the current viewport (844×390 and PC).
+	if not is_inside_tree():
+		return
+	var vp := get_viewport_rect().size
+	if vp.x < 8.0 or vp.y < 8.0:
+		return
+	global_position.x = clampf(global_position.x, 140.0, maxf(200.0, vp.x - 180.0))
+	global_position.y = clampf(global_position.y, 170.0, maxf(200.0, vp.y - 70.0))
+	_apply_boss_art_display()
+
+
 func _refresh_visuals() -> void:
+	# Ensure enemy_kind resolves to bosses/<id> when painted idle exists.
+	if boss_id != "" and SpriteFactory.has_boss_idle(boss_id):
+		enemy_kind = "bosses/%s" % boss_id
+	elif boss_id != "" and SpriteFactory.has_boss_idle("bosses/%s" % boss_id):
+		enemy_kind = "bosses/%s" % boss_id
 	super._refresh_visuals()
-	if sprite_scale_mult > 0.0 and _visual_root:
-		_visual_root.scale = Vector2(sprite_scale_mult, sprite_scale_mult)
-	if not boss_def.is_empty():
-		_apply_tint_from_data(boss_def)
+	_apply_boss_art_display()
 	# Boss uses larger overhead HP; dedicated BossHud owns the main bar.
 	if _hp_bar:
 		_hp_bar.visible = false

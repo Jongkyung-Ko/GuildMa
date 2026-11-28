@@ -194,15 +194,20 @@ func _run() -> void:
 	else:
 		_pass("dungeon F10 = behemoth")
 
-	# Placeholder honesty: every named boss flagged
-	var placeholders := 0
+	# Painted idle art: each boss must resolve bosses/<id>/idle.png
+	var painted_ok := 0
 	for b in bosses:
-		if bool(b.get("placeholder_art", false)):
-			placeholders += 1
-	if placeholders != 9:
-		_fail("expected 9 placeholder_art bosses, got %d" % placeholders)
-	else:
-		_pass("all 9 bosses honestly marked placeholder_art")
+		var bid := str(b.get("id", ""))
+		var path := "res://assets/sprites/monsters/bosses/%s/idle.png" % bid
+		if not (ResourceLoader.exists(path) or FileAccess.file_exists(path)):
+			_fail("missing painted idle for %s -> %s" % [bid, path])
+			continue
+		if bool(b.get("placeholder_art", true)):
+			_fail("%s still marked placeholder_art" % bid)
+			continue
+		painted_ok += 1
+	if painted_ok == 9:
+		_pass("all 9 bosses have painted idle.png wired")
 
 	# Save/load preserves boss clears
 	gs.save_game()

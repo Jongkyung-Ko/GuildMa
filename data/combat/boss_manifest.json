@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "note": "Generated visual assets for first-pass boss idle sprites. These are not animation sprite sheets.",
+  "canvas": "512x512 RGBA PNG",
+  "bosses": [
+    {
+      "id": "fenrir",
+      "name": "Fenrir",
+      "texture": "res://assets/sprites/monsters/bosses/fenrir/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "malkav",
+      "name": "Malkav",
+      "texture": "res://assets/sprites/monsters/bosses/malkav/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "malachi",
+      "name": "Malachi",
+      "texture": "res://assets/sprites/monsters/bosses/malachi/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "gorgon",
+      "name": "Gorgon",
+      "texture": "res://assets/sprites/monsters/bosses/gorgon/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "lilith",
+      "name": "Lilith",
+      "texture": "res://assets/sprites/monsters/bosses/lilith/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "bone_golem",
+      "name": "Bone Golem",
+      "texture": "res://assets/sprites/monsters/bosses/bone_golem/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "behemoth",
+      "name": "Behemoth",
+      "texture": "res://assets/sprites/monsters/bosses/behemoth/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "vorak",
+      "name": "Vorak",
+      "texture": "res://assets/sprites/monsters/bosses/vorak/idle.png",
+      "status": "installed"
+    },
+    {
+      "id": "morgana",
+      "name": "Morgana",
+      "texture": "res://assets/sprites/monsters/bosses/morgana/idle.png",
+      "status": "installed"
+    }
+  ]
+}

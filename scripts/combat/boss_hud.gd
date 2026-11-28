@@ -89,8 +89,11 @@ func _ready() -> void:
 	_skill_l.add_theme_color_override("font_color", Color(0.75, 0.85, 1.0))
 	bottom.add_child(_skill_l)
 
-	var ui := Engine.get_main_loop().root.get_node_or_null("/root/UIStyle") if Engine.get_main_loop() else null
-	if ui and ui.has_method("apply_font"):
+	var ui: Node = null
+	var ml := Engine.get_main_loop()
+	if ml:
+		ui = ml.root.get_node_or_null("/root/UIStyle")
+	if ui != null and ui.has_method("apply_font"):
 		ui.apply_font(_name_l, 16)
 		ui.apply_font(_phase_l, 13)
 		ui.apply_font(_hp_l, 12)

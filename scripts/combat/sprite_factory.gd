@@ -39,6 +39,10 @@ static func ally_frames(job: String) -> SpriteFrames:
 
 
 static func enemy_frames(kind: String) -> SpriteFrames:
+	## Prefer painted boss idle.png when present (art-path wiring only).
+	var idle_path := boss_idle_path(kind)
+	if idle_path != "":
+		return single_texture_frames(idle_path)
 	var base := "res://assets/sprites/monsters/%s" % kind
 	if not ResourceLoader.exists(base + "/frame_00.png"):
 		base = "res://assets/sprites/monsters/wolf"
@@ -49,6 +53,55 @@ static func enemy_frames(kind: String) -> SpriteFrames:
 	_add_seq(sf, "hit", base, "frame_%02d.png", [4], 10.0, false)
 	_add_seq(sf, "death", base, "frame_%02d.png", [5], 1.0, false)
 	return sf
+
+
+static func boss_idle_path(kind: String) -> String:
+	## Resolve bosses/<id>/idle.png from sprite kind / boss id / boss_* enemy id.
+	var candidates: Array = []
+	var k := kind.strip_edges()
+	if k.begins_with("bosses/"):
+		candidates.append("res://assets/sprites/monsters/%s/idle.png" % k)
+	else:
+		candidates.append("res://assets/sprites/monsters/bosses/%s/idle.png" % k)
+		if k.begins_with("boss_"):
+			candidates.append("res://assets/sprites/monsters/bosses/%s/idle.png" % k.substr(5))
+	for p in candidates:
+		var path := str(p)
+		if ResourceLoader.exists(path):
+			return path
+		# Pre-import / raw file check
+		if FileAccess.file_exists(path):
+			return path
+	return ""
+
+
+static func single_texture_frames(path: String) -> SpriteFrames:
+	## Idle-only sheet: reuse same frame for walk/attack/hit/death until anim packs land.
+	var sf := SpriteFrames.new()
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	elif FileAccess.file_exists(path):
+		var img := Image.load_from_file(ProjectSettings.globalize_path(path) if path.begins_with("res://") else path)
+		if img:
+			tex = ImageTexture.create_from_image(img)
+	if tex == null:
+		# Keep placeholder path: empty → caller should fall back; provide transparent 1px.
+		var img2 := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		img2.fill(Color(0, 0, 0, 0))
+		tex = ImageTexture.create_from_image(img2)
+	for anim in ["idle", "walk", "attack", "hit", "death"]:
+		if sf.has_animation(anim):
+			sf.remove_animation(anim)
+		sf.add_animation(anim)
+		sf.set_animation_speed(anim, 4.0 if anim == "idle" else 8.0)
+		sf.set_animation_loop(anim, anim in ["idle", "walk"])
+		sf.add_frame(anim, tex)
+	return sf
+
+
+static func has_boss_idle(kind: String) -> bool:
+	return boss_idle_path(kind) != ""
 
 
 static func vfx_frames(kind: String) -> SpriteFrames:
