@@ -78,6 +78,9 @@ var projectiles_fired: int = 0
 var damage_hits: int = 0
 var heals_landed: int = 0
 var _enemy_tint: Color = Color(1, 1, 1, 1)
+## Ensures died signal / kill reward fires at most once (multi-frame death waits for anim).
+var _died_emitted: bool = false
+var _death_timeout_armed: bool = false
 var _move_slow_t: float = 0.0
 var _move_slow_mult: float = 1.0
 var _base_move_speed: float = 100.0
@@ -312,7 +315,7 @@ func _refresh_visuals() -> void:
 		_face_right = true
 	else:
 		_sprite.sprite_frames = SpriteFactory.enemy_frames(enemy_kind)
-		_attack_active_idx = SpriteFactory.attack_active_frame("enemy")
+		_attack_active_idx = SpriteFactory.attack_active_frame_for_enemy(enemy_kind)
 		# Monsters keep centered art; approximate foot under mid-canvas.
 		_sprite_pivot = Vector2(48, 72)
 		_face_right = false
@@ -422,6 +425,8 @@ func _on_frame_changed() -> void:
 
 func _on_anim_finished() -> void:
 	if is_dead:
+		if _anim_state == AnimState.DEATH:
+			_finalize_death_emit()
 		return
 	if _is_attacking():
 		_finish_attack_cycle()
@@ -511,6 +516,8 @@ func _launch_fireball(target: CombatCharacter, dmg: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	z_index = int(global_position.y)
+	if CombatFieldBounds.debug_draw_enabled:
+		queue_redraw()
 
 	if is_dead:
 		return
@@ -658,9 +665,8 @@ func _desired_slot_position(target: CombatCharacter) -> Vector2:
 	if team == Team.ENEMY:
 		ang = preferred_angle + formation_slot * 0.55
 	var pos := target.global_position + Vector2(cos(ang), sin(ang)) * preferred_radius
-	pos.x = clampf(pos.x, 40.0, 1240.0)
-	pos.y = clampf(pos.y, 100.0, 600.0)
-	return pos
+	# Clamp the chase/attack *target* into the dynamic safe rect (not only post-move).
+	return CombatFieldBounds.clamp_point(pos, self)
 
 
 func _apply_separation(_delta: float) -> void:
@@ -692,8 +698,17 @@ func _apply_separation(_delta: float) -> void:
 
 
 func _clamp_to_field() -> void:
-	global_position.x = clampf(global_position.x, 40.0, 1240.0)
-	global_position.y = clampf(global_position.y, 80.0, 620.0)
+	global_position = CombatFieldBounds.clamp_point(global_position, self)
+
+
+func _draw() -> void:
+	## Dev-only top safe-zone line (off in shipping unless CombatFieldBounds.debug_draw_enabled).
+	if not CombatFieldBounds.debug_draw_enabled:
+		return
+	var r := CombatFieldBounds.safe_rect(self)
+	var a := to_local(Vector2(r.position.x, r.position.y))
+	var b := to_local(Vector2(r.end.x, r.position.y))
+	draw_line(a, b, Color(1.0, 0.35, 0.2, 0.9), 2.0)
 
 
 func _find_target() -> CombatCharacter:
@@ -793,6 +808,8 @@ func _perform_heal(ally: CombatCharacter) -> void:
 func reset_for_next_encounter() -> void:
 	## Used after hunt room travel — revive + clear attack soft-locks.
 	is_dead = false
+	_died_emitted = false
+	_death_timeout_armed = false
 	_pending_target = null
 	_pending_damage = 0.0
 	_pending_heal = false
@@ -954,10 +971,14 @@ func take_damage(amount: float, attacker: CombatCharacter = null, opts: Dictiona
 			var kb := 10.0 if heavy else 5.0
 			if magic:
 				kb = 7.0
-			global_position += away.normalized() * kb
+			# Clamp knockback *target* into safe rect so heads stay under HUD.
+			global_position = CombatFieldBounds.clamp_point(
+				global_position + away.normalized() * kb, self
+			)
 
 	if not _is_attacking() and _sprite:
 		_set_anim_state(AnimState.HIT)
+		# Short lock only — multi-frame hit must not freeze combat AI.
 		_hit_lock_t = 0.12
 		_play_anim("hit", true)
 	if hp <= 0.0:
@@ -991,21 +1012,53 @@ func _die() -> void:
 	_pending_heal = false
 	_damage_applied = true
 	_set_anim_state(AnimState.DEATH)
+	var death_frames := 1
+	if _sprite and _sprite.sprite_frames and _sprite.sprite_frames.has_animation("death"):
+		death_frames = _sprite.sprite_frames.get_frame_count("death")
 	if _sprite:
 		_sprite.modulate = Color(0.55, 0.55, 0.6, 0.7)
 		_play_anim("death", true)
-		_sprite.pause()
+		# Single-frame death (legacy): freeze pose. Multi-frame packs play out fully.
+		if death_frames <= 1:
+			_sprite.pause()
 	if _hp_bar:
 		_hp_bar.value = 0
 	if _name_label:
 		_name_label.modulate = Color(1, 1, 1, 0.55)
-	died.emit(self)
 	if _manager != null and _manager.has_method("log_combat"):
 		_manager.log_combat("%s 전투불능" % display_name)
 	var cs := _collision_shape()
 	if cs:
 		cs.disabled = true
 	set_physics_process(false)
+	if death_frames <= 1:
+		_finalize_death_emit()
+	else:
+		# Reward / died once after anim completes, or safe timeout (~4 frames @ 6fps + margin).
+		_arm_death_timeout(1.2)
+
+
+func _arm_death_timeout(sec: float) -> void:
+	if _death_timeout_armed or _died_emitted:
+		return
+	_death_timeout_armed = true
+	var tree := get_tree()
+	if tree == null:
+		_finalize_death_emit()
+		return
+	tree.create_timer(sec).timeout.connect(_finalize_death_emit)
+
+
+func _finalize_death_emit() -> void:
+	if _died_emitted:
+		return
+	_died_emitted = true
+	if _sprite and _sprite.sprite_frames and _sprite.sprite_frames.has_animation("death"):
+		var n := _sprite.sprite_frames.get_frame_count("death")
+		if n > 1:
+			_sprite.frame = n - 1
+			_sprite.pause()
+	died.emit(self)
 
 
 func hp_ratio() -> float:

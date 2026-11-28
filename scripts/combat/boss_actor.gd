@@ -127,15 +127,17 @@ func _ready() -> void:
 
 
 func _clamp_boss_on_screen() -> void:
-	## Keep painted boss fully inside the current viewport (844×390 and PC).
+	## Keep painted boss inside the shared dynamic safe rect (viewport + HUD + sprite headroom).
 	if not is_inside_tree():
 		return
-	var vp := get_viewport_rect().size
-	if vp.x < 8.0 or vp.y < 8.0:
-		return
-	global_position.x = clampf(global_position.x, 140.0, maxf(200.0, vp.x - 180.0))
-	global_position.y = clampf(global_position.y, 170.0, maxf(200.0, vp.y - 70.0))
+	global_position = CombatFieldBounds.clamp_point(global_position, self)
 	_apply_boss_art_display()
+
+
+func _clamp_to_field() -> void:
+	global_position = CombatFieldBounds.clamp_point(global_position, self)
+	if CombatFieldBounds.debug_draw_enabled:
+		queue_redraw()
 
 
 func _refresh_visuals() -> void:
@@ -311,7 +313,9 @@ func _resolve_skill(skill_id: String, skill: Dictionary) -> void:
 			if kind == "dash" and target != null and is_instance_valid(target):
 				var toward := target.global_position - global_position
 				if toward.length() > 1.0:
-					global_position += toward.normalized() * minf(140.0, toward.length() * 0.65)
+					# Clamp dash *destination* into safe rect (not only post-move).
+					var dest := global_position + toward.normalized() * minf(140.0, toward.length() * 0.65)
+					global_position = CombatFieldBounds.clamp_point(dest, self)
 			if target != null and is_instance_valid(target) and not target.is_dead:
 				_apply_boss_hit(target, dmg, skill)
 		_:

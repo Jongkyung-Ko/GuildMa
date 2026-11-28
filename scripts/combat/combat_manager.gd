@@ -372,7 +372,7 @@ func _spawn_party() -> void:
 		actor.setup_from_member(m, balance)
 		if actor.has_method("assign_formation"):
 			actor.assign_formation(i)
-		actor.global_position = slots[i]
+		actor.global_position = CombatFieldBounds.clamp_point(slots[i], actor)
 		actor.died.connect(_on_combatant_died)
 		actor.hp_changed.connect(func(_c, _m): _ui.refresh())
 		_allies.append(actor)
@@ -449,7 +449,7 @@ func _spawn_one_enemy(data: Dictionary, slot_i: int) -> Node:
 		enemy.setup_from_enemy(scaled)
 	if enemy.has_method("assign_formation"):
 		enemy.assign_formation(slot_i % 8)
-	enemy.global_position = _enemy_slot(slot_i)
+	enemy.global_position = CombatFieldBounds.clamp_point(_enemy_slot(slot_i), enemy)
 	enemy.died.connect(_on_combatant_died)
 	enemy.hp_changed.connect(func(_c, _m): _ui.refresh())
 	_enemies.append(enemy)
