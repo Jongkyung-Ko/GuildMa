@@ -86,19 +86,21 @@ func _apply_boss_art_display() -> void:
 	if _sprite == null or _visual_root == null:
 		return
 	_apply_tint_from_data(boss_def if not boss_def.is_empty() else {})
+	var rs := CombatFieldBounds.COMBAT_RENDER_SCALE
 	if not _uses_painted_idle():
 		_art_fit_scale = 0.0
 		if sprite_scale_mult > 0.0:
-			_visual_root.scale = Vector2(sprite_scale_mult, sprite_scale_mult)
+			var s := sprite_scale_mult * rs
+			_visual_root.scale = Vector2(s, s)
 		return
-	# 512 idle → ~150px tall (normals ~90); keeps head inside 844×390.
+	# 512 idle → ~150px tall (normals ~90) × render scale; keeps head inside 844×390.
 	var tex: Texture2D = null
 	if _sprite.sprite_frames and _sprite.sprite_frames.get_frame_count("idle") > 0:
 		tex = _sprite.sprite_frames.get_frame_texture("idle", 0)
 	var tex_h := 512.0
 	if tex:
 		tex_h = maxf(1.0, float(tex.get_height()))
-	var target_h := 150.0
+	var target_h := 150.0 * rs
 	var rel := clampf(sprite_scale_mult / 1.5, 0.85, 1.25)
 	_art_fit_scale = (target_h / tex_h) * rel
 	_visual_root.scale = Vector2(_art_fit_scale, _art_fit_scale)
@@ -110,7 +112,7 @@ func _apply_boss_art_display() -> void:
 
 
 func _apply_facing() -> void:
-	## Preserve painted idle fit scale — base enemy path resets visual_root to 0.95.
+	## Preserve painted idle fit scale — base enemy path resets visual_root to sheet scale.
 	if _uses_painted_idle() and _art_fit_scale > 0.0 and _visual_root != null and _sprite != null:
 		_visual_root.scale = Vector2(_art_fit_scale, _art_fit_scale)
 		_sprite.flip_h = not _face_right
@@ -209,14 +211,16 @@ func take_damage(amount: float, source: CombatCharacter = null, opts: Dictionary
 
 
 func _physics_process(delta: float) -> void:
+	# Scale timers with combat speed; super also scales (pass raw so it re-applies once).
+	var d := _combat_delta(delta)
 	for sid in _skill_cds.keys():
-		_skill_cds[sid] = maxf(0.0, float(_skill_cds[sid]) - delta)
+		_skill_cds[sid] = maxf(0.0, float(_skill_cds[sid]) - d)
 	if _aspd_buff_t > 0.0:
-		_aspd_buff_t -= delta
+		_aspd_buff_t -= d
 		if _aspd_buff_t <= 0.0:
 			_aspd_buff = 0.0
 	if _slow_t > 0.0:
-		_slow_t -= delta
+		_slow_t -= d
 		if _slow_t <= 0.0:
 			move_speed = _base_move
 
@@ -224,16 +228,16 @@ func _physics_process(delta: float) -> void:
 		# Hold telegraph while HIT so skill attack anim cannot override hit reaction.
 		if _is_hit_locked():
 			velocity = Vector2.ZERO
-			_apply_separation(delta)
+			_apply_separation(d)
 			_clamp_to_field()
 			return
-		_telegraph_t -= delta
+		_telegraph_t -= d
 		velocity = Vector2.ZERO
 		if _telegraph_t <= 0.0 and _pending_skill_id != "":
 			_resolve_skill(_pending_skill_id, _pending_skill)
 			_pending_skill_id = ""
 			_pending_skill = {}
-		_apply_separation(delta)
+		_apply_separation(d)
 		_clamp_to_field()
 		return
 

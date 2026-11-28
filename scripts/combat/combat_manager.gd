@@ -39,6 +39,9 @@ var _rewards_granted: bool = false
 var _kill_gold: int = 0
 var _kill_exp: int = 0
 var _kill_items: Dictionary = {}
+## Combat playback speed (1 → 2 → 4 → 1). Default 1x. Independent of Engine.time_scale (hit-stop).
+var combat_speed: float = 1.0
+const COMBAT_SPEED_STEPS := [1.0, 2.0, 4.0]
 
 @onready var _battlefield: Node2D = $Battlefield
 @onready var _ally_root: Node2D = $Battlefield/Allies
@@ -133,14 +136,32 @@ func _process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("ui_cancel"):
 		toggle_pause()
+	# Wave timers follow combat speed; pause freezes via phase gate.
+	var cd := delta * combat_speed if phase == Phase.FIGHTING else 0.0
 	if phase == Phase.FIGHTING:
-		_tick_wave_spawns(delta)
+		_tick_wave_spawns(cd)
 		_check_end_conditions()
 	_ui.refresh()
 
 
 func is_combat_active() -> bool:
 	return phase == Phase.FIGHTING
+
+
+func get_combat_speed() -> float:
+	return combat_speed if phase == Phase.FIGHTING else 1.0
+
+
+func cycle_combat_speed() -> float:
+	var idx := 0
+	for i in range(COMBAT_SPEED_STEPS.size()):
+		if is_equal_approx(float(COMBAT_SPEED_STEPS[i]), combat_speed):
+			idx = i
+			break
+	idx = (idx + 1) % COMBAT_SPEED_STEPS.size()
+	combat_speed = float(COMBAT_SPEED_STEPS[idx])
+	log_combat("전투 속도 ×%d" % int(combat_speed))
+	return combat_speed
 
 
 func get_def_mitigation() -> float:

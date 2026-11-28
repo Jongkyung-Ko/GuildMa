@@ -1,0 +1,174 @@
+# Village→boss branch — Godot HTML5 preview (Vercel temporary URL).
+# Does NOT overwrite main GitHub Pages.
+name: village-boss-web-preview
+
+on:
+  push:
+    branches: [cursor/village-boss-spawn-924e]
+  pull_request:
+    branches: [cursor/combat-content-expansion-924e, main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: village-boss-web-preview
+  cancel-in-progress: true
+
+jobs:
+  export-and-publish:
+    name: Export & publish village-boss preview
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/cursor/village-boss-spawn-924e' ||
+      github.head_ref == 'cursor/village-boss-spawn-924e'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot 4.3.stable + export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.3.0
+          include-templates: true
+          use-dotnet: false
+
+      - name: Import project assets
+        run: |
+          set -euo pipefail
+          godot --headless --path . --import
+        continue-on-error: true
+
+      - name: Export Web to build/web
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html
+
+      - name: Validate HTML / WASM / PCK / JS
+        run: |
+          set -euo pipefail
+          ROOT=build/web
+          ls -lah "$ROOT"
+          test -s "$ROOT/index.html"
+          test -s "$ROOT/index.wasm"
+          test -s "$ROOT/index.pck"
+          test -s "$ROOT/index.js"
+          python3 <<'PY'
+          from pathlib import Path
+          root = Path("build/web")
+          wasm = (root / "index.wasm").read_bytes()
+          if wasm[:4] != b"\0asm":
+              raise SystemExit(f"FAIL: bad WASM magic {wasm[:4]!r}")
+          html = (root / "index.html").read_text(encoding="utf-8", errors="replace")
+          needed = ["index.js", "index.wasm", "index.pck"]
+          missing = [n for n in needed if n not in html]
+          if missing:
+              raise SystemExit(f"FAIL: index.html missing refs {missing}")
+          pck = (root / "index.pck").read_bytes()
+          required = [b"NotoSansKR-Regular", b"village_boss_links", b"cursed_marsh", b"gorgon"]
+          missing = [m.decode() for m in required if m not in pck]
+          if missing:
+              raise SystemExit(f"FAIL: missing markers in index.pck: {missing}")
+          print("OK: wasm + village-boss markers")
+          PY
+          touch "$ROOT/.nojekyll"
+          PREVIEW_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          printf '%s\n' "$PREVIEW_SHA" > "$ROOT/PREVIEW_SHA.txt"
+          printf '%s\n' "Village→boss preview — not main Pages" > "$ROOT/README.txt"
+
+      - name: Restore Vercel anonymous deploy state
+        uses: actions/cache@v4
+        with:
+          path: build/web/.vercel
+          key: village-boss-vercel-anonymous-v1
+          restore-keys: |
+            village-boss-vercel-anonymous-
+
+      # Orphan GitHub branch may fail when index.pck > 100MB (GH file limit).
+      # Never block the Vercel temporary deploy on that push.
+      - name: Publish artifact branch preview-village-boss
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: preview-village-boss
+          force_orphan: true
+          exclude_assets: ".vercel"
+          commit_message: "chore: village-boss web preview ${{ github.sha }}"
+
+      # GitHub Actions often cannot do anonymous Vercel --temporary (login required).
+      # Orphan branch preview-village-boss is the CI artifact; agent/local redeploy covers live URL.
+      - name: Deploy anonymous Vercel temporary preview
+        id: vercel
+        continue-on-error: true
+        working-directory: build/web
+        env:
+          CI: ""
+          GITHUB_ACTIONS: ""
+          VERCEL_FORCE_NO_BUILD_CACHE: "1"
+        run: |
+          set -euo pipefail
+          PCK_MB=$(python3 -c "import pathlib; print(round(pathlib.Path('index.pck').stat().st_size/1e6,2))")
+          echo "index.pck_mb=$PCK_MB (anonymous Vercel file limit 100MB)"
+          # Prefer a clean anonymous context (cached .vercel can force login).
+          rm -rf .vercel
+          npx --yes vercel deploy --temporary --yes 2>&1 | tee /tmp/vercel-out.txt
+          python3 <<'PY'
+          import json, pathlib, re
+          text = pathlib.Path("/tmp/vercel-out.txt").read_text(encoding="utf-8", errors="replace")
+          data = None
+          for chunk in reversed(text.strip().splitlines()):
+              chunk = chunk.strip()
+              if chunk.startswith("{") and chunk.endswith("}"):
+                  try:
+                      data = json.loads(chunk)
+                      break
+                  except json.JSONDecodeError:
+                      pass
+          url = None
+          claim = None
+          if isinstance(data, dict):
+              dep = data.get("deployment") or {}
+              url = dep.get("url") or data.get("url")
+              claim = dep.get("claimUrl")
+          if not url:
+              m = re.search(r"https://[a-z0-9.-]+\.(?:tmp\.now|vercel\.app)", text)
+              url = m.group(0) if m else None
+          if not url:
+              raise SystemExit("FAIL: Actions anonymous Vercel blocked — orphan branch + local fallback used")
+          pathlib.Path("PREVIEW_URL.txt").write_text(url.strip() + "\n", encoding="utf-8")
+          if claim:
+              pathlib.Path("PREVIEW_CLAIM_URL.txt").write_text(claim.strip() + "\n", encoding="utf-8")
+          print(f"PREVIEW_URL={url}")
+          if claim:
+              print(f"PREVIEW_CLAIM_URL={claim}")
+          PY
+          URL=$(tr -d '\n' < PREVIEW_URL.txt)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Live preview URL: $URL"
+
+      - name: Refresh preview branch with Vercel URL metadata
+        if: steps.vercel.outcome == 'success'
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: preview-village-boss
+          force_orphan: true
+          exclude_assets: ".vercel"
+          commit_message: "chore: village-boss preview URL ${{ github.sha }}"
+
+      - name: Post preview URL to job summary
+        if: steps.vercel.outcome == 'success'
+        run: |
+          echo "### Live Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.vercel.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f build/web/PREVIEW_CLAIM_URL.txt ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Claim (extends ~60m anonymous TTL): $(tr -d '\n' < build/web/PREVIEW_CLAIM_URL.txt)" >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -55,7 +55,8 @@ var _flash_t: float = 0.0
 var _face_right: bool = true
 var _balance: Dictionary = {}
 var _sprite_pivot: Vector2 = Vector2(48, 72)
-var _sprite_scale: float = 0.95
+## Base sheet scale × CombatFieldBounds.COMBAT_RENDER_SCALE (80% render — source PNGs untouched).
+var _sprite_scale: float = 0.95 * CombatFieldBounds.COMBAT_RENDER_SCALE
 
 var _anim_state: AnimState = AnimState.IDLE
 var _pending_target: CombatCharacter = null
@@ -249,8 +250,10 @@ func _build_visuals() -> void:
 	_hp_bar.max_value = 100
 	_hp_bar.value = 100
 	_hp_bar.show_percentage = false
-	_hp_bar.size = Vector2(36, 4)
-	_hp_bar.position = Vector2(-18, -58)
+	var rs := CombatFieldBounds.COMBAT_RENDER_SCALE
+	_hp_bar.size = Vector2(36.0 * rs, 4.0)
+	# Keep bar above head after 80% render scale (was -58 at 100%).
+	_hp_bar.position = Vector2(-18.0 * rs, -58.0 * rs)
 	_hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hp_bar.z_index = 5
 	var hp_bg := StyleBoxFlat.new()
@@ -283,12 +286,13 @@ func _build_visuals() -> void:
 
 
 func _layout_overhead_ui() -> void:
-	var x_bias := float(formation_slot - 2) * 10.0
-	var y_bias := -96.0 - absf(float(formation_slot - 2)) * 6.0
+	var rs := CombatFieldBounds.COMBAT_RENDER_SCALE
+	var x_bias := float(formation_slot - 2) * 10.0 * rs
+	var y_bias := (-96.0 - absf(float(formation_slot - 2)) * 6.0) * rs
 	if _name_label:
-		_name_label.position = Vector2(-50.0 + x_bias, y_bias)
+		_name_label.position = Vector2(-50.0 * rs + x_bias, y_bias)
 	if _hp_bar:
-		_hp_bar.position = Vector2(-22.0 + x_bias * 0.35, y_bias + 16.0)
+		_hp_bar.position = Vector2(-22.0 * rs + x_bias * 0.35, y_bias + 16.0 * rs)
 
 
 func _refresh_visuals() -> void:
@@ -515,10 +519,28 @@ func _launch_fireball(target: CombatCharacter, dmg: float) -> void:
 	bolt.setup(origin, target, dmg, self, _manager, travel)
 
 
+func _combat_delta(delta: float) -> float:
+	## 1x/2x/4x combat speed without Engine.time_scale (hit-stop owns that).
+	if _manager != null and _manager.has_method("get_combat_speed"):
+		return delta * float(_manager.get_combat_speed())
+	return delta
+
+
+func _sync_anim_speed() -> void:
+	if _sprite == null:
+		return
+	var spd := 1.0
+	if _manager != null and _manager.has_method("get_combat_speed"):
+		spd = float(_manager.get_combat_speed())
+	_sprite.speed_scale = spd
+
+
 func _physics_process(delta: float) -> void:
 	z_index = int(global_position.y)
 	if CombatFieldBounds.debug_draw_enabled:
 		queue_redraw()
+	delta = _combat_delta(delta)
+	_sync_anim_speed()
 
 	if is_dead:
 		return
@@ -592,10 +614,21 @@ func _physics_process(delta: float) -> void:
 	# Backline: keep preferred distance; never rush into melee.
 	if team == Team.ALLY and job in ["mage", "healer"]:
 		if dist_to_target < preferred_radius * 0.72:
-			velocity = (global_position - target.global_position).normalized() * move_speed
+			var kite := (global_position - target.global_position).normalized()
+			var before := global_position
+			velocity = kite * move_speed
 			_apply_separation(delta)
 			move_and_slide()
 			_clamp_to_field()
+			# Against arena/HUD edge: kiting cannot open space — cast if in range.
+			if global_position.distance_to(before) < 1.25 and in_attack_range:
+				velocity = Vector2.ZERO
+				if _anim_state != AnimState.HIT:
+					_set_anim_state(AnimState.IDLE)
+					_play_anim("idle")
+				if _can_start_attack():
+					_perform_attack(target)
+				return
 			_set_anim_state(AnimState.WALK)
 			_play_anim("walk")
 			return

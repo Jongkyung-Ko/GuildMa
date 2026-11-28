@@ -1182,6 +1182,37 @@ func list_bosses() -> Array:
 	return boss_catalog.get("bosses", [])
 
 
+const VILLAGE_BOSS_LINKS_PATH := "res://data/world/village_boss_links.json"
+var _village_boss_links_cache: Array = []
+
+
+func list_village_boss_links() -> Array:
+	if not _village_boss_links_cache.is_empty():
+		return _village_boss_links_cache
+	if not FileAccess.file_exists(VILLAGE_BOSS_LINKS_PATH):
+		return []
+	var f := FileAccess.open(VILLAGE_BOSS_LINKS_PATH, FileAccess.READ)
+	if f == null:
+		return []
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		return []
+	var links = data.get("links", [])
+	if typeof(links) != TYPE_ARRAY:
+		return []
+	_village_boss_links_cache = links
+	return _village_boss_links_cache
+
+
+func get_village_boss_link(village_id: String) -> Dictionary:
+	for link in list_village_boss_links():
+		if typeof(link) != TYPE_DICTIONARY:
+			continue
+		if str(link.get("village_id", "")) == village_id:
+			return link
+	return {}
+
+
 func get_boss_def(boss_id: String) -> Dictionary:
 	for b in list_bosses():
 		if str(b.get("id", "")) == boss_id:

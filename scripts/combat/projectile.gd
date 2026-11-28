@@ -56,6 +56,10 @@ func _build_visual() -> void:
 func _process(delta: float) -> void:
 	if not _alive:
 		return
+	var spd := 1.0
+	if _manager != null and _manager.has_method("get_combat_speed"):
+		spd = float(_manager.get_combat_speed())
+	delta *= spd
 	_elapsed += delta
 	var t := clampf(_elapsed / travel_time, 0.0, 1.0)
 	var end := _start + Vector2(80, -20)

@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "note": "Data-driven village ↔ boss ↔ hunting ground / spawn. Only open=true villages expose playable expedition UI.",
+  "links": [
+    {
+      "village_id": "frostheim",
+      "boss_id": "fenrir",
+      "spawn": "hunt",
+      "hunt_id": "beginner_forest",
+      "open": false,
+      "label_ko": "초보자의 숲 · 펜리르"
+    },
+    {
+      "village_id": "stoneguard",
+      "boss_id": "behemoth",
+      "spawn": "dungeon",
+      "dungeon_id": "shadow_crypt",
+      "floor": 10,
+      "open": false,
+      "label_ko": "그림자 지하묘 10층 · 베히모스"
+    },
+    {
+      "village_id": "gravehall",
+      "boss_id": "bone_golem",
+      "spawn": "dungeon",
+      "dungeon_id": "shadow_crypt",
+      "floor": 5,
+      "open": false,
+      "label_ko": "그림자 지하묘 5층 · 본 골렘"
+    },
+    {
+      "village_id": "elderwood",
+      "boss_id": "gorgon",
+      "spawn": "hunt",
+      "hunt_id": "cursed_marsh",
+      "open": true,
+      "label_ko": "저주받은 습지 · 고르곤"
+    },
+    {
+      "village_id": "moonshadow",
+      "boss_id": "lilith",
+      "spawn": "hunt",
+      "hunt_id": "abyss_border",
+      "open": false,
+      "label_ko": "심연의 경계 · 릴리스"
+    },
+    {
+      "village_id": "mistfall",
+      "boss_id": "morgana",
+      "spawn": "special",
+      "encounter_id": "morgana_sanctum",
+      "open": false,
+      "label_ko": "모르가나 성소"
+    },
+    {
+      "village_id": "demonfall",
+      "boss_id": "malkav",
+      "spawn": "hunt",
+      "hunt_id": "blue_meadow",
+      "open": false,
+      "label_ko": "푸른 초원 · 말카브"
+    },
+    {
+      "village_id": "deadcrown",
+      "boss_id": "malachi",
+      "spawn": "hunt",
+      "hunt_id": "twilight_ruins",
+      "open": false,
+      "label_ko": "황혼의 폐허 · 말라키"
+    },
+    {
+      "village_id": "abyssgate",
+      "boss_id": "vorak",
+      "spawn": "special",
+      "encounter_id": "vorak_rift",
+      "open": false,
+      "label_ko": "보락 균열"
+    }
+  ]
+}
