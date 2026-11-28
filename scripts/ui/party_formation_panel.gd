@@ -473,7 +473,7 @@ func _build_header() -> Control:
 
 
 const GRID_SIDE_PAD := 8
-const GRID_TOP_PAD := 10  ## Keeps kit frame top ornament clear of clip edge.
+const GRID_TOP_PAD := 14  ## Keeps kit frame top ornament clear of clip edge.
 const GRID_BOTTOM_PAD := 6
 const GRID_H_SEP := 10
 const GRID_V_SEP := 10
