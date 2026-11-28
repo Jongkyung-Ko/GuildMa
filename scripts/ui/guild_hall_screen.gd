@@ -28,6 +28,23 @@ const MENU_MEMBERS := "members"
 const MENU_PARTY := "party"
 const MENU_STATS := "stats"
 const MENU_FACILITY := "facility"
+## Left guild menu — extracted from Party Art Kit `04_Components_Reference.png`.
+const NAV_TEX := {
+	MENU_MEMBERS: "res://assets/ui/party/menu/nav_members.png",
+	MENU_PARTY: "res://assets/ui/party/menu/nav_party_normal.png",
+	MENU_STATS: "res://assets/ui/party/menu/nav_stats.png",
+	MENU_FACILITY: "res://assets/ui/party/menu/nav_facility.png",
+}
+const NAV_TEX_SELECTED := {
+	MENU_MEMBERS: "res://assets/ui/party/menu/nav_members.png",
+	MENU_PARTY: "res://assets/ui/party/menu/nav_party_selected.png",
+	MENU_STATS: "res://assets/ui/party/menu/nav_stats.png",
+	MENU_FACILITY: "res://assets/ui/party/menu/nav_facility.png",
+}
+## Content-area layout ratios (1280×720 target).
+const RATIO_NAV := 0.08
+const RATIO_LIST := 0.62
+const RATIO_DETAIL := 0.30
 
 var _mode: String = MENU_MEMBERS
 var _assign_kind: String = ""
@@ -112,15 +129,17 @@ func _build_shell() -> void:
 	_top_bar = UIStyle.make_panel()
 	add_child(_top_bar)
 	var top_row := HBoxContainer.new()
-	top_row.add_theme_constant_override("separation", 10)
+	top_row.add_theme_constant_override("separation", 8)
+	top_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_top_bar.add_child(top_row)
-	top_row.add_child(UIStyle.label("길드", 18, UIStyle.GOLD_BRIGHT))
-	_top_info = UIStyle.label("", 14)
+	_top_info = UIStyle.label("", 12)
 	_top_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_top_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_top_info.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_top_info.clip_text = true
 	top_row.add_child(_top_info)
 	_town_btn = Button.new()
 	_town_btn.text = "마을로"
+	_town_btn.custom_minimum_size = Vector2(72, 28)
 	UIStyle.apply_button(_town_btn)
 	_town_btn.pressed.connect(func(): SceneRouter.go_town())
 	top_row.add_child(_town_btn)
@@ -141,23 +160,28 @@ func _build_shell() -> void:
 	nav_scroll.clip_contents = true
 	_body_host.add_child(nav_scroll)
 	_nav_box = VBoxContainer.new()
-	_nav_box.add_theme_constant_override("separation", 6)
+	_nav_box.add_theme_constant_override("separation", 8)
 	_nav_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_nav_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	nav_scroll.add_child(_nav_box)
-	_nav_box.add_child(UIStyle.label("길드 메뉴", 13, UIStyle.TEXT_DIM))
-	for entry in [
-		[MENU_MEMBERS, "길드원"],
-		[MENU_PARTY, "파티 편성"],
-		[MENU_STATS, "능력치"],
-		[MENU_FACILITY, "시설"],
-	]:
-		var b := Button.new()
-		b.text = str(entry[1])
-		b.custom_minimum_size = Vector2(0, 44)
-		UIStyle.apply_button(b)
-		var mid: String = str(entry[0])
+	for mid in [MENU_MEMBERS, MENU_PARTY, MENU_STATS, MENU_FACILITY]:
+		var wrap := PanelContainer.new()
+		wrap.name = "NavWrap_%s" % mid
+		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var empty := StyleBoxEmpty.new()
+		wrap.add_theme_stylebox_override("panel", empty)
+		var b := TextureButton.new()
+		b.name = "NavBtn_%s" % mid
+		b.ignore_texture_size = true
+		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		b.custom_minimum_size = Vector2(72, 88)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var tex_path := str(NAV_TEX.get(mid, ""))
+		if ResourceLoader.exists(tex_path):
+			b.texture_normal = load(tex_path) as Texture2D
 		b.pressed.connect(_make_mode_cb(mid))
-		_nav_box.add_child(b)
+		wrap.add_child(b)
+		_nav_box.add_child(wrap)
 		_nav_buttons[mid] = b
 
 	_hall_wrap = UIStyle.make_panel()
@@ -272,13 +296,16 @@ func _apply_responsive_layout() -> void:
 		return
 	_dense = _is_dense_landscape()
 	var pad := 6.0 if _dense else 8.0
-	var top_h := 44.0 if _dense else 52.0
-	var foot_h := 44.0 if _dense else 52.0
-	var toast_h := 18.0 if _dense else 22.0
 	var w := size.x
 	var h := size.y
 	if w < 8.0 or h < 8.0:
 		return
+	# Top HUD ≤ ~8–10% of viewport height (guild info + town only).
+	var top_h := clampf(h * 0.09, 48.0, 64.0)
+	if _dense:
+		top_h = mini(top_h, 48.0)
+	var foot_h := 40.0 if _dense else 48.0
+	var toast_h := 16.0 if _dense else 20.0
 
 	_top_bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
 	_top_bar.offset_left = pad
@@ -287,7 +314,7 @@ func _apply_responsive_layout() -> void:
 	_top_bar.offset_bottom = pad + top_h
 	_top_bar.clip_contents = true
 	_top_bar.custom_minimum_size = Vector2(0, top_h)
-	_town_btn.text = "마을로" if _dense else "마을로 돌아가기"
+	_town_btn.text = "마을로"
 
 	_toast.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE)
 	_toast.offset_left = pad
@@ -328,8 +355,8 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 	# Minimize left chrome; keep detail wide enough to read ATK/DEF rows.
 	# When formation is open, use the same narrow nav as `_fit_formation`.
 	var formation_open := _formation != null and is_instance_valid(_formation) and _formation.visible
-	var nav_w := (80.0 if _dense else 88.0) if formation_open else (96.0 if _dense else 112.0)
-	var detail_w := 248.0 if _dense else 268.0
+	var nav_w := clampf(content_w * RATIO_NAV, 72.0, 104.0) if formation_open else (96.0 if _dense else 112.0)
+	var detail_w := clampf(content_w * RATIO_DETAIL, 220.0, 380.0) if formation_open else (248.0 if _dense else 268.0)
 	var gap := 6.0 if _dense else 8.0
 	var mid_w := content_w - nav_w - detail_w - gap * 2.0
 	# Compact party strip — tall enough for 5 readable roster slots + 편성 above footer.
@@ -361,11 +388,9 @@ func _layout_wide(content_w: float, content_h: float) -> void:
 		nav_host.custom_minimum_size = Vector2(nav_w, content_h)
 	_nav_box.custom_minimum_size = Vector2(nav_w - 4.0, 0)
 	for mid in _nav_buttons.keys():
-		var b: Button = _nav_buttons[mid]
+		var b: TextureButton = _nav_buttons[mid]
 		if is_instance_valid(b):
-			b.custom_minimum_size = Vector2(0, 34 if _dense else 38)
-			if mid == MENU_PARTY:
-				b.text = "파티편성" if _dense else "파티 편성"
+			b.custom_minimum_size = Vector2(64 if _dense else 72, 80 if _dense else 88)
 
 	_hall_wrap.position = Vector2(nav_w + gap, 0)
 	_hall_wrap.size = Vector2(mid_w, hall_h)
@@ -546,27 +571,39 @@ func _refresh_all() -> void:
 
 
 func _refresh_top() -> void:
-	if _dense:
-		_top_info.text = "%s Lv.%d · 명성 %d · %s · %dG" % [
-			GameState.guild_name, GameState.guild_level, GameState.reputation,
-			GameState.member_count_text(), GameState.gold,
-		]
-	else:
-		_top_info.text = "%s   Lv.%d   명성 %d   길드원 %s   골드 %d" % [
-			GameState.guild_name, GameState.guild_level, GameState.reputation,
-			GameState.member_count_text(), GameState.gold,
-		]
+	_top_info.text = "%s  Lv.%d  ·  명성 %d  ·  길드원 %s  ·  골드 %d" % [
+		GameState.guild_name, GameState.guild_level, GameState.reputation,
+		GameState.member_count_text(), GameState.gold,
+	]
 
 
 func _refresh_nav() -> void:
 	for mid in _nav_buttons.keys():
-		var b: Button = _nav_buttons[mid]
+		var b: TextureButton = _nav_buttons[mid]
 		if not is_instance_valid(b):
 			continue
-		if mid == _mode:
-			b.add_theme_stylebox_override("normal", UIStyle.button_pressed())
-		else:
-			UIStyle.apply_button(b)
+		var selected: bool = str(mid) == _mode
+		var path := str(NAV_TEX_SELECTED.get(mid, "")) if selected else str(NAV_TEX.get(mid, ""))
+		if mid == MENU_PARTY:
+			path = "res://assets/ui/party/menu/nav_party_selected.png" if selected else "res://assets/ui/party/menu/nav_party_normal.png"
+		if ResourceLoader.exists(path):
+			b.texture_normal = load(path) as Texture2D
+		b.modulate = Color(1.12, 1.06, 0.92, 1.0) if selected else Color(0.88, 0.86, 0.82, 1.0)
+		var wrap := b.get_parent() as PanelContainer
+		if wrap:
+			if selected:
+				var rim := StyleBoxFlat.new()
+				rim.bg_color = Color(0, 0, 0, 0)
+				rim.border_color = Color(0.95, 0.78, 0.28, 1)
+				rim.set_border_width_all(2)
+				rim.set_corner_radius_all(4)
+				rim.content_margin_left = 2
+				rim.content_margin_right = 2
+				rim.content_margin_top = 2
+				rim.content_margin_bottom = 2
+				wrap.add_theme_stylebox_override("panel", rim)
+			else:
+				wrap.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 
 
 func _refresh_hall() -> void:
@@ -1137,12 +1174,18 @@ func _open_formation(kind: String) -> void:
 func _fit_formation() -> void:
 	if _formation == null or not is_instance_valid(_formation):
 		return
-	## Layout-only: narrow left nav; formation fills remaining body exactly (no overflow).
-	var nav_w := 80.0 if _dense else 88.0
-	var gap := 4.0
+	## Content ratios: nav 8% / list+detail 92% (list 62% + detail 30% of content).
 	var area := _body_host.size
 	if area.x < 8.0 or area.y < 8.0:
 		area = Vector2(maxf(size.x - 16.0, 640.0), maxf(size.y - 120.0, 280.0))
+	var gap := 4.0
+	var right_pad := 12.0
+	var usable := maxf(area.x - gap - right_pad, 400.0)
+	var nav_w := clampf(usable * RATIO_NAV, 72.0, 104.0)
+	if _dense:
+		nav_w = clampf(usable * RATIO_NAV, 64.0, 88.0)
+	var form_w := maxf(200.0, usable - nav_w)
+	var detail_w := clampf(usable * RATIO_DETAIL, 200.0, 380.0)
 	var nav_host := _ensure_nav_host()
 	nav_host.position = Vector2(0, 0)
 	nav_host.size = Vector2(nav_w, area.y)
@@ -1157,33 +1200,18 @@ func _fit_formation() -> void:
 	if _nav_box:
 		_nav_box.custom_minimum_size = Vector2(maxi(1.0, nav_w - 4.0), 0)
 		_nav_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Compact labels so nav stays within the narrow slot.
 	for mid in _nav_buttons.keys():
-		var b: Button = _nav_buttons[mid]
-		if not is_instance_valid(b):
-			continue
-		b.clip_text = true
-		b.custom_minimum_size = Vector2(0, 34 if _dense else 38)
-		match mid:
-			MENU_PARTY:
-				b.text = "편성"
-			MENU_MEMBERS:
-				b.text = "길드원"
-			MENU_STATS:
-				b.text = "능력"
-			MENU_FACILITY:
-				b.text = "시설"
-			_:
-				pass
+		var b: TextureButton = _nav_buttons[mid]
+		if is_instance_valid(b):
+			b.custom_minimum_size = Vector2(maxi(56.0, nav_w - 12.0), 80 if _dense else 88)
 	var fpos := Vector2(nav_w + gap, 0)
-	# Keep a few px clear of the body right edge so ornate detail rim is not clipped.
-	var right_pad := 6.0
-	var fsize := Vector2(maxf(200.0, area.x - nav_w - gap - right_pad), maxf(200.0, area.y))
+	var fsize := Vector2(form_w, maxf(200.0, area.y))
 	_formation.position = fpos
 	_formation.clip_contents = true
-	# Lock panel to body slot (Godot 4.3: min+size+clip; no custom_maximum_size).
 	_formation.custom_minimum_size = fsize
 	_formation.size = fsize
+	if _formation.has_method("set_layout_ratios"):
+		_formation.call("set_layout_ratios", RATIO_LIST, RATIO_DETAIL, detail_w)
 	if _formation.has_method("_apply_shell_size"):
 		_formation.call("_apply_shell_size", fsize)
 

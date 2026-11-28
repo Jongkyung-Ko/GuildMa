@@ -50,9 +50,8 @@ const STAT_ICON_HP := ["res://assets/sprites/icons/med.png", "res://assets/items
 const STAT_ICON_ATK := ["res://assets/sprites/icons/train.png", "res://assets/items/blade_zwei.png"]
 const STAT_ICON_DEF := ["res://assets/items/crest_shield.png", "res://assets/sprites/icons/storage.png"]
 
-## Art-kit single-card prototype (approve before bulk). Frames extracted from
-## 01_UI_Frames_Atlas.png (opaque white fills → alpha). UV from card_frame_default.png.
-const PROTOTYPE_MEMBER_ID := "m_lord"
+## Art-kit namecards for all roster members (same size/structure — no Aren-only hero card).
+## Frames extracted from 01_UI_Frames_Atlas.png. UV from card_frame_default.png.
 const KIT_CARD_DEFAULT := "res://assets/ui/party/frames/card_frame_default.png"
 const KIT_CARD_SELECTED := "res://assets/ui/party/frames/card_frame_selected.png"
 const KIT_DETAIL_PANEL := "res://assets/ui/party/frames/detail_panel.png"
@@ -94,6 +93,15 @@ var _demo_note: Label
 var _filter_buttons: Dictionary = {}
 var _kind_buttons: Dictionary = {}
 var _grid_fit_w: float = 0.0
+var _ratio_list: float = 0.62
+var _ratio_detail: float = 0.30
+var _target_detail_w: float = 0.0
+
+
+func set_layout_ratios(list_r: float, detail_r: float, detail_w: float = 0.0) -> void:
+	_ratio_list = list_r
+	_ratio_detail = detail_r
+	_target_detail_w = detail_w
 
 var _tex_cache: Dictionary = {}
 
@@ -374,7 +382,7 @@ func _build_header() -> Control:
 	host.name = "FormationHeader"
 	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	host.clip_contents = true
-	host.custom_minimum_size = Vector2(0, 56 if _dense else 64)
+	host.custom_minimum_size = Vector2(0, 36 if _dense else 40)
 	var panel := _make_stone_panel(false, true)
 	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	host.add_child(panel)
@@ -388,44 +396,39 @@ func _build_header() -> Control:
 	band_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	band_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	band_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	band_scroll.custom_minimum_size = Vector2(0, 28 if _dense else 30)
+	band_scroll.custom_minimum_size = Vector2(0, 26 if _dense else 28)
 	vb.add_child(band_scroll)
 	var band := HBoxContainer.new()
-	band.add_theme_constant_override("separation", 4)
+	band.add_theme_constant_override("separation", 3)
 	band_scroll.add_child(band)
-	band.add_child(UIStyle.label("파티 편성", 13 if not _dense else 12, METAL_GOLD_BRIGHT))
-	_count_label = UIStyle.label("", 11, INK)
+	_count_label = UIStyle.label("", 10, INK)
 	band.add_child(_count_label)
-	_avg_label = UIStyle.label("", 10, INK_DIM)
+	_avg_label = UIStyle.label("", 9, INK_DIM)
 	band.add_child(_avg_label)
 	_comp_label = UIStyle.label("", 9, INK_DIM)
 	band.add_child(_comp_label)
 	var close_b := Button.new()
 	close_b.text = "닫기"
-	close_b.custom_minimum_size = Vector2(0, 22 if _dense else 24)
+	close_b.custom_minimum_size = Vector2(0, 22)
 	_apply_metal_button(close_b)
 	close_b.pressed.connect(func(): closed.emit())
 	band.add_child(close_b)
-	var sep0 := VSeparator.new()
-	band.add_child(sep0)
+	band.add_child(VSeparator.new())
 	for kind in GameState.GUILD_PARTY_KINDS:
 		var b := Button.new()
 		b.text = GameState.guild_party_label(str(kind))
-		b.custom_minimum_size = Vector2(0, 22 if _dense else 24)
+		b.custom_minimum_size = Vector2(0, 22)
 		_apply_metal_button(b)
 		var k := str(kind)
 		b.pressed.connect(func(): _switch_kind(k))
 		band.add_child(b)
 		_kind_buttons[k] = b
 	_style_kind_buttons()
-
-	var sep := VSeparator.new()
-	band.add_child(sep)
-
+	band.add_child(VSeparator.new())
 	var sort := OptionButton.new()
-	sort.add_item("레벨 높은 순", 0)
-	sort.add_item("레벨 낮은 순", 1)
-	sort.add_item("이름순", 2)
+	sort.add_item("레벨↓", 0)
+	sort.add_item("레벨↑", 1)
+	sort.add_item("이름", 2)
 	match _sort_mode:
 		SORT_LEVEL_ASC:
 			sort.select(1)
@@ -447,7 +450,7 @@ func _build_header() -> Control:
 	for job in JOB_FILTERS:
 		var fb := Button.new()
 		fb.text = "전체" if job == "all" else UIStyle.job_name(job)
-		fb.custom_minimum_size = Vector2(0, 22 if _dense else 24)
+		fb.custom_minimum_size = Vector2(0, 22)
 		_apply_metal_button(fb)
 		var jid := str(job)
 		fb.pressed.connect(func():
@@ -462,10 +465,19 @@ func _build_header() -> Control:
 
 
 func _member_grid_columns() -> int:
-	## Prefer readable cards over cramming columns. Dense (844) → 2; PC → 3.
+	## Fill the list pane width with equal kit cards (no empty mid void).
 	if _dense:
 		return 2
-	return 3
+	var card_w := 168.0
+	var avail := 0.0
+	if _grid_scroll and is_instance_valid(_grid_scroll) and _grid_scroll.size.x > 32.0:
+		avail = _grid_scroll.size.x
+	elif size.x > 64.0:
+		avail = size.x * _ratio_list
+	else:
+		avail = 780.0
+	var cols := int(floor((avail + 8.0) / (card_w + 10.0)))
+	return clampi(cols, 3, 5)
 
 
 func _build_member_column() -> Control:
@@ -492,13 +504,16 @@ func _build_member_column() -> Control:
 	_grid_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vb.add_child(_grid_scroll)
+	var grid_center := CenterContainer.new()
+	grid_center.name = "GridCenter"
+	grid_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_center.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_grid_scroll.add_child(grid_center)
 	_grid = GridContainer.new()
 	_grid.columns = _member_grid_columns()
 	_grid.add_theme_constant_override("h_separation", 8 if _dense else 10)
 	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
-	# Do not force-stretch grid to full width — keeps fixed card sizes from floating in fat cells.
-	_grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_grid_scroll.add_child(_grid)
+	grid_center.add_child(_grid)
 	_populate_grid()
 	call_deferred("_fit_member_grid_width")
 	return host
@@ -526,8 +541,7 @@ func _fit_member_grid_width_retry() -> void:
 var _ensure_row_tries: int = 0
 
 func _ensure_first_row_uncut() -> void:
-	## Shrink standard cards only. Ornate prototype keeps frame UV geometry —
-	## scale the whole card down if the viewport is shorter than the kit card.
+	## Scale kit namecards uniformly if the list viewport is shorter than one card.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	var view_h := _grid_scroll.size.y
@@ -543,39 +557,22 @@ func _ensure_first_row_uncut() -> void:
 		if not (c is Control):
 			continue
 		var card := c as Control
-		if str(card.name) == "OrnatePrototypeCard":
-			var target_h := mini(card.custom_minimum_size.y, max_card_h)
-			# Keep aspect ~340:548 from default frame.
-			var target_w := target_h * (340.0 / 548.0)
-			if absf(card.custom_minimum_size.y - target_h) > 0.5:
-				card.custom_minimum_size = Vector2(target_w, target_h)
-				card.size = Vector2(target_w, target_h)
-				changed = true
+		if str(card.name) != "KitNamecard":
 			continue
-		var need := card.get_combined_minimum_size().y
-		if need <= max_card_h + 0.5:
+		# Only shrink when the viewport is shorter than the card; keep current aspect.
+		if card.custom_minimum_size.y <= max_card_h + 0.5:
 			continue
-		var overflow := need - max_card_h
-		var well := card.find_child("PortraitWell", true, false)
-		if well is Control:
-			var pw := well as Control
-			var side := maxf(40.0, pw.custom_minimum_size.y - overflow)
-			pw.custom_minimum_size = Vector2(side, side)
-			var prow := card.find_child("PortraitRow", true, false)
-			if prow is Control:
-				(prow as Control).custom_minimum_size.y = side
-			for ch in pw.get_children():
-				if ch is TextureRect:
-					(ch as TextureRect).custom_minimum_size = Vector2(maxf(36.0, side - 4.0), maxf(36.0, side - 4.0))
-			changed = true
-		card.custom_minimum_size.y = max_card_h
-		card.clip_contents = true
+		var scale := max_card_h / maxf(card.custom_minimum_size.y, 1.0)
+		var tw := card.custom_minimum_size.x * scale
+		card.custom_minimum_size = Vector2(tw, max_card_h)
+		card.size = Vector2(tw, max_card_h)
+		changed = true
 	if changed and is_instance_valid(_grid):
 		_grid.queue_sort()
 
 
 func _layout_mid_split() -> void:
-	## Layout-only: list expands, detail stays a fixed column fully inside the shell.
+	## List ~62% / detail ~30% of content width; both fully inside the shell.
 	clip_contents = true
 	_pin_root_to_shell()
 	var mid := find_child("FormationMid", true, false) as Control
@@ -587,8 +584,13 @@ func _layout_mid_split() -> void:
 	if avail < 64.0:
 		call_deferred("_layout_mid_split")
 		return
-	var detail_w := 200.0 if not _dense else 150.0
-	detail_w = mini(detail_w, maxf(120.0, avail * 0.28))
+	var sep := 6.0
+	var detail_w := _target_detail_w if _target_detail_w > 64.0 else avail * (_ratio_detail / (_ratio_list + _ratio_detail))
+	if _dense:
+		detail_w = mini(detail_w, avail * 0.34)
+	# Leave room so ornate detail rim is not clipped by the shell edge.
+	detail_w = clampf(detail_w, 160.0 if _dense else 220.0, avail * 0.36)
+	var members_w := maxf(160.0, avail - detail_w - sep)
 	detail.custom_minimum_size = Vector2(detail_w, 0)
 	detail.size_flags_horizontal = Control.SIZE_SHRINK_END
 	detail.size_flags_stretch_ratio = 0.0
@@ -598,9 +600,9 @@ func _layout_mid_split() -> void:
 		members.size_flags_stretch_ratio = 1.0
 	mid.clip_contents = true
 	mid.custom_minimum_size = Vector2(0, 0)
-	# Keep mid from reporting a content-driven width past the shell.
 	if mid.size.x > avail + 1.0:
 		mid.size = Vector2(avail, mid.size.y)
+	call_deferred("_fit_member_grid_width")
 
 
 func _build_detail_column() -> Control:
@@ -608,7 +610,7 @@ func _build_detail_column() -> Control:
 	## Control host + anchored panel so detail min-width cannot blow the mid HBox.
 	var host := Control.new()
 	host.name = "DetailColumn"
-	var detail_w := 200.0 if not _dense else 150.0
+	var detail_w := 280.0 if not _dense else 180.0
 	host.custom_minimum_size = Vector2(detail_w, 0)
 	host.size_flags_horizontal = Control.SIZE_SHRINK_END
 	host.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -746,35 +748,25 @@ func _populate_grid() -> void:
 	if list.is_empty():
 		_grid.add_child(UIStyle.label("해당 직업 길드원이 없습니다.", 13, INK_DIM))
 		return
-	# Pin the ornate prototype first so the single hero card is visible on first paint.
-	var proto: Dictionary = {}
-	var rest: Array = []
+	# Every member uses the same kit namecard size/structure.
 	for m in list:
-		if str(m.get("id", "")) == PROTOTYPE_MEMBER_ID:
-			proto = m
-		else:
-			rest.append(m)
-	if not proto.is_empty():
-		_grid.add_child(_make_prototype_ornate_card(proto))
-	for m in rest:
-		_grid.add_child(_make_member_card(m))
+		_grid.add_child(_make_kit_namecard(m))
 
 
 # ---------------------------------------------------------------------------
-# ONE art-kit namecard (m_lord) — do not bulk-apply until approved
+# Art-kit namecards — uniform grid (all members)
 # ---------------------------------------------------------------------------
 
-func _make_prototype_ornate_card(m: Dictionary) -> Control:
-	## Compact vertical kit card for m_lord only — sits in the guild list grid.
-	## Start ~180×255 (PC) / ~168×235 (dense); UV locked to card_frame_default.
+func _make_kit_namecard(m: Dictionary) -> Control:
+	## Compact vertical kit card — UV locked to card_frame_default for all members.
 	var mid := str(m.get("id", ""))
 	var in_draft := _draft_ids.has(mid)
 	var focused := mid == _focus_id
-	var card_w := 156.0 if _dense else 176.0
-	var card_h := 220.0 if _dense else 242.0
+	var card_w := 148.0 if _dense else 168.0
+	var card_h := 210.0 if _dense else 232.0
 
 	var card := Button.new()
-	card.name = "OrnatePrototypeCard"
+	card.name = "KitNamecard"
 	card.flat = true
 	card.clip_contents = true
 	card.custom_minimum_size = Vector2(card_w, card_h)
