@@ -376,56 +376,58 @@ func _rebuild() -> void:
 
 
 func _build_header() -> Control:
-	## Kit layout 02/05: minimize top chrome — one band for title+kinds+filters.
-	## Control host + HScroll so filter band cannot inflate shell width.
+	## Two compact rows: party-kind tabs + sort/filter toolbar. No duplicate chrome.
 	var host := Control.new()
 	host.name = "FormationHeader"
 	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	host.clip_contents = true
-	host.custom_minimum_size = Vector2(0, 36 if _dense else 40)
+	# Tall enough for tabs + filter toolbar; keep HUD+header ≤ ~15% @ 720.
+	host.custom_minimum_size = Vector2(0, 48 if _dense else 52)
+	host.clip_contents = false
 	var panel := _make_stone_panel(false, true)
-	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	host.add_child(panel)
 	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 2)
 	panel.add_child(vb)
 
-	var band_scroll := ScrollContainer.new()
-	band_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	band_scroll.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	band_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	band_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	band_scroll.custom_minimum_size = Vector2(0, 26 if _dense else 28)
-	vb.add_child(band_scroll)
-	var band := HBoxContainer.new()
-	band.add_theme_constant_override("separation", 3)
-	band_scroll.add_child(band)
-	_count_label = UIStyle.label("", 10, INK)
-	band.add_child(_count_label)
-	_avg_label = UIStyle.label("", 9, INK_DIM)
-	band.add_child(_avg_label)
-	_comp_label = UIStyle.label("", 9, INK_DIM)
-	band.add_child(_comp_label)
-	var close_b := Button.new()
-	close_b.text = "닫기"
-	close_b.custom_minimum_size = Vector2(0, 22)
-	_apply_metal_button(close_b)
-	close_b.pressed.connect(func(): closed.emit())
-	band.add_child(close_b)
-	band.add_child(VSeparator.new())
+	# Row 1 — party kind tabs + summary + close
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	vb.add_child(tabs)
 	for kind in GameState.GUILD_PARTY_KINDS:
 		var b := Button.new()
 		b.text = GameState.guild_party_label(str(kind))
-		b.custom_minimum_size = Vector2(0, 22)
+		b.custom_minimum_size = Vector2(0, 20)
 		_apply_metal_button(b)
 		var k := str(kind)
 		b.pressed.connect(func(): _switch_kind(k))
-		band.add_child(b)
+		tabs.add_child(b)
 		_kind_buttons[k] = b
 	_style_kind_buttons()
-	band.add_child(VSeparator.new())
+	var tab_sp := Control.new()
+	tab_sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_child(tab_sp)
+	_count_label = UIStyle.label("", 10, INK)
+	tabs.add_child(_count_label)
+	_avg_label = UIStyle.label("", 9, INK_DIM)
+	tabs.add_child(_avg_label)
+	_comp_label = UIStyle.label("", 9, INK_DIM)
+	# Keep label for summary updates; hide to save chrome.
+	_comp_label.visible = false
+	tabs.add_child(_comp_label)
+	var close_b := Button.new()
+	close_b.text = "닫기"
+	close_b.custom_minimum_size = Vector2(52, 20)
+	_apply_metal_button(close_b)
+	close_b.pressed.connect(func(): closed.emit())
+	tabs.add_child(close_b)
+
+	# Row 2 — compact sort + job filter toolbar
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override("separation", 3)
+	vb.add_child(tools)
 	var sort := OptionButton.new()
+	sort.custom_minimum_size = Vector2(0, 20)
 	sort.add_item("레벨↓", 0)
 	sort.add_item("레벨↑", 1)
 	sort.add_item("이름", 2)
@@ -446,18 +448,18 @@ func _build_header() -> Control:
 				_sort_mode = SORT_LEVEL_DESC
 		_refresh_lists_only()
 	)
-	band.add_child(sort)
+	tools.add_child(sort)
 	for job in JOB_FILTERS:
 		var fb := Button.new()
 		fb.text = "전체" if job == "all" else UIStyle.job_name(job)
-		fb.custom_minimum_size = Vector2(0, 22)
+		fb.custom_minimum_size = Vector2(0, 20)
 		_apply_metal_button(fb)
 		var jid := str(job)
 		fb.pressed.connect(func():
 			_filter_job = jid
 			_refresh_lists_only()
 		)
-		band.add_child(fb)
+		tools.add_child(fb)
 		_filter_buttons[jid] = fb
 	_style_filter_buttons()
 	_update_summary_labels()
@@ -465,19 +467,10 @@ func _build_header() -> Control:
 
 
 func _member_grid_columns() -> int:
-	## Fill the list pane width with equal kit cards (no empty mid void).
+	## PC/1280: always exactly 4 columns. Dense short landscape: 2.
 	if _dense:
 		return 2
-	var card_w := 168.0
-	var avail := 0.0
-	if _grid_scroll and is_instance_valid(_grid_scroll) and _grid_scroll.size.x > 32.0:
-		avail = _grid_scroll.size.x
-	elif size.x > 64.0:
-		avail = size.x * _ratio_list
-	else:
-		avail = 780.0
-	var cols := int(floor((avail + 8.0) / (card_w + 10.0)))
-	return clampi(cols, 3, 5)
+	return 4
 
 
 func _build_member_column() -> Control:
@@ -520,15 +513,31 @@ func _build_member_column() -> Control:
 
 
 func _fit_member_grid_width() -> void:
-	## Only sync column count; do not inflate card widths to fill the pane.
+	## Force column count and spread 4 cards across the list pane width.
 	if _grid_scroll == null or _grid == null or not is_instance_valid(_grid_scroll) or not is_instance_valid(_grid):
 		return
 	if _grid_scroll.size.x < 32.0:
 		call_deferred("_fit_member_grid_width_retry")
 		return
 	var cols := _member_grid_columns()
-	if _grid.columns != cols:
-		_grid.columns = cols
+	_grid.columns = cols
+	var center := _grid_scroll.get_node_or_null("GridCenter") as Control
+	if center:
+		# Expand center host to scroll width so the 4-card row is truly centered.
+		center.custom_minimum_size = Vector2(_grid_scroll.size.x, 0)
+		center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Even gaps between fixed-size cards (do not stretch/squash card art).
+	var card_w := 148.0 if _dense else 168.0
+	for c in _grid.get_children():
+		if c is Control and str((c as Control).name) == "KitNamecard":
+			card_w = (c as Control).custom_minimum_size.x
+			break
+	var avail := _grid_scroll.size.x
+	var gaps := maxi(cols - 1, 1)
+	var leftover := avail - float(cols) * card_w
+	var sep := int(clampf(leftover / float(gaps), 6.0, 28.0)) if leftover > 0.0 else (6 if _dense else 10)
+	_grid.add_theme_constant_override("h_separation", sep)
+	_grid.add_theme_constant_override("v_separation", 8 if _dense else 10)
 
 
 func _fit_member_grid_width_retry() -> void:
@@ -586,11 +595,13 @@ func _layout_mid_split() -> void:
 		return
 	var sep := 6.0
 	var detail_w := _target_detail_w if _target_detail_w > 64.0 else avail * (_ratio_detail / (_ratio_list + _ratio_detail))
+	# Reserve enough width for exactly 4 kit cards + gaps in the list pane.
+	var min_list := (4.0 * 168.0 + 3.0 * 10.0 + 24.0) if not _dense else (2.0 * 148.0 + 10.0 + 16.0)
+	detail_w = mini(detail_w, maxf(160.0, avail - min_list - sep))
 	if _dense:
 		detail_w = mini(detail_w, avail * 0.34)
-	# Leave room so ornate detail rim is not clipped by the shell edge.
-	detail_w = clampf(detail_w, 160.0 if _dense else 220.0, avail * 0.36)
-	var members_w := maxf(160.0, avail - detail_w - sep)
+	detail_w = clampf(detail_w, 160.0 if _dense else 220.0, avail * 0.34)
+	var members_w := maxf(min_list if not _dense else 160.0, avail - detail_w - sep)
 	detail.custom_minimum_size = Vector2(detail_w, 0)
 	detail.size_flags_horizontal = Control.SIZE_SHRINK_END
 	detail.size_flags_stretch_ratio = 0.0
@@ -645,49 +656,44 @@ func _build_detail_column() -> Control:
 
 
 func _build_party_strip() -> Control:
-	## Single compact band (title + slots + actions) so mid list keeps a full card row.
+	## One horizontal panel: label + 5 slots + actions. Nothing clipped below the fold.
 	var host := Control.new()
 	host.name = "PartyStrip"
 	host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	host.size_flags_vertical = Control.SIZE_SHRINK_END
-	host.clip_contents = true
-	host.custom_minimum_size = Vector2(0, 96 if _dense else 108)
+	host.clip_contents = false
+	host.custom_minimum_size = Vector2(0, 64 if _dense else 72)
 	var panel := _make_stone_panel(false, true)
 	host.add_child(panel)
 	panel.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 2 if _dense else 3)
-	panel.add_child(vb)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 6)
-	vb.add_child(head)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(row)
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
-	head.add_child(UIStyle.label("선택 파티 (%d/%d)" % [_draft_ids.size(), max_n], 11 if not _dense else 10, METAL_GOLD_BRIGHT))
-	head.add_child(UIStyle.label(GameState.guild_party_purpose(party_kind), 9, INK_DIM))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(spacer)
-	head.add_child(UIStyle.label(_party_effect_text(), 9, UIStyle.OK))
+	var title := UIStyle.label("선택 파티 (%d/%d)" % [_draft_ids.size(), max_n], 11 if not _dense else 10, METAL_GOLD_BRIGHT)
+	title.name = "PartyTitle"
+	row.add_child(title)
+	_party_row = HBoxContainer.new()
+	_party_row.name = "PartySlots"
+	_party_row.add_theme_constant_override("separation", 4)
+	_party_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_party_row)
 	var clear_b := Button.new()
 	clear_b.text = "비우기"
-	clear_b.custom_minimum_size = Vector2(0, 22 if _dense else 24)
+	clear_b.custom_minimum_size = Vector2(64, 28 if not _dense else 24)
 	_apply_metal_button(clear_b)
 	clear_b.pressed.connect(func():
 		_draft_ids.clear()
 		_refresh_lists_only()
 	)
-	head.add_child(clear_b)
+	row.add_child(clear_b)
 	var save_b := Button.new()
 	save_b.text = "편성 완료"
-	save_b.custom_minimum_size = Vector2(96 if not _dense else 84, 22 if _dense else 24)
+	save_b.custom_minimum_size = Vector2(88 if not _dense else 76, 28 if not _dense else 24)
 	_apply_metal_button(save_b, true)
 	save_b.pressed.connect(_on_confirm)
-	head.add_child(save_b)
-
-	_party_row = HBoxContainer.new()
-	_party_row.add_theme_constant_override("separation", 5)
-	_party_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vb.add_child(_party_row)
+	row.add_child(save_b)
 	_populate_party_strip()
 	return host
 
@@ -1450,29 +1456,33 @@ func _populate_party_strip() -> void:
 		return
 	for c in _party_row.get_children():
 		c.free()
+	# Refresh title text if present.
+	var strip := find_child("PartyStrip", true, false)
+	if strip:
+		var title := strip.find_child("PartyTitle", true, false) as Label
+		if title:
+			var max_label_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
+			title.text = "선택 파티 (%d/%d)" % [_draft_ids.size(), max_label_n]
 	var max_n: int = int(GameState.GUILD_PARTY_MAX.get(party_kind, 5))
 	for i in max_n:
 		var slot := PanelContainer.new()
-		slot.custom_minimum_size = Vector2(68 if _dense else 88, 48 if _dense else 56)
+		slot.custom_minimum_size = Vector2(96 if not _dense else 78, 44 if not _dense else 40)
 		slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var outer_sb := _style_card_outer(i < _draft_ids.size())
-		outer_sb.content_margin_left = 2
-		outer_sb.content_margin_right = 2
+		outer_sb.content_margin_left = 3
+		outer_sb.content_margin_right = 3
 		outer_sb.content_margin_top = 2
 		outer_sb.content_margin_bottom = 2
 		slot.add_theme_stylebox_override("panel", outer_sb)
 		if i < _draft_ids.size():
 			var mid := str(_draft_ids[i])
 			var m := GameState.get_member_by_id(mid)
-			var inner := PanelContainer.new()
-			inner.add_theme_stylebox_override("panel", _style_card_inner(true))
-			slot.add_child(inner)
 			var row := HBoxContainer.new()
-			row.add_theme_constant_override("separation", 4)
-			inner.add_child(row)
+			row.add_theme_constant_override("separation", 3)
+			slot.add_child(row)
 			var tr := TextureRect.new()
 			tr.texture = _card_portrait_for(str(m.get("job", "dps")))
-			tr.custom_minimum_size = Vector2(28 if _dense else 34, 28 if _dense else 34)
+			tr.custom_minimum_size = Vector2(28 if not _dense else 24, 28 if not _dense else 24)
 			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -1481,14 +1491,11 @@ func _populate_party_strip() -> void:
 			texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			texts.add_theme_constant_override("separation", 0)
 			row.add_child(texts)
-			var nm := UIStyle.label(str(m.get("name", mid)), 10 if not _dense else 9, METAL_GOLD_BRIGHT)
-			texts.add_child(nm)
-			texts.add_child(UIStyle.label("%s Lv.%d" % [
-				UIStyle.job_name(str(m.get("job", ""))), int(m.get("level", 1))
-			], 8, INK_DIM))
+			texts.add_child(UIStyle.label(str(m.get("name", mid)), 10 if not _dense else 9, METAL_GOLD_BRIGHT))
+			texts.add_child(UIStyle.label(UIStyle.job_name(str(m.get("job", ""))), 8, INK_DIM))
 			var xbtn := Button.new()
 			xbtn.text = "×"
-			xbtn.custom_minimum_size = Vector2(20, 20)
+			xbtn.custom_minimum_size = Vector2(22, 22)
 			_apply_metal_button(xbtn)
 			var mid_copy := mid
 			xbtn.pressed.connect(func():
@@ -1497,7 +1504,7 @@ func _populate_party_strip() -> void:
 			)
 			row.add_child(xbtn)
 		else:
-			var empty := UIStyle.label("빈 슬롯", 11, INK_DIM)
+			var empty := UIStyle.label("+", 14, INK_DIM)
 			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
